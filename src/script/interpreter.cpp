@@ -599,6 +599,11 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
                 break;
 
+                // Avian: OP_AVN_ASSET is a no-op in the interpreter.
+                // Asset script validation is handled at the block validation layer.
+                case OP_AVN_ASSET:
+                break;
+
                 case OP_IF:
                 case OP_NOTIF:
                 {

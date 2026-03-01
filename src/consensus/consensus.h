@@ -10,9 +10,9 @@
 #include <cstdlib>
 
 /** The maximum allowed size for a serialized block, in bytes (only for buffer size limits) */
-static const unsigned int MAX_BLOCK_SERIALIZED_SIZE = 4000000;
+static const unsigned int MAX_BLOCK_SERIALIZED_SIZE = 8000000;
 /** The maximum allowed weight for a block, see BIP 141 (network rule) */
-static const unsigned int MAX_BLOCK_WEIGHT = 4000000;
+static const unsigned int MAX_BLOCK_WEIGHT = 8000000;
 /** The maximum allowed number of signature check operations in a block (network rule) */
 static const int64_t MAX_BLOCK_SIGOPS_COST = 80000;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
@@ -22,6 +22,14 @@ static const int WITNESS_SCALE_FACTOR = 4;
 
 static const size_t MIN_TRANSACTION_WEIGHT = WITNESS_SCALE_FACTOR * 60; // 60 is the lower bound for the size of a valid serialized CTransaction
 static const size_t MIN_SERIALIZABLE_TRANSACTION_WEIGHT = WITNESS_SCALE_FACTOR * 10; // 10 is the lower bound for the size of a serialized CTransaction
+
+/** Avian feature activation flags (global state, set during block connection) */
+inline bool fAssetsIsActive = false;
+inline bool fFlightPlansIsActive = false;
+inline bool fAvianNameSystemIsActive = false;
+inline bool fTransferScriptIsActive = false;
+inline bool fEnforcedValuesIsActive = true;       // AVN: Always return true for enforced values
+inline bool fCheckCoinbaseAssetsIsActive = true;   // AVN: Always return true for coinbase asset checks
 
 /** Flags for nSequence and nLockTime locks */
 /** Interpret sequence numbers as relative lock-time constraints. */

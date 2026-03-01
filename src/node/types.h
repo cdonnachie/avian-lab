@@ -48,6 +48,11 @@ struct BlockCreateOptions {
      */
     size_t coinbase_output_max_additional_sigops{400};
     /**
+     * Avian dual-algo: PoW algorithm type for the block to be mined.
+     * Default is X16RT (0). Set to POW_TYPE_MINOTAURX (1) for MinotaurX.
+     */
+    int pow_type{0};
+    /**
      * Script to put in the coinbase transaction. The default is an
      * anyone-can-spend dummy.
      *

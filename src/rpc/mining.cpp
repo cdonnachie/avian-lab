@@ -139,8 +139,9 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock&& block, uint64_t&
     block_out.reset();
     block.hashMerkleRoot = BlockMerkleRoot(block);
 
-    while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetHash(), block.nBits, chainman.GetConsensus()) && !chainman.m_interrupt) {
+    while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block, chainman.GetConsensus()) && !chainman.m_interrupt) {
         ++block.nNonce;
+        block.m_hasPoWHash = false; // Invalidate cached PoW hash after nonce change
         --max_tries;
     }
     if (max_tries == 0 || chainman.m_interrupt) {

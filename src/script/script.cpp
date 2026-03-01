@@ -149,6 +149,9 @@ std::string GetOpName(opcodetype opcode)
     // Opcode added by BIP 342 (Tapscript)
     case OP_CHECKSIGADD            : return "OP_CHECKSIGADD";
 
+    // Avian asset opcode
+    case OP_AVN_ASSET              : return "OP_AVN_ASSET";
+
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
     default:
@@ -367,7 +370,7 @@ bool IsOpSuccess(const opcodetype& opcode)
     return opcode == 80 || opcode == 98 || (opcode >= 126 && opcode <= 129) ||
            (opcode >= 131 && opcode <= 134) || (opcode >= 137 && opcode <= 138) ||
            (opcode >= 141 && opcode <= 142) || (opcode >= 149 && opcode <= 153) ||
-           (opcode >= 187 && opcode <= 254);
+           (opcode >= 187 && opcode <= 254 && opcode != OP_AVN_ASSET);
 }
 
 bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode) {
@@ -393,4 +396,136 @@ bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode)
         return opcode == OP_PUSHDATA2;
     }
     return true;
+}
+
+// ========================================================================
+// Avian asset script detection
+// ========================================================================
+
+// AVN message header constants
+#define AVN_R 114  // 'r'
+#define AVN_V 118  // 'v'
+#define AVN_N 110  // 'n'
+#define AVN_Q 113  // 'q' - qualifier/new asset
+#define AVN_T 116  // 't' - transfer
+#define AVN_O 111  // 'o' - owner
+// Note: AVN_R (114) is reused for reissue type byte
+
+bool CScript::IsAssetScript(int& nType, bool& fIsOwner, int& nStartingIndex) const
+{
+    if (this->size() > 31) {
+        if ((*this)[25] == OP_AVN_ASSET) {
+            int index = -1;
+            if ((*this)[27] == AVN_R) {
+                if ((*this)[28] == AVN_V)
+                    if ((*this)[29] == AVN_N)
+                        index = 30;
+            } else {
+                if ((*this)[28] == AVN_R) {
+                    if ((*this)[29] == AVN_V)
+                        if ((*this)[30] == AVN_N)
+                            index = 31;
+                }
+            }
+
+            if (index > 0) {
+                nStartingIndex = index + 1;
+                if ((*this)[index] == AVN_T) {
+                    nType = 10; // TX_TRANSFER_ASSET
+                    return true;
+                } else if ((*this)[index] == AVN_Q && this->size() > 39) {
+                    nType = 8; // TX_NEW_ASSET
+                    fIsOwner = false;
+                    return true;
+                } else if ((*this)[index] == AVN_O) {
+                    nType = 8; // TX_NEW_ASSET
+                    fIsOwner = true;
+                    return true;
+                } else if ((*this)[index] == AVN_R) {
+                    nType = 9; // TX_REISSUE_ASSET
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool CScript::IsAssetScript(int& nType, bool& fIsOwner) const
+{
+    int nStartingIndex = 0;
+    return IsAssetScript(nType, fIsOwner, nStartingIndex);
+}
+
+bool CScript::IsAssetScript() const
+{
+    int nType = 0;
+    bool fIsOwner = false;
+    return IsAssetScript(nType, fIsOwner);
+}
+
+bool CScript::IsNewAsset() const
+{
+    int nType = 0;
+    bool fIsOwner = false;
+    if (!IsAssetScript(nType, fIsOwner))
+        return false;
+    return nType == 8 && !fIsOwner; // TX_NEW_ASSET, not owner
+}
+
+bool CScript::IsOwnerAsset() const
+{
+    int nType = 0;
+    bool fIsOwner = false;
+    if (!IsAssetScript(nType, fIsOwner))
+        return false;
+    return nType == 8 && fIsOwner; // TX_NEW_ASSET with owner flag
+}
+
+bool CScript::IsReissueAsset() const
+{
+    int nType = 0;
+    bool fIsOwner = false;
+    if (!IsAssetScript(nType, fIsOwner))
+        return false;
+    return nType == 9; // TX_REISSUE_ASSET
+}
+
+bool CScript::IsTransferAsset() const
+{
+    int nType = 0;
+    bool fIsOwner = false;
+    if (!IsAssetScript(nType, fIsOwner))
+        return false;
+    return nType == 10; // TX_TRANSFER_ASSET
+}
+
+bool CScript::IsNullAssetTxDataScript() const
+{
+    return (this->size() > 23 &&
+            (*this)[0] == OP_AVN_ASSET &&
+            (*this)[1] == 0x14);
+}
+
+bool CScript::IsNullGlobalRestrictionAssetTxDataScript() const
+{
+    return (this->size() > 6 &&
+            (*this)[0] == OP_AVN_ASSET &&
+            (*this)[1] == OP_RESERVED &&
+            (*this)[2] == OP_RESERVED);
+}
+
+bool CScript::IsNullAssetVerifierTxDataScript() const
+{
+    return (this->size() > 3 &&
+            (*this)[0] == OP_AVN_ASSET &&
+            (*this)[1] == OP_RESERVED &&
+            (*this)[2] != OP_RESERVED);
+}
+
+bool CScript::IsNullAsset() const
+{
+    return IsNullAssetTxDataScript() ||
+           IsNullGlobalRestrictionAssetTxDataScript() ||
+           IsNullAssetVerifierTxDataScript();
 }

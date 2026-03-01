@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2017 The Raven Core developers
+// Copyright (c) 2022 The Avian Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -12,6 +14,7 @@
 #include <chrono>
 #include <limits>
 #include <map>
+#include <string>
 #include <vector>
 
 namespace Consensus {
@@ -78,6 +81,33 @@ struct BIP9Deployment {
 };
 
 /**
+ * Avian network upgrades using timestamps (instead of BIP9 version bits).
+ */
+enum UpgradeIndex {
+    UPGRADE_X16RT_SWITCH,
+    UPGRADE_DUAL_ALGO,
+    UPGRADE_AVIAN_ASSETS,
+    UPGRADE_AVIAN_FLIGHT_PLANS,
+    UPGRADE_AVIAN_NAME_SYSTEM,
+    MAX_NETWORK_UPGRADES
+};
+
+/**
+ * Struct for each network upgrade using timestamp.
+ */
+struct NetworkUpgrade {
+    uint32_t nTimestamp{std::numeric_limits<uint32_t>::max()};
+};
+
+/**
+ * Founder reward structure for Avian.
+ */
+struct FounderRewardStructure {
+    int blockHeight;
+    int rewardPercentage;
+};
+
+/**
  * Parameters that influence chain consensus.
  */
 struct Params {
@@ -107,6 +137,10 @@ struct Params {
      * This prevents us from warning about the CSV and segwit activations. */
     int MinBIP9WarningHeight;
     std::array<BIP9Deployment,MAX_VERSION_BITS_DEPLOYMENTS> vDeployments;
+
+    /** Avian timestamp-based network upgrades */
+    std::array<NetworkUpgrade, MAX_NETWORK_UPGRADES> vUpgrades;
+
     /** Proof of work parameters */
     uint256 powLimit;
     bool fPowAllowMinDifficultyBlocks;
@@ -134,6 +168,33 @@ struct Params {
      */
     bool signet_blocks{false};
     std::vector<uint8_t> signet_challenge;
+
+    // ========== Avian-specific consensus fields ==========
+
+    /** Timestamp for the X16R -> X16RT algorithm switch */
+    uint32_t nX16rtTimestamp{0};
+
+    /** Dual algorithm consensus fields */
+    uint32_t powForkTime{0};                     // Timestamp of dual-algo activation
+    int64_t diffRetargetFix{0};                  // Block height for first LWMA fix
+    int64_t diffRetargetTake2{0};                // Timestamp for LWMA3 activation
+    int64_t lwmaAveragingWindow{45};             // Averaging window size for LWMA
+    std::vector<uint256> powTypeLimits;          // Per-algorithm difficulty limits
+
+    /** Avian Founder Payment */
+    std::string founderAddress;
+    int founderStartBlock{0};
+    std::vector<FounderRewardStructure> founderRewardStructures;
+
+    /** Avian feature activation (boolean flags, derived from upgrade timestamps) */
+    bool nBIP34Enabled{true};
+    bool nBIP65Enabled{true};
+    bool nBIP66Enabled{true};
+    bool nSegwitEnabled{true};
+    bool nCSVEnabled{true};
+
+    /** Max reorg protection */
+    int nMaxReorganizationDepth{60};
 
     int DeploymentHeight(BuriedDeployment dep) const
     {

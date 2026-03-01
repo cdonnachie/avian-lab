@@ -108,6 +108,16 @@ public:
 
     constexpr uint64_t GetUint64(int pos) const { return ReadLE64(m_data.data() + pos * 8); }
 
+    /** Get a nibble (4 bits) from the blob, indexed from the most significant end. */
+    int GetNibble(int index) const
+    {
+        // Avian: nibble 0 is the most-significant nibble
+        index = (WIDTH * 2 - 1) - index;
+        if (index % 2 == 1)
+            return (m_data[index / 2] >> 4);
+        return (m_data[index / 2] & 0x0F);
+    }
+
     template<typename Stream>
     void Serialize(Stream& s) const
     {
@@ -203,6 +213,27 @@ public:
     constexpr explicit uint256(std::span<const unsigned char> vch) : base_blob<256>(vch) {}
     static const uint256 ZERO;
     static const uint256 ONE;
+};
+
+/** 512-bit opaque blob.
+ * Used by Avian's dual-algorithm PoW hash functions (X16RT, MinotaurX).
+ */
+class uint512 : public base_blob<512> {
+public:
+    constexpr uint512() = default;
+    constexpr explicit uint512(std::span<const unsigned char> vch) : base_blob<512>(vch) {}
+
+    unsigned char ByteAt(unsigned int n) const
+    {
+        return m_data[n];
+    }
+
+    uint256 trim256() const
+    {
+        uint256 result;
+        memcpy(result.data(), m_data.data(), 32);
+        return result;
+    }
 };
 
 #endif // BITCOIN_UINT256_H

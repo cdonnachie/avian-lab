@@ -87,7 +87,7 @@ CBlock BuildChainTestingSetup::CreateBlock(const CBlockIndex* prev,
         block.hashMerkleRoot = BlockMerkleRoot(block);
     }
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block, m_node.chainman->GetConsensus())) { block.m_hasPoWHash = false; ++block.nNonce; }
 
     return block;
 }

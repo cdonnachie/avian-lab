@@ -8,6 +8,9 @@
 !/build-aux
 !/build_msvc
 
+# Claude Code temp files
+tmpclaude-*
+
 *.pyc
 
 # Only ignore unexpected patches

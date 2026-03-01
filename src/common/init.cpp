@@ -5,7 +5,9 @@
 #include <chainparams.h>
 #include <common/args.h>
 #include <common/init.h>
+#include <consensus/params.h>
 #include <logging.h>
+#include <primitives/block.h>
 #include <tinyformat.h>
 #include <util/fs.h>
 #include <util/translation.h>
@@ -41,6 +43,14 @@ std::optional<ConfigError> InitConfig(ArgsManager& args, SettingsAbortFn setting
 
         // Check for chain settings (Params() calls are only valid after this clause)
         SelectParams(args.GetChainType());
+
+        // Initialize PoW hash algorithm timestamps from consensus params.
+        // Must be called before any block hashing occurs.
+        const auto& consensus = Params().GetConsensus();
+        SetPoWHashParams(
+            consensus.vUpgrades[Consensus::UPGRADE_X16RT_SWITCH].nTimestamp,
+            consensus.vUpgrades[Consensus::UPGRADE_DUAL_ALGO].nTimestamp
+        );
 
         // Create datadir if it does not exist.
         const auto base_path{args.GetDataDirBase()};

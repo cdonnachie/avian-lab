@@ -98,6 +98,10 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     case TxoutType::MULTISIG:
     case TxoutType::NULL_DATA:
     case TxoutType::NONSTANDARD:
+    case TxoutType::NEW_ASSET:
+    case TxoutType::REISSUE_ASSET:
+    case TxoutType::TRANSFER_ASSET:
+    case TxoutType::RESTRICTED_ASSET_DATA:
         addressRet = CNoDestination(scriptPubKey);
         return false;
     } // no default case, so the compiler can warn about missing cases

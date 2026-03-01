@@ -551,6 +551,10 @@ static RPCHelpMan decodescript()
         case TxoutType::WITNESS_UNKNOWN:
         case TxoutType::WITNESS_V1_TAPROOT:
         case TxoutType::ANCHOR:
+        case TxoutType::NEW_ASSET:
+        case TxoutType::REISSUE_ASSET:
+        case TxoutType::TRANSFER_ASSET:
+        case TxoutType::RESTRICTED_ASSET_DATA:
             // Should not be wrapped
             return false;
         } // no default case, so the compiler can warn about missing cases
@@ -594,6 +598,10 @@ static RPCHelpMan decodescript()
             case TxoutType::WITNESS_V0_SCRIPTHASH:
             case TxoutType::WITNESS_V1_TAPROOT:
             case TxoutType::ANCHOR:
+            case TxoutType::NEW_ASSET:
+            case TxoutType::REISSUE_ASSET:
+            case TxoutType::TRANSFER_ASSET:
+            case TxoutType::RESTRICTED_ASSET_DATA:
                 // Should not be wrapped
                 return false;
             } // no default case, so the compiler can warn about missing cases

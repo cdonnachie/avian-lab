@@ -28,6 +28,12 @@
  */
 static constexpr int64_t MAX_FUTURE_BLOCK_TIME = 2 * 60 * 60;
 
+/** Avian: Tighter future block time limit when DGW is active (pre-dual-algo) */
+static constexpr int64_t MAX_FUTURE_BLOCK_TIME_DGW = MAX_FUTURE_BLOCK_TIME / 10;
+
+/** Avian: Future block time limit for dual-algo era: (N*T)/20 where N=90, T=5*60 */
+static constexpr int64_t MAX_FUTURE_BLOCK_TIME_DUAL_ALGO = (90 * 5 * 60) / 20;
+
 /**
  * Timestamp window used as a grace period by code that compares external
  * timestamps (such as timestamps passed to RPCs, or wallet key creation times)

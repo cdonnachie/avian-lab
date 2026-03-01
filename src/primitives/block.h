@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2017 The Raven Core developers
+// Copyright (c) 2022 The Avian Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,6 +12,32 @@
 #include <serialize.h>
 #include <uint256.h>
 #include <util/time.h>
+
+#include <string>
+
+// Dual Algo: An impossible pow hash (can't meet any target)
+const uint256 HIGH_HASH = uint256{"0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"};
+
+// Dual Algo: Default value for -powalgo argument
+const std::string DEFAULT_POW_TYPE = "x16rt";
+
+// Dual Algo: Pow type names
+const std::string POW_TYPE_NAMES[] = {
+    "x16rt",
+    "minotaurx"};
+
+// Dual Algo: Pow type IDs
+enum POW_TYPE {
+    POW_TYPE_X16RT,
+    POW_TYPE_MINOTAURX,
+    //
+    NUM_BLOCK_TYPES
+};
+
+// Called during initialization to set the PoW algorithm timestamps.
+// Must be called before any block hashing occurs (except genesis).
+void SetPoWHashParams(uint32_t nX16rtTimestamp, uint32_t nDualAlgoTimestamp);
+bool ArePoWHashParamsSet();
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -29,6 +57,10 @@ public:
     uint32_t nBits;
     uint32_t nNonce;
 
+    // Cached PoW hash (not serialized, mutable for const access)
+    mutable uint256 m_cachedPoWHash;
+    mutable bool m_hasPoWHash{false};
+
     CBlockHeader()
     {
         SetNull();
@@ -44,6 +76,8 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        m_cachedPoWHash.SetNull();
+        m_hasPoWHash = false;
     }
 
     bool IsNull() const
@@ -51,7 +85,23 @@ public:
         return (nBits == 0);
     }
 
+    // Returns the SHA256d hash (used for serialization ID, cache keys, etc.)
+    uint256 GetSHA256Hash() const;
+
+    // Computes the PoW hash using provided timestamps (no global state access)
+    uint256 ComputePoWHash(uint32_t nX16rtTimestamp, uint32_t nDualAlgoTimestamp) const;
+
+    // Returns the block hash for chain identification.
+    // When PoW params are set, returns the PoW hash (X16R/X16RT/MinotaurX).
+    // Before initialization, falls back to SHA256d.
+    // Result is cached per-object for performance.
     uint256 GetHash() const;
+
+    // Direct X16R hash using hashPrevBlock for hash selection (genesis blocks)
+    uint256 GetX16RHash() const;
+
+    // Dual Algo: MinotaurX hash of arbitrary data
+    static uint256 MinotaurxHashArbitrary(const char* data);
 
     NodeSeconds Time() const
     {
@@ -62,6 +112,21 @@ public:
     {
         return (int64_t)nTime;
     }
+
+    // Dual Algo: Get pow type from version bits
+    POW_TYPE GetPoWType() const
+    {
+        return (POW_TYPE)((nVersion >> 16) & 0xFF);
+    }
+
+    // Dual Algo: Get pow type name
+    std::string GetPoWTypeName() const
+    {
+        POW_TYPE pt = GetPoWType();
+        if (pt >= NUM_BLOCK_TYPES)
+            return "unrecognised";
+        return POW_TYPE_NAMES[pt];
+    }
 };
 
 
@@ -70,6 +135,9 @@ class CBlock : public CBlockHeader
 public:
     // network and disk
     std::vector<CTransactionRef> vtx;
+
+    // founder payment
+    mutable CTxOut txoutFounder;
 
     // Memory-only flags for caching expensive checks
     mutable bool fChecked;                            // CheckBlock()
@@ -99,6 +167,7 @@ public:
         fChecked = false;
         m_checked_witness_commitment = false;
         m_checked_merkle_root = false;
+        txoutFounder = CTxOut();
     }
 
     CBlockHeader GetBlockHeader() const

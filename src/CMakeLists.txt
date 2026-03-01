@@ -58,6 +58,49 @@ if(ENABLE_IPC)
   add_subdirectory(ipc)
 endif()
 
+# Avian PoW algorithm library (X16RT + MinotaurX hash functions)
+add_library(avian_algo STATIC EXCLUDE_FROM_ALL
+  algo/extra.c
+  algo/x16r/blake.c
+  algo/x16r/bmw.c
+  algo/x16r/cubehash.c
+  algo/x16r/echo.c
+  algo/x16r/fugue.c
+  algo/x16r/gost_streebog.c
+  algo/x16r/groestl.c
+  algo/x16r/hamsi.c
+  algo/x16r/haval.c
+  algo/x16r/jh.c
+  algo/x16r/keccak.c
+  algo/x16r/luffa.c
+  algo/x16r/lyra2.cpp
+  algo/x16r/sha2.c
+  algo/x16r/shabal.c
+  algo/x16r/shavite.c
+  algo/x16r/simd.c
+  algo/x16r/skein.c
+  algo/x16r/sph_sha2.c
+  algo/x16r/sph_sha2big.c
+  algo/x16r/sponge.cpp
+  algo/x16r/tiger.cpp
+  algo/x16r/whirlpool.c
+  algo/minotaurx/blake2s-ref.c
+  algo/minotaurx/pbkdf2.cpp
+  algo/minotaurx/yespower/yespower.c
+  algo/minotaurx/yespower/crypto/sha256.c
+)
+target_include_directories(avian_algo
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/algo/x16r
+    ${CMAKE_CURRENT_SOURCE_DIR}/algo/minotaurx
+    ${CMAKE_CURRENT_SOURCE_DIR}/algo/minotaurx/yespower
+)
+target_link_libraries(avian_algo
+  PRIVATE
+    core_interface
+)
+
 add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   arith_uint256.cpp
   consensus/merkle.cpp
@@ -75,6 +118,7 @@ target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
     bitcoin_crypto
+    avian_algo
     secp256k1
 )
 
@@ -110,6 +154,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   core_write.cpp
   deploymentinfo.cpp
   external_signer.cpp
+  founder_payment.cpp
   init/common.cpp
   kernel/chainparams.cpp
   key.cpp

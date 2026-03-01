@@ -15,6 +15,7 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
+#include <founder_payment.h>
 #include <logging.h>
 #include <node/context.h>
 #include <node/kernel_notifications.h>
@@ -58,7 +59,12 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 
     // Updating time can change work required on testnet:
     if (consensusParams.fPowAllowMinDifficultyBlocks) {
-        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
+        POW_TYPE powType = pblock->GetPoWType();
+        if (IsDualAlgoEnabled(pindexPrev, consensusParams)) {
+            pblock->nBits = GetNextWorkRequiredLWMA(pindexPrev, pblock, consensusParams, powType);
+        } else {
+            pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
+        }
     }
 
     return nNewTime - nOldTime;
@@ -137,6 +143,16 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     nHeight = pindexPrev->nHeight + 1;
 
     pblock->nVersion = m_chainstate.m_chainman.m_versionbitscache.ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+
+    // Avian dual-algo: encode pow type in nVersion when dual-algo is enabled
+    const POW_TYPE powType = static_cast<POW_TYPE>(m_options.pow_type);
+    const Consensus::Params& consensusParams = chainparams.GetConsensus();
+    if (IsDualAlgoEnabled(pindexPrev, consensusParams)) {
+        if (powType >= NUM_BLOCK_TYPES)
+            throw std::runtime_error("Error: Unrecognised pow type requested");
+        pblock->nVersion |= powType << 16;
+    }
+
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand()) {
@@ -168,6 +184,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     Assert(nHeight > 0);
     coinbaseTx.nLockTime = static_cast<uint32_t>(nHeight - 1);
+
+    // Avian: Fill founder payment (reduces miner reward and adds founder output)
+    CTxOut txoutFounder;
+    FounderPayment founderPayment(chainparams.GetConsensus());
+    founderPayment.FillFounderPayment(coinbaseTx, nHeight, nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus()), txoutFounder);
+
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);
 
@@ -176,7 +198,13 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
     UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+
+    // Avian dual-algo: use LWMA for difficulty when dual-algo is enabled
+    if (IsDualAlgoEnabled(pindexPrev, consensusParams)) {
+        pblock->nBits = GetNextWorkRequiredLWMA(pindexPrev, pblock, consensusParams, powType);
+    } else {
+        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
+    }
     pblock->nNonce         = 0;
 
     if (m_options.test_block_validity) {

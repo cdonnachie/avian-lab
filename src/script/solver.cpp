@@ -29,6 +29,10 @@ std::string GetTxnOutputType(TxoutType t)
     case TxoutType::WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
     case TxoutType::WITNESS_V1_TAPROOT: return "witness_v1_taproot";
     case TxoutType::WITNESS_UNKNOWN: return "witness_unknown";
+    case TxoutType::NEW_ASSET: return "new_asset";
+    case TxoutType::REISSUE_ASSET: return "reissue_asset";
+    case TxoutType::TRANSFER_ASSET: return "transfer_asset";
+    case TxoutType::RESTRICTED_ASSET_DATA: return "restricted_asset_data";
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
@@ -204,6 +208,31 @@ TxoutType Solver(const CScript& scriptPubKey, std::vector<std::vector<unsigned c
         vSolutionsRet.insert(vSolutionsRet.end(), keys.begin(), keys.end());
         vSolutionsRet.push_back({static_cast<unsigned char>(keys.size())}); // safe as size is in range 1..20
         return TxoutType::MULTISIG;
+    }
+
+    // Avian asset scripts
+    {
+        int nType = 0;
+        bool fIsOwner = false;
+        if (scriptPubKey.IsAssetScript(nType, fIsOwner)) {
+            // Extract the destination hash (bytes 3..22) for standard asset scripts
+            if (scriptPubKey.size() >= 23) {
+                std::vector<unsigned char> hashBytes(scriptPubKey.begin() + 3, scriptPubKey.begin() + 23);
+                vSolutionsRet.push_back(hashBytes);
+            }
+            if (nType == 8) return TxoutType::NEW_ASSET;
+            if (nType == 9) return TxoutType::REISSUE_ASSET;
+            if (nType == 10) return TxoutType::TRANSFER_ASSET;
+        }
+    }
+
+    // Avian OP_AVN_ASSET null data (restricted asset data, qualifier tags, verifier strings)
+    if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_AVN_ASSET) {
+        if (scriptPubKey.IsNullAssetTxDataScript() && scriptPubKey.size() >= 23) {
+            std::vector<unsigned char> hashBytes(scriptPubKey.begin() + 2, scriptPubKey.begin() + 22);
+            vSolutionsRet.push_back(hashBytes);
+        }
+        return TxoutType::RESTRICTED_ASSET_DATA;
     }
 
     vSolutionsRet.clear();
