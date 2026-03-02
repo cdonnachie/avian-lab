@@ -85,16 +85,14 @@ public:
         return (nBits == 0);
     }
 
-    // Returns the SHA256d hash (used for serialization ID, cache keys, etc.)
+    // Returns the SHA256d hash (used when PoW params not yet set)
     uint256 GetSHA256Hash() const;
 
     // Computes the PoW hash using provided timestamps (no global state access)
     uint256 ComputePoWHash(uint32_t nX16rtTimestamp, uint32_t nDualAlgoTimestamp) const;
 
-    // Returns the block hash for chain identification.
-    // When PoW params are set, returns the PoW hash (X16R/X16RT/MinotaurX).
-    // Before initialization, falls back to SHA256d.
-    // Result is cached per-object for performance.
+    // Returns the PoW hash (X16R/X16RT/MinotaurX) when PoW params are set,
+    // or SHA256d before initialization. Result is cached.
     uint256 GetHash() const;
 
     // Direct X16R hash using hashPrevBlock for hash selection (genesis blocks)

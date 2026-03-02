@@ -231,12 +231,12 @@ uint256 Minotaurx(const T begin, const T end, bool minotaurX, yespower_local_t* 
     hash = TraverseGarden(&garden, hash, &garden.nodes[0], local);
 
 #ifdef MINOTAURX_DEBUG
-    printf("** Minotaurx Final hash:\t\t\t%s\n", uint256(hash).ToString().c_str());
+    printf("** Minotaurx Final hash:\t\t\t%s\n", hash.trim256().ToString().c_str());
     fflush(0);
 #endif
 
-    // Return truncated result
-    return uint256(hash);
+    // Return truncated result (take first 32 bytes of 64-byte hash)
+    return hash.trim256();
 }
 
 #endif // AVN_ALGO_MINOTAURX_H
