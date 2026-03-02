@@ -8,14 +8,14 @@
 #include <logging.h>
 #include <serialize.h>
 
-static const char ASSET_FLAG = 'A';
-static const char ASSET_ADDRESS_QUANTITY_FLAG = 'B';
-static const char ADDRESS_ASSET_QUANTITY_FLAG = 'C';
-static const char MY_ASSET_FLAG = 'M';
-static const char BLOCK_ASSET_UNDO_DATA = 'U';
-static const char MEMPOOL_REISSUED_TX = 'Z';
+static const uint8_t ASSET_FLAG = 'A';
+static const uint8_t ASSET_ADDRESS_QUANTITY_FLAG = 'B';
+static const uint8_t ADDRESS_ASSET_QUANTITY_FLAG = 'C';
+static const uint8_t MY_ASSET_FLAG = 'M';
+static const uint8_t BLOCK_ASSET_UNDO_DATA = 'U';
+static const uint8_t MEMPOOL_REISSUED_TX = 'Z';
 
-static size_t MAX_DATABASE_RESULTS = 50000;
+[[maybe_unused]] static size_t MAX_DATABASE_RESULTS = 50000;
 
 CAssetsDB::CAssetsDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
     : CDBWrapper(DBParams{
@@ -125,7 +125,7 @@ bool CAssetsDB::LoadAssets(CLRUCache<std::string, CDatabasedAssetData>& cache,
 
     // Load assets
     while (pcursor->Valid()) {
-        std::pair<char, std::string> key;
+        std::pair<uint8_t, std::string> key;
         if (pcursor->GetKey(key) && key.first == ASSET_FLAG) {
             CDatabasedAssetData data;
             if (pcursor->GetValue(data)) {
@@ -151,7 +151,7 @@ bool CAssetsDB::LoadAssets(CLRUCache<std::string, CDatabasedAssetData>& cache,
 
         // Load mapAssetAddressAmount
         while (pcursor3->Valid()) {
-            std::pair<char, std::pair<std::string, std::string> > key; // <Asset Name, Address> -> Quantity
+            std::pair<uint8_t, std::pair<std::string, std::string> > key; // <Asset Name, Address> -> Quantity
             if (pcursor3->GetKey(key) && key.first == ASSET_ADDRESS_QUANTITY_FLAG) {
                 CAmount value;
                 if (pcursor3->GetValue(value)) {
@@ -191,7 +191,7 @@ bool CAssetsDB::AssetDir(std::vector<CDatabasedAssetData>& assets, const std::st
         // compute table size for backwards offset
         long table_size = 0;
         while (pcursor->Valid()) {
-            std::pair<char, std::string> key;
+            std::pair<uint8_t, std::string> key;
             if (pcursor->GetKey(key) && key.first == ASSET_FLAG) {
                 if (prefix == "" ||
                     (wildcard && key.second.find(prefix) == 0) ||
@@ -210,7 +210,7 @@ bool CAssetsDB::AssetDir(std::vector<CDatabasedAssetData>& assets, const std::st
 
     // Load assets
     while (pcursor->Valid() && loaded < count) {
-        std::pair<char, std::string> key;
+        std::pair<uint8_t, std::string> key;
         if (pcursor->GetKey(key) && key.first == ASSET_FLAG) {
             if (prefix == "" ||
                     (wildcard && key.second.find(prefix) == 0) ||
@@ -246,7 +246,7 @@ bool CAssetsDB::AddressDir(std::vector<std::pair<std::string, CAmount> >& vecAss
     if (fGetTotal) {
         totalEntries = 0;
         while (pcursor->Valid()) {
-            std::pair<char, std::pair<std::string, std::string> > key;
+            std::pair<uint8_t, std::pair<std::string, std::string> > key;
             if (pcursor->GetKey(key) && key.first == ADDRESS_ASSET_QUANTITY_FLAG && key.second.first == address) {
                 totalEntries++;
             }
@@ -263,7 +263,7 @@ bool CAssetsDB::AddressDir(std::vector<std::pair<std::string, CAmount> >& vecAss
         // compute table size for backwards offset
         long table_size = 0;
         while (pcursor->Valid()) {
-            std::pair<char, std::pair<std::string, std::string> > key;
+            std::pair<uint8_t, std::pair<std::string, std::string> > key;
             if (pcursor->GetKey(key) && key.first == ADDRESS_ASSET_QUANTITY_FLAG && key.second.first == address) {
                 table_size += 1;
             }
@@ -278,7 +278,7 @@ bool CAssetsDB::AddressDir(std::vector<std::pair<std::string, CAmount> >& vecAss
 
     // Load assets
     while (pcursor->Valid() && loaded < count && loaded < MAX_DATABASE_RESULTS) {
-        std::pair<char, std::pair<std::string, std::string> > key;
+        std::pair<uint8_t, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == ADDRESS_ASSET_QUANTITY_FLAG && key.second.first == address) {
                 if (offset < skip) {
                     offset += 1;
@@ -311,7 +311,7 @@ bool CAssetsDB::AssetAddressDir(std::vector<std::pair<std::string, CAmount> >& v
     if (fGetTotal) {
         totalEntries = 0;
         while (pcursor->Valid()) {
-            std::pair<char, std::pair<std::string, std::string> > key;
+            std::pair<uint8_t, std::pair<std::string, std::string> > key;
             if (pcursor->GetKey(key) && key.first == ASSET_ADDRESS_QUANTITY_FLAG && key.second.first == assetName) {
                 totalEntries += 1;
             }
@@ -328,7 +328,7 @@ bool CAssetsDB::AssetAddressDir(std::vector<std::pair<std::string, CAmount> >& v
         // compute table size for backwards offset
         long table_size = 0;
         while (pcursor->Valid()) {
-            std::pair<char, std::pair<std::string, std::string> > key;
+            std::pair<uint8_t, std::pair<std::string, std::string> > key;
             if (pcursor->GetKey(key) && key.first == ASSET_ADDRESS_QUANTITY_FLAG && key.second.first == assetName) {
                 table_size += 1;
             }
@@ -343,7 +343,7 @@ bool CAssetsDB::AssetAddressDir(std::vector<std::pair<std::string, CAmount> >& v
 
     // Load assets
     while (pcursor->Valid() && loaded < count && loaded < MAX_DATABASE_RESULTS) {
-        std::pair<char, std::pair<std::string, std::string> > key;
+        std::pair<uint8_t, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == ASSET_ADDRESS_QUANTITY_FLAG && key.second.first == assetName) {
             if (offset < skip) {
                 offset += 1;

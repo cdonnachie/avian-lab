@@ -9,9 +9,12 @@
 #include <serialize.h>
 #include <sync.h>
 #include <uint256.h>
+#include <primitives/transaction.h>
+#include <tinyformat.h>
+
+std::string EncodeAssetData(std::string decoded);
 
 class CMessage;
-class COutPoint;
 
 // Message Database caches
 extern std::set<COutPoint> setDirtyMessagesRemove;

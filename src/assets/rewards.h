@@ -129,8 +129,7 @@ public:
         ::Serialize(s, strExceptionAddresses);
         ::Serialize(s, nDistributionAmount);
         ::Serialize(s, nHeight);
-        if (!(s.GetType() & SER_GETHASH))
-            ::Serialize(s, nStatus);
+        ::Serialize(s, nStatus);
     }
 
     template <typename Stream>
@@ -141,8 +140,7 @@ public:
         ::Unserialize(s, strExceptionAddresses);
         ::Unserialize(s, nDistributionAmount);
         ::Unserialize(s, nHeight);
-        if (!(s.GetType() & SER_GETHASH))
-            ::Unserialize(s, nStatus);
+        ::Unserialize(s, nStatus);
     }
 };
 

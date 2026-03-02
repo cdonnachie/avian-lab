@@ -8,6 +8,7 @@
 
 #include <coins.h>
 #include <consensus/amount.h>
+#include <assets/assettypes.h>
 #include <indirectmap.h>
 #include <kernel/cs_main.h>
 #include <kernel/mempool_entry.h>          // IWYU pragma: export
@@ -45,6 +46,17 @@ class CChain;
 class ValidationSignals;
 
 struct bilingual_str;
+
+/** AVN: Data about asset state changes from a connected block, used to evict
+ *  conflicting mempool transactions. */
+struct ConnectedBlockAssetData
+{
+    std::set<CAssetCacheNewAsset> newAssetsToAdd;
+    std::set<CAssetCacheRestrictedVerifiers> newVerifiersToAdd;
+    std::set<CAssetCacheRestrictedAddress> newAddressRestrictionsToAdd;
+    std::set<CAssetCacheRestrictedGlobal> newGlobalRestrictionsToAdd;
+    std::set<CAssetCacheQualifierAddress> newQualifiersToAdd;
+};
 
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
@@ -416,6 +428,35 @@ public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
     std::map<Txid, CAmount> mapDeltas GUARDED_BY(cs);
 
+    /** AVN: Asset tracking maps for mempool conflict detection */
+    std::map<std::string, uint256> mapAssetToHash GUARDED_BY(cs);
+    std::map<uint256, std::string> mapHashToAsset GUARDED_BY(cs);
+
+    /** Restricted assets maps */
+    std::map<std::pair<std::string, std::string>, std::set<uint256>> mapAddressesMarkedFrozen GUARDED_BY(cs);
+    std::map<uint256, std::set<std::pair<std::string, std::string>>> mapHashToAddressMarkedFrozen GUARDED_BY(cs);
+
+    std::map<std::string, std::set<uint256>> mapAssetMarkedGlobalFrozen GUARDED_BY(cs);
+    std::map<uint256, std::set<std::string>> mapHashMarkedGlobalFrozen GUARDED_BY(cs);
+
+    std::map<std::string, std::set<uint256>> mapAddressesQualifiersChanged GUARDED_BY(cs);
+    std::map<uint256, std::set<std::string>> mapHashQualifiersChanged GUARDED_BY(cs);
+
+    std::map<std::string, std::set<uint256>> mapAssetVerifierChanged GUARDED_BY(cs);
+    std::map<uint256, std::set<std::string>> mapHashVerifierChanged GUARDED_BY(cs);
+
+    std::map<std::string, std::set<uint256>> mapGlobalFreezingAssetTransactions GUARDED_BY(cs);
+    std::map<uint256, std::set<std::string>> mapHashGlobalFreezingAssetTransactions GUARDED_BY(cs);
+
+    std::map<std::pair<std::string, std::string>, std::set<uint256>> mapAddressAddedTag GUARDED_BY(cs);
+    std::map<uint256, std::set<std::pair<std::string, std::string>>> mapHashToAddressAddedTag GUARDED_BY(cs);
+
+    std::map<std::pair<std::string, std::string>, std::set<uint256>> mapAddressRemoveTag GUARDED_BY(cs);
+    std::map<uint256, std::set<std::pair<std::string, std::string>>> mapHashToAddressRemoveTag GUARDED_BY(cs);
+
+    std::map<std::string, std::set<uint256>> mapGlobalUnFreezingAssetTransactions GUARDED_BY(cs);
+    std::map<uint256, std::set<std::string>> mapHashGlobalUnFreezingAssetTransactions GUARDED_BY(cs);
+
     using Options = kernel::MemPoolOptions;
 
     const Options m_opts;
@@ -447,6 +488,7 @@ public:
     void removeForReorg(CChain& chain, std::function<bool(txiter)> filter_final_and_mature) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
     void removeConflicts(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight, ConnectedBlockAssetData& connectedBlockData) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     bool CompareDepthAndScore(const Wtxid& hasha, const Wtxid& hashb) const;
     bool isSpent(const COutPoint& outpoint) const;

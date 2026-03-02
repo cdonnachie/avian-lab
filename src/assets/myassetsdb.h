@@ -6,6 +6,7 @@
 #define BITCOIN_ASSETS_MYASSETSDB_H
 
 #include <dbwrapper.h>
+#include <primitives/transaction.h>
 #include <util/fs.h>
 
 #include <set>
@@ -14,7 +15,6 @@
 #include <vector>
 
 class CMessage;
-class COutPoint;
 
 class CMessageDB  : public CDBWrapper {
 

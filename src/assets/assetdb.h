@@ -9,6 +9,7 @@
 #include <dbwrapper.h>
 #include <serialize.h>
 #include <util/fs.h>
+#include <consensus/amount.h>
 
 #include <map>
 #include <string>
@@ -19,6 +20,9 @@ class CNewAsset;
 class uint256;
 class COutPoint;
 class CDatabasedAssetData;
+
+template <typename Key, typename Value>
+class CLRUCache;
 
 struct CBlockAssetUndo
 {

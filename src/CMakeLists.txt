@@ -196,6 +196,8 @@ target_link_libraries(bitcoin_common
 
 include(InstallBinaryComponent)
 
+add_subdirectory(assets)
+
 if(ENABLE_WALLET)
   add_subdirectory(wallet)
 
@@ -319,6 +321,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_node
   PRIVATE
     core_interface
+    bitcoin_assets
     bitcoin_common
     bitcoin_util
     $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>

@@ -5,12 +5,12 @@
 
 #include <assets/restricteddb.h>
 
-static const char DB_FLAG = 'D';
-static const char VERIFIER_FLAG = 'V';
-static const char ADDRESS_QULAIFIER_FLAG = 'T';
-static const char QULAIFIER_ADDRESS_FLAG = 'Q';
-static const char RESTRICTED_ADDRESS_FLAG = 'R';
-static const char GLOBAL_RESTRICTION_FLAG = 'G';
+static const uint8_t DB_FLAG = 'D';
+static const uint8_t VERIFIER_FLAG = 'V';
+static const uint8_t ADDRESS_QULAIFIER_FLAG = 'T';
+static const uint8_t QULAIFIER_ADDRESS_FLAG = 'Q';
+static const uint8_t RESTRICTED_ADDRESS_FLAG = 'R';
+static const uint8_t GLOBAL_RESTRICTION_FLAG = 'G';
 
 
 CRestrictedDB::CRestrictedDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
@@ -113,12 +113,12 @@ bool CRestrictedDB::EraseGlobalRestriction(const std::string& assetName)
 
 bool CRestrictedDB::WriteFlag(const std::string &name, bool fValue)
 {
-    return Write(std::make_pair(DB_FLAG, name), fValue ? '1' : '0');
+    return Write(std::make_pair(DB_FLAG, name), fValue ? static_cast<uint8_t>('1') : static_cast<uint8_t>('0'));
 }
 
 bool CRestrictedDB::ReadFlag(const std::string &name, bool &fValue)
 {
-    char ch;
+    uint8_t ch;
     if (!Read(std::make_pair(DB_FLAG, name), ch))
         return false;
     fValue = ch == '1';
@@ -133,7 +133,7 @@ bool CRestrictedDB::GetQualifierAddresses(std::string& qualifier, std::vector<st
 
     // Load all qualifiers related to that given address
     while (pcursor->Valid()) {
-        std::pair<char, std::pair<std::string, std::string> > key;
+        std::pair<uint8_t, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == QULAIFIER_ADDRESS_FLAG && key.second.first == qualifier) {
             addresses.emplace_back(key.second.second);
             pcursor->Next();
@@ -153,7 +153,7 @@ bool CRestrictedDB::CheckForAddressRootQualifier(const std::string& address, con
 
     // Load all qualifiers related to that given address
     while (pcursor->Valid()) {
-        std::pair<char, std::pair<std::string, std::string> > key;
+        std::pair<uint8_t, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == ADDRESS_QULAIFIER_FLAG && key.second.first == address) {
             if (key.second.second == qualifier || key.second.second.rfind(std::string(qualifier + "/"), 0) == 0) {
                 return true;
@@ -175,7 +175,7 @@ bool CRestrictedDB::GetAddressQualifiers(std::string& address, std::vector<std::
 
     // Load all qualifiers related to that given address
     while (pcursor->Valid()) {
-        std::pair<char, std::pair<std::string, std::string> > key;
+        std::pair<uint8_t, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == ADDRESS_QULAIFIER_FLAG && key.second.first == address) {
             qualifiers.emplace_back(key.second.second);
             pcursor->Next();
@@ -195,7 +195,7 @@ bool CRestrictedDB::GetAddressRestrictions(std::string& address, std::vector<std
 
     // Load all restrictions related to the given address
     while (pcursor->Valid()) {
-        std::pair<char, std::pair<std::string, std::string> > key;
+        std::pair<uint8_t, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == RESTRICTED_ADDRESS_FLAG && key.second.first == address) {
             restrictions.emplace_back(key.second.second);
             pcursor->Next();
@@ -215,7 +215,7 @@ bool CRestrictedDB::GetGlobalRestrictions(std::vector<std::string>& restrictions
 
     // Load all restrictions related to the given address
     while (pcursor->Valid()) {
-        std::pair<char, std::string> key;
+        std::pair<uint8_t, std::string> key;
         if (pcursor->GetKey(key) && key.first == GLOBAL_RESTRICTION_FLAG) {
             restrictions.emplace_back(key.second);
             pcursor->Next();

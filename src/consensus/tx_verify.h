@@ -8,12 +8,18 @@
 #include <consensus/amount.h>
 
 #include <cstdint>
+#include <set>
+#include <string>
 #include <vector>
 
 class CBlockIndex;
 class CCoinsViewCache;
 class CTransaction;
 class TxValidationState;
+class CAssetsCache;
+class CMessage;
+class CNullAssetTxData;
+class uint256;
 
 /** Transaction validation functions */
 
@@ -25,6 +31,15 @@ namespace Consensus {
  * Preconditions: tx.IsCoinBase() is false.
  */
 [[nodiscard]] bool CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee);
+
+/** AVN: Check asset inputs/outputs balance and validate asset operations */
+bool CheckTxAssets(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs,
+                   CAssetsCache* assetCache, bool fCheckMempool,
+                   std::vector<std::pair<std::string, uint256>>& vPairReissueAssets,
+                   const bool fRunningUnitTests = false,
+                   std::set<CMessage>* setMessages = nullptr,
+                   int64_t nBlocktime = 0,
+                   std::vector<std::pair<std::string, CNullAssetTxData>>* myNullAssetData = nullptr);
 } // namespace Consensus
 
 /** Auxiliary functions for transaction validation (ideally should not be exposed) */

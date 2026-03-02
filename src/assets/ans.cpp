@@ -13,6 +13,20 @@
 #include <util/strencodings.h>
 #include <key_io.h>
 
+// IsHexNumber was removed in BTC 30.2. Define a local version.
+static bool IsHexNumber(const std::string& str) {
+    if (str.empty()) return false;
+    size_t start = 0;
+    if (str.size() > 2 && str[0] == '0' && str[1] == 'x') start = 2;
+    for (size_t i = start; i < str.size(); i++) {
+        if (!((str[i] >= '0' && str[i] <= '9') ||
+              (str[i] >= 'a' && str[i] <= 'f') ||
+              (str[i] >= 'A' && str[i] <= 'F')))
+            return false;
+    }
+    return true;
+}
+
 /* Static prefix */
 const std::string CAvianNameSystemID::prefix = "ANS";
 

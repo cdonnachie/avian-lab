@@ -20,6 +20,7 @@
 #include <logging.h>
 #include <coins.h>
 #include <memusage.h>
+#include <span.h>
 #include <util/strencodings.h>
 #include <util/moneystr.h>
 #include <util/translation.h>
@@ -28,7 +29,25 @@
 #include <assets/assettypes.h>
 #include <assets/ans.h>
 #include <assets/LibBoolEE.h>
+#include <assets/restricteddb.h>
 #include <protocol.h>
+#include <util/chaintype.h>
+
+// Compatibility: old error() function logged a message and returned false.
+// Removed in BTC 30.2. Define as macro wrapping LogError.
+#define error(...) ([&]() -> bool { LogError(__VA_ARGS__); return false; }())
+
+// Helper: split string by delimiter characters (replaces boost::split + boost::is_any_of)
+static std::vector<std::string> SplitString(const std::string& str, const std::string& delimiters) {
+    std::vector<std::string> parts;
+    size_t start = 0, end;
+    while ((end = str.find_first_of(delimiters, start)) != std::string::npos) {
+        parts.push_back(str.substr(start, end - start));
+        start = end + 1;
+    }
+    parts.push_back(str.substr(start));
+    return parts;
+}
 
 #define SIX_MONTHS 15780000 // Six months worth of seconds
 
@@ -51,6 +70,29 @@ CLRUCache<std::string, int8_t>* passetsRestrictionCache = nullptr;
 CLRUCache<std::string, int8_t>* passetsGlobalRestrictionCache = nullptr;
 bool fAssetIndex = false;
 bool g_asset_reindex = false;
+
+// Deployment check stubs
+// TODO: These should check consensus activation timestamps from Params().GetConsensus()
+// For now, return true for features that are active on mainnet, false for unreleased features.
+bool AreAssetsDeployed()
+{
+    return true;
+}
+
+bool AreMessagesDeployed()
+{
+    return true;
+}
+
+bool AreRestrictedAssetsDeployed()
+{
+    return true;
+}
+
+bool IsAvianNameSystemDeployed()
+{
+    return false;
+}
 
 // excluding owner tag ('!')
 static const auto MAX_NAME_LENGTH = 31;
@@ -154,7 +196,7 @@ bool IsMsgChannelTagValid(const std::string &tag)
 bool IsNameValidBeforeTag(const std::string& name)
 {
     std::vector<std::string> parts;
-    boost::split(parts, name, boost::is_any_of(SUB_NAME_DELIMITER));
+    parts = SplitString(name, SUB_NAME_DELIMITER);
 
     if (!IsRootNameValid(parts.front())) return false;
 
@@ -172,7 +214,7 @@ bool IsNameValidBeforeTag(const std::string& name)
 bool IsQualifierNameValidBeforeTag(const std::string& name)
 {
     std::vector<std::string> parts;
-    boost::split(parts, name, boost::is_any_of(SUB_NAME_DELIMITER));
+    parts = SplitString(name, SUB_NAME_DELIMITER);
 
     if (!IsQualifierNameValid(parts.front())) return false;
 
@@ -196,7 +238,7 @@ bool IsQualifierNameValidBeforeTag(const std::string& name)
 bool IsAssetNameASubasset(const std::string& name)
 {
     std::vector<std::string> parts;
-    boost::split(parts, name, boost::is_any_of(SUB_NAME_DELIMITER));
+    parts = SplitString(name, SUB_NAME_DELIMITER);
 
     if (!IsRootNameValid(parts.front())) return false;
 
@@ -206,7 +248,7 @@ bool IsAssetNameASubasset(const std::string& name)
 bool IsAssetNameASubQualifier(const std::string& name)
 {
     std::vector<std::string> parts;
-    boost::split(parts, name, boost::is_any_of(SUB_NAME_DELIMITER));
+    parts = SplitString(name, SUB_NAME_DELIMITER);
 
     if (!IsQualifierNameValid(parts.front())) return false;
 
@@ -344,14 +386,14 @@ bool IsTypeCheckNameValid(const AssetType type, const std::string& name, std::st
     if (type == AssetType::UNIQUE) {
         if (name.size() > MAX_NAME_LENGTH) { error = "Name is greater than max length of " + std::to_string(MAX_NAME_LENGTH); return false; }
         std::vector<std::string> parts;
-        boost::split(parts, name, boost::is_any_of(UNIQUE_TAG_DELIMITER));
+        parts = SplitString(name, UNIQUE_TAG_DELIMITER);
         bool valid = IsNameValidBeforeTag(parts.front()) && IsUniqueTagValid(parts.back());
         if (!valid) { error = "Unique name contains invalid characters (Valid characters are: A-Z a-z 0-9 @ $ % & * ( ) [ ] { } _ . ? : -)";  return false; }
         return true;
     } else if (type == AssetType::MSGCHANNEL) {
         if (name.size() > MAX_NAME_LENGTH) { error = "Name is greater than max length of " + std::to_string(MAX_NAME_LENGTH); return false; }
         std::vector<std::string> parts;
-        boost::split(parts, name, boost::is_any_of(MSG_CHANNEL_TAG_DELIMITER));
+        parts = SplitString(name, MSG_CHANNEL_TAG_DELIMITER);
         bool valid = IsNameValidBeforeTag(parts.front()) && IsMsgChannelTagValid(parts.back());
         if (parts.back().size() > MAX_CHANNEL_NAME_LENGTH) { error = "Channel name is greater than max length of " + std::to_string(MAX_CHANNEL_NAME_LENGTH); return false; }
         if (!valid) { error = "Message Channel name contains invalid characters (Valid characters are: A-Z 0-9 _ .) (special characters can't be the first or last characters)";  return false; }
@@ -364,7 +406,7 @@ bool IsTypeCheckNameValid(const AssetType type, const std::string& name, std::st
     } else if (type == AssetType::VOTE) {
         if (name.size() > MAX_NAME_LENGTH) { error = "Name is greater than max length of " + std::to_string(MAX_NAME_LENGTH); return false; }
         std::vector<std::string> parts;
-        boost::split(parts, name, boost::is_any_of(VOTE_TAG_DELIMITER));
+        parts = SplitString(name, VOTE_TAG_DELIMITER);
         bool valid = IsNameValidBeforeTag(parts.front()) && IsVoteTagValid(parts.back());
         if (!valid) { error = "Vote name contains invalid characters (Valid characters are: A-Z 0-9 _ .) (special characters can't be the first or last characters)";  return false; }
         return true;
@@ -568,7 +610,7 @@ void CNewAsset::ConstructTransaction(CScript& script) const
     vchMessage.push_back(AVN_N); // n
     vchMessage.push_back(AVN_Q); // q
 
-    vchMessage.insert(vchMessage.end(), ssAsset.begin(), ssAsset.end());
+    vchMessage.insert(vchMessage.end(), UCharCast(ssAsset.data()), UCharCast(ssAsset.data() + ssAsset.size()));
     script << OP_AVN_ASSET << ToByteVector(vchMessage) << OP_DROP;
 }
 
@@ -583,14 +625,14 @@ void CNewAsset::ConstructOwnerTransaction(CScript& script) const
     vchMessage.push_back(AVN_N); // n
     vchMessage.push_back(AVN_O); // o
 
-    vchMessage.insert(vchMessage.end(), ssOwner.begin(), ssOwner.end());
+    vchMessage.insert(vchMessage.end(), UCharCast(ssOwner.data()), UCharCast(ssOwner.data() + ssOwner.size()));
     script << OP_AVN_ASSET << ToByteVector(vchMessage) << OP_DROP;
 }
 
 bool AssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string& strAddress)
 {
     // Check to see if the transaction is an new asset issue tx
-    if (!tx.IsNewAsset())
+    if (!IsNewAsset(tx))
         return false;
 
     // Get the scriptPubKey from the last tx in vout
@@ -602,7 +644,7 @@ bool AssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string&
 bool MsgChannelAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string& strAddress)
 {
     // Check to see if the transaction is an new asset issue tx
-    if (!tx.IsNewMsgChannelAsset())
+    if (!IsNewMsgChannelAsset(tx))
         return false;
 
     // Get the scriptPubKey from the last tx in vout
@@ -614,7 +656,7 @@ bool MsgChannelAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, st
 bool QualifierAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string& strAddress)
 {
     // Check to see if the transaction is an new asset qualifier issue tx
-    if (!tx.IsNewQualifierAsset())
+    if (!IsNewQualifierAsset(tx))
         return false;
 
     // Get the scriptPubKey from the last tx in vout
@@ -625,7 +667,7 @@ bool QualifierAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std
 bool RestrictedAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string& strAddress)
 {
     // Check to see if the transaction is an new asset qualifier issue tx
-    if (!tx.IsNewRestrictedAsset())
+    if (!IsNewRestrictedAsset(tx))
         return false;
 
     // Get the scriptPubKey from the last tx in vout
@@ -637,7 +679,7 @@ bool RestrictedAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, st
 bool ReissueAssetFromTransaction(const CTransaction& tx, CReissueAsset& reissue, std::string& strAddress)
 {
     // Check to see if the transaction is a reissue tx
-    if (!tx.IsReissueAsset())
+    if (!IsReissueAsset(tx))
         return false;
 
     // Get the scriptPubKey from the last tx in vout
@@ -649,7 +691,7 @@ bool ReissueAssetFromTransaction(const CTransaction& tx, CReissueAsset& reissue,
 bool UniqueAssetFromTransaction(const CTransaction& tx, CNewAsset& asset, std::string& strAddress)
 {
     // Check to see if the transaction is an new asset issue tx
-    if (!tx.IsNewUniqueAsset())
+    if (!IsNewUniqueAsset(tx))
         return false;
 
     // Get the scriptPubKey from the last tx in vout
@@ -691,7 +733,7 @@ bool IsNewOwnerTxValid(const CTransaction& tx, const std::string& assetName, con
 bool OwnerFromTransaction(const CTransaction& tx, std::string& ownerName, std::string& strAddress)
 {
     // Check to see if the transaction is an new asset issue tx
-    if (!tx.IsNewAsset())
+    if (!IsNewAsset(tx))
         return false;
 
     // Get the scriptPubKey from the last tx in vout
@@ -944,26 +986,26 @@ bool AssetNullVerifierDataFromScript(const CScript& scriptPubKey, CNullAssetTxVe
 }
 
 //! Call VerifyNewAsset if this function returns true
-bool CTransaction::IsNewAsset() const
+bool IsNewAsset(const CTransaction& tx)
 {
     // New Asset transaction will always have at least three outputs.
     // 1. Owner Token output
     // 2. Issue Asset output
     // 3. AVN Burn Fee
-    if (vout.size() < 3) {
+    if (tx.vout.size() < 3) {
         return false;
     }
 
     // Check for the assets data CTxOut. This will always be the last output in the transaction
-    if (!CheckIssueDataTx(vout[vout.size() - 1]))
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1]))
         return false;
 
     // Check to make sure the owner asset is created
-    if (!CheckOwnerDataTx(vout[vout.size() - 2]))
+    if (!CheckOwnerDataTx(tx.vout[tx.vout.size() - 2]))
         return false;
 
     // Don't overlap with IsNewUniqueAsset()
-    CScript script = vout[vout.size() - 1].scriptPubKey;
+    CScript script = tx.vout[tx.vout.size() - 1].scriptPubKey;
     if (IsScriptNewUniqueAsset(script)|| IsScriptNewRestrictedAsset(script))
         return false;
 
@@ -971,23 +1013,23 @@ bool CTransaction::IsNewAsset() const
 }
 
 //! Make sure to call VerifyNewUniqueAsset if this call returns true
-bool CTransaction::IsNewUniqueAsset() const
+bool IsNewUniqueAsset(const CTransaction& tx)
 {
     // Check trailing outpoint for issue data with unique asset name
-    if (!CheckIssueDataTx(vout[vout.size() - 1]))
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1]))
         return false;
 
-    if (!IsScriptNewUniqueAsset(vout[vout.size() - 1].scriptPubKey))
+    if (!IsScriptNewUniqueAsset(tx.vout[tx.vout.size() - 1].scriptPubKey))
         return false;
 
     return true;
 }
 
 //! Call this function after IsNewUniqueAsset
-bool CTransaction::VerifyNewUniqueAsset(std::string& strError) const
+bool VerifyNewUniqueAsset(const CTransaction& tx, std::string& strError)
 {
     // Must contain at least 3 outpoints (AVN burn, owner change and one or more new unique assets that share a root (should be in trailing position))
-    if (vout.size() < 3) {
+    if (tx.vout.size() < 3) {
         strError  = "bad-txns-unique-vout-size-to-small";
         return false;
     }
@@ -997,7 +1039,7 @@ bool CTransaction::VerifyNewUniqueAsset(std::string& strError) const
     std::string assetRoot = "";
     int assetOutpointCount = 0;
 
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (IsScriptNewUniqueAsset(out.scriptPubKey)) {
             CNewAsset asset;
             std::string address;
@@ -1031,7 +1073,7 @@ bool CTransaction::VerifyNewUniqueAsset(std::string& strError) const
 
     // check for burn outpoint (must account for each new asset)
     bool fBurnOutpointFound = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (CheckIssueBurnTx(out, AssetType::UNIQUE, assetOutpointCount)) {
             fBurnOutpointFound = true;
             break;
@@ -1045,7 +1087,7 @@ bool CTransaction::VerifyNewUniqueAsset(std::string& strError) const
 
     // check for owner change outpoint that matches root
     bool fOwnerOutFound = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         CAssetTransfer transfer;
         std::string transferAddress;
         if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
@@ -1066,7 +1108,7 @@ bool CTransaction::VerifyNewUniqueAsset(std::string& strError) const
     int nOwners = 0;
     int nIssues = 0;
     int nReissues = 0;
-    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+    GetTxOutAssetTypes(tx.vout, nIssues, nReissues, nTransfers, nOwners);
 
     if (nOwners > 0 || nReissues > 0 || nIssues != assetOutpointCount) {
         strError = "bad-txns-failed-unique-asset-formatting-check";
@@ -1077,21 +1119,21 @@ bool CTransaction::VerifyNewUniqueAsset(std::string& strError) const
 }
 
 //! To be called on CTransactions where IsNewAsset returns true
-bool CTransaction::VerifyNewAsset(std::string& strError) const {
+bool VerifyNewAsset(const CTransaction& tx, std::string& strError) {
     // Issuing an Asset must contain at least 3 CTxOut( Avian Burn Tx, Any Number of other Outputs ..., Owner Asset Tx, New Asset Tx)
-    if (vout.size() < 3) {
+    if (tx.vout.size() < 3) {
         strError = "bad-txns-issue-vout-size-to-small";
         return false;
     }
 
     // Check for the assets data CTxOut. This will always be the last output in the transaction
-    if (!CheckIssueDataTx(vout[vout.size() - 1])) {
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1])) {
         strError = "bad-txns-issue-data-not-found";
         return false;
     }
 
     // Check to make sure the owner asset is created
-    if (!CheckOwnerDataTx(vout[vout.size() - 2])) {
+    if (!CheckOwnerDataTx(tx.vout[tx.vout.size() - 2])) {
         strError = "bad-txns-issue-owner-data-not-found";
         return false;
     }
@@ -1099,16 +1141,16 @@ bool CTransaction::VerifyNewAsset(std::string& strError) const {
     // Get the asset type
     CNewAsset asset;
     std::string address;
-    if (!AssetFromScript(vout[vout.size() - 1].scriptPubKey, asset, address)) {
+    if (!AssetFromScript(tx.vout[tx.vout.size() - 1].scriptPubKey, asset, address)) {
         strError = "bad-txns-issue-serialzation-failed";
-        return error("%s : Failed to get new asset from transaction: %s", __func__, this->GetHash().GetHex());
+        return error("%s : Failed to get new asset from transaction: %s", __func__, tx.GetHash().GetHex());
     }
 
     AssetType assetType;
     IsAssetNameValid(asset.strName, assetType);
 
     std::string strOwnerName;
-    if (!OwnerAssetFromScript(vout[vout.size() - 2].scriptPubKey, strOwnerName, address)) {
+    if (!OwnerAssetFromScript(tx.vout[tx.vout.size() - 2].scriptPubKey, strOwnerName, address)) {
         strError = "bad-txns-issue-owner-serialzation-failed";
         return false;
     }
@@ -1120,7 +1162,7 @@ bool CTransaction::VerifyNewAsset(std::string& strError) const {
 
     // Check for the Burn CTxOut in one of the vouts ( This is needed because the change CTxOut is places in a random position in the CWalletTx
     bool fFoundIssueBurnTx = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (CheckIssueBurnTx(out, assetType)) {
             fFoundIssueBurnTx = true;
             break;
@@ -1135,7 +1177,7 @@ bool CTransaction::VerifyNewAsset(std::string& strError) const {
     if (assetType == AssetType::SUB) {
         std::string root = GetParentName(asset.strName);
         bool fOwnerOutFound = false;
-        for (auto out : this->vout) {
+        for (auto out : tx.vout) {
             CAssetTransfer transfer;
             std::string transferAddress;
             if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
@@ -1157,7 +1199,7 @@ bool CTransaction::VerifyNewAsset(std::string& strError) const {
     int nOwners = 0;
     int nIssues = 0;
     int nReissues = 0;
-    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+    GetTxOutAssetTypes(tx.vout, nIssues, nReissues, nTransfers, nOwners);
 
     if (nOwners != 1 || nIssues != 1 || nReissues > 0) {
         strError = "bad-txns-failed-issue-asset-formatting-check";
@@ -1168,29 +1210,29 @@ bool CTransaction::VerifyNewAsset(std::string& strError) const {
 }
 
 //! Make sure to call VerifyNewUniqueAsset if this call returns true
-bool CTransaction::IsNewMsgChannelAsset() const
+bool IsNewMsgChannelAsset(const CTransaction& tx)
 {
     // Check trailing outpoint for issue data with unique asset name
-    if (!CheckIssueDataTx(vout[vout.size() - 1]))
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1]))
         return false;
 
-    if (!IsScriptNewMsgChannelAsset(vout[vout.size() - 1].scriptPubKey))
+    if (!IsScriptNewMsgChannelAsset(tx.vout[tx.vout.size() - 1].scriptPubKey))
         return false;
 
     return true;
 }
 
 //! To be called on CTransactions where IsNewAsset returns true
-bool CTransaction::VerifyNewMsgChannelAsset(std::string &strError) const
+bool VerifyNewMsgChannelAsset(const CTransaction& tx, std::string &strError)
 {
     // Issuing an Asset must contain at least 3 CTxOut( Avian Burn Tx, Any Number of other Outputs ..., Owner Asset Tx, New Asset Tx)
-    if (vout.size() < 3) {
+    if (tx.vout.size() < 3) {
         strError  = "bad-txns-issue-msgchannel-vout-size-to-small";
         return false;
     }
 
     // Check for the assets data CTxOut. This will always be the last output in the transaction
-    if (!CheckIssueDataTx(vout[vout.size() - 1])) {
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1])) {
         strError  = "bad-txns-issue-data-not-found";
         return false;
     }
@@ -1198,9 +1240,9 @@ bool CTransaction::VerifyNewMsgChannelAsset(std::string &strError) const
     // Get the asset type
     CNewAsset asset;
     std::string address;
-    if (!MsgChannelAssetFromScript(vout[vout.size() - 1].scriptPubKey, asset, address)) {
+    if (!MsgChannelAssetFromScript(tx.vout[tx.vout.size() - 1].scriptPubKey, asset, address)) {
         strError = "bad-txns-issue-msgchannel-serialzation-failed";
-        return error("%s : Failed to get new msgchannel asset from transaction: %s", __func__, this->GetHash().GetHex());
+        return error("%s : Failed to get new msgchannel asset from transaction: %s", __func__, tx.GetHash().GetHex());
     }
 
     AssetType assetType;
@@ -1208,7 +1250,7 @@ bool CTransaction::VerifyNewMsgChannelAsset(std::string &strError) const
 
     // Check for the Burn CTxOut in one of the vouts ( This is needed because the change CTxOut is places in a random position in the CWalletTx
     bool fFoundIssueBurnTx = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (CheckIssueBurnTx(out, AssetType::MSGCHANNEL)) {
             fFoundIssueBurnTx = true;
             break;
@@ -1223,7 +1265,7 @@ bool CTransaction::VerifyNewMsgChannelAsset(std::string &strError) const
     // check for owner change outpoint that matches root
     std::string root = GetParentName(asset.strName);
     bool fOwnerOutFound = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         CAssetTransfer transfer;
         std::string transferAddress;
         if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
@@ -1244,7 +1286,7 @@ bool CTransaction::VerifyNewMsgChannelAsset(std::string &strError) const
     int nOwners = 0;
     int nIssues = 0;
     int nReissues = 0;
-    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+    GetTxOutAssetTypes(tx.vout, nIssues, nReissues, nTransfers, nOwners);
 
     if (nOwners != 0 || nIssues != 1 || nReissues > 0) {
         strError = "bad-txns-failed-issue-msgchannel-asset-formatting-check";
@@ -1255,29 +1297,29 @@ bool CTransaction::VerifyNewMsgChannelAsset(std::string &strError) const
 }
 
 //! Make sure to call VerifyNewQualifierAsset if this call returns true
-bool CTransaction::IsNewQualifierAsset() const
+bool IsNewQualifierAsset(const CTransaction& tx)
 {
     // Check trailing outpoint for issue data with unique asset name
-    if (!CheckIssueDataTx(vout[vout.size() - 1]))
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1]))
         return false;
 
-    if (!IsScriptNewQualifierAsset(vout[vout.size() - 1].scriptPubKey))
+    if (!IsScriptNewQualifierAsset(tx.vout[tx.vout.size() - 1].scriptPubKey))
         return false;
 
     return true;
 }
 
 //! To be called on CTransactions where IsNewQualifierAsset returns true
-bool CTransaction::VerifyNewQualfierAsset(std::string &strError) const
+bool VerifyNewQualfierAsset(const CTransaction& tx, std::string &strError)
 {
     // Issuing an Asset must contain at least 2 CTxOut( Avian Burn Tx, New Asset Tx, Any Number of other Outputs...)
-    if (vout.size() < 2) {
+    if (tx.vout.size() < 2) {
         strError  = "bad-txns-issue-qualifier-vout-size-to-small";
         return false;
     }
 
     // Check for the assets data CTxOut. This will always be the last output in the transaction
-    if (!CheckIssueDataTx(vout[vout.size() - 1])) {
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1])) {
         strError  = "bad-txns-issue-qualifider-data-not-found";
         return false;
     }
@@ -1285,9 +1327,9 @@ bool CTransaction::VerifyNewQualfierAsset(std::string &strError) const
     // Get the asset type
     CNewAsset asset;
     std::string address;
-    if (!QualifierAssetFromScript(vout[vout.size() - 1].scriptPubKey, asset, address)) {
+    if (!QualifierAssetFromScript(tx.vout[tx.vout.size() - 1].scriptPubKey, asset, address)) {
         strError = "bad-txns-issue-qualifier-serialzation-failed";
-        return error("%s : Failed to get new qualifier asset from transaction: %s", __func__, this->GetHash().GetHex());
+        return error("%s : Failed to get new qualifier asset from transaction: %s", __func__, tx.GetHash().GetHex());
     }
 
     AssetType assetType;
@@ -1295,7 +1337,7 @@ bool CTransaction::VerifyNewQualfierAsset(std::string &strError) const
 
     // Check for the Burn CTxOut in one of the vouts ( This is needed because the change CTxOut is places in a random position in the CWalletTx
     bool fFoundIssueBurnTx = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (CheckIssueBurnTx(out, assetType)) {
             fFoundIssueBurnTx = true;
             break;
@@ -1311,7 +1353,7 @@ bool CTransaction::VerifyNewQualfierAsset(std::string &strError) const
         // Check that there is an asset transfer with the parent name, qualifier use just the parent name, they don't use not parent + !
         bool fOwnerOutFound = false;
         std::string root = GetParentName(asset.strName);
-        for (auto out : vout) {
+        for (auto out : tx.vout) {
             CAssetTransfer transfer;
             std::string transferAddress;
             if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
@@ -1333,7 +1375,7 @@ bool CTransaction::VerifyNewQualfierAsset(std::string &strError) const
     int nOwners = 0;
     int nIssues = 0;
     int nReissues = 0;
-    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+    GetTxOutAssetTypes(tx.vout, nIssues, nReissues, nTransfers, nOwners);
 
     if (nOwners != 0 || nIssues != 1 || nReissues > 0) {
         strError = "bad-txns-failed-issue-asset-formatting-check";
@@ -1344,28 +1386,28 @@ bool CTransaction::VerifyNewQualfierAsset(std::string &strError) const
 }
 
 //! Make sure to call VerifyNewAsset if this call returns true
-bool CTransaction::IsNewRestrictedAsset() const
+bool IsNewRestrictedAsset(const CTransaction& tx)
 {
     // Check trailing outpoint for issue data with unique asset name
-    if (!CheckIssueDataTx(vout[vout.size() - 1]))
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1]))
         return false;
 
-    if (!IsScriptNewRestrictedAsset(vout[vout.size() - 1].scriptPubKey))
+    if (!IsScriptNewRestrictedAsset(tx.vout[tx.vout.size() - 1].scriptPubKey))
         return false;
 
     return true;
 }
 
 //! To be called on CTransactions where IsNewRestrictedAsset returns true
-bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
+bool VerifyNewRestrictedAsset(const CTransaction& tx, std::string& strError) {
     // Issuing a restricted asset must cointain at least 4 CTxOut(Avian Burn Tx, Asset Creation, Root Owner Token Transfer, and CNullAssetTxVerifierString)
-    if (vout.size() < 4) {
+    if (tx.vout.size() < 4) {
         strError = "bad-txns-issue-restricted-vout-size-to-small";
         return false;
     }
 
     // Check for the assets data CTxOut. This will always be the last output in the transaction
-    if (!CheckIssueDataTx(vout[vout.size() - 1])) {
+    if (!CheckIssueDataTx(tx.vout[tx.vout.size() - 1])) {
         strError = "bad-txns-issue-restricted-data-not-found";
         return false;
     }
@@ -1373,9 +1415,9 @@ bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
     // Get the asset type
     CNewAsset asset;
     std::string address;
-    if (!RestrictedAssetFromScript(vout[vout.size() - 1].scriptPubKey, asset, address)) {
+    if (!RestrictedAssetFromScript(tx.vout[tx.vout.size() - 1].scriptPubKey, asset, address)) {
         strError = "bad-txns-issue-restricted-serialization-failed";
-        return error("%s : Failed to get new restricted asset from transaction: %s", __func__, this->GetHash().GetHex());
+        return error("%s : Failed to get new restricted asset from transaction: %s", __func__, tx.GetHash().GetHex());
     }
 
     AssetType assetType;
@@ -1383,7 +1425,7 @@ bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
 
     // Check for the Burn CTxOut in one of the vouts ( This is needed because the change CTxOut is places in a random position in the CWalletTx
     bool fFoundIssueBurnTx = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (CheckIssueBurnTx(out, assetType)) {
             fFoundIssueBurnTx = true;
             break;
@@ -1399,7 +1441,7 @@ bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
     bool fRootOwnerOutFound = false;
     std::string root = GetParentName(asset.strName);
     std::string strippedRoot = root.substr(1, root.size() -1) + OWNER_TAG; // $TOKEN checks for TOKEN!
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         CAssetTransfer transfer;
         std::string transferAddress;
         if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
@@ -1417,7 +1459,7 @@ bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
 
     // Check to make sure we can get the verifier string from the transaction
     CNullAssetTxVerifierString verifier;
-    if (!GetVerifierStringFromTx(verifier, strError)) {
+    if (!GetVerifierStringFromTx(tx, verifier, strError)) {
         return false;
     }
 
@@ -1428,7 +1470,7 @@ bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
     int nOwners = 0;
     int nIssues = 0;
     int nReissues = 0;
-    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+    GetTxOutAssetTypes(tx.vout, nIssues, nReissues, nTransfers, nOwners);
 
     if (nOwners != 0 || nIssues != 1 || nReissues > 0) {
         strError = "bad-txns-failed-issue-asset-formatting-check";
@@ -1438,12 +1480,12 @@ bool CTransaction::VerifyNewRestrictedAsset(std::string& strError) const {
     return true;
 }
 
-bool CTransaction::GetVerifierStringFromTx(CNullAssetTxVerifierString& verifier, std::string& strError, bool& fNotFound) const
+bool GetVerifierStringFromTx(const CTransaction& tx, CNullAssetTxVerifierString& verifier, std::string& strError, bool& fNotFound)
 {
     fNotFound = false;
     bool found = false;
     int count = 0;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (out.scriptPubKey.IsNullAssetVerifierTxDataScript()) {
             count++;
 
@@ -1469,39 +1511,39 @@ bool CTransaction::GetVerifierStringFromTx(CNullAssetTxVerifierString& verifier,
     return found && count == 1;
 }
 
-bool CTransaction::GetVerifierStringFromTx(CNullAssetTxVerifierString& verifier, std::string& strError) const
+bool GetVerifierStringFromTx(const CTransaction& tx, CNullAssetTxVerifierString& verifier, std::string& strError)
 {
     bool fNotFound = false;
-    return GetVerifierStringFromTx(verifier, strError, fNotFound);
+    return GetVerifierStringFromTx(tx, verifier, strError, fNotFound);
 }
 
-bool CTransaction::IsReissueAsset() const
+bool IsReissueAsset(const CTransaction& tx)
 {
     // Check for the reissue asset data CTxOut. This will always be the last output in the transaction
-    if (!CheckReissueDataTx(vout[vout.size() - 1]))
+    if (!CheckReissueDataTx(tx.vout[tx.vout.size() - 1]))
         return false;
 
     return true;
 }
 
 //! To be called on CTransactions where IsReissueAsset returns true
-bool CTransaction::VerifyReissueAsset(std::string& strError) const
+bool VerifyReissueAsset(const CTransaction& tx, std::string& strError)
 {
     // Reissuing an Asset must contain at least 3 CTxOut ( Avian Burn Tx, Any Number of other Outputs ..., Reissue Asset Tx, Owner Asset Change Tx)
-    if (vout.size() < 3) {
+    if (tx.vout.size() < 3) {
         strError  = "bad-txns-vout-size-to-small";
         return false;
     }
 
     // Check for the reissue asset data CTxOut. This will always be the last output in the transaction
-    if (!CheckReissueDataTx(vout[vout.size() - 1])) {
+    if (!CheckReissueDataTx(tx.vout[tx.vout.size() - 1])) {
         strError  = "bad-txns-reissue-data-not-found";
         return false;
     }
 
     CReissueAsset reissue;
     std::string address;
-    if (!ReissueAssetFromScript(vout[vout.size() - 1].scriptPubKey, reissue, address)) {
+    if (!ReissueAssetFromScript(tx.vout[tx.vout.size() - 1].scriptPubKey, reissue, address)) {
         strError  = "bad-txns-reissue-serialization-failed";
         return false;
     }
@@ -1520,7 +1562,7 @@ bool CTransaction::VerifyReissueAsset(std::string& strError) const
 
     // Check that there is an asset transfer, this will be the owner asset change
     bool fOwnerOutFound = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         CAssetTransfer transfer;
         std::string transferAddress;
         if (TransferAssetFromScript(out.scriptPubKey, transfer, transferAddress)) {
@@ -1538,7 +1580,7 @@ bool CTransaction::VerifyReissueAsset(std::string& strError) const
 
     // Check for the Burn CTxOut in one of the vouts ( This is needed because the change CTxOut is placed in a random position in the CWalletTx
     bool fFoundReissueBurnTx = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (CheckReissueBurnTx(out)) {
             fFoundReissueBurnTx = true;
             break;
@@ -1555,7 +1597,7 @@ bool CTransaction::VerifyReissueAsset(std::string& strError) const
     int nOwners = 0;
     int nIssues = 0;
     int nReissues = 0;
-    GetTxOutAssetTypes(vout, nIssues, nReissues, nTransfers, nOwners);
+    GetTxOutAssetTypes(tx.vout, nIssues, nReissues, nTransfers, nOwners);
 
     if (nOwners > 0 || nReissues != 1 || nIssues > 0) {
         strError = "bad-txns-failed-reissue-asset-formatting-check";
@@ -1565,11 +1607,11 @@ bool CTransaction::VerifyReissueAsset(std::string& strError) const
     return true;
 }
 
-bool CTransaction::CheckAddingTagBurnFee(const int& count) const
+bool CheckAddingTagBurnFee(const CTransaction& tx, const int& count)
 {
     // check for burn outpoint )
     bool fBurnOutpointFound = false;
-    for (auto out : vout) {
+    for (auto out : tx.vout) {
         if (CheckIssueBurnTx(out, AssetType::NULL_ADD_QUALIFIER, count)) {
             fBurnOutpointFound = true;
             break;
@@ -1657,7 +1699,7 @@ void CAssetTransfer::ConstructTransaction(CScript& script) const
     vchMessage.push_back(AVN_N); // n
     vchMessage.push_back(AVN_T); // t
 
-    vchMessage.insert(vchMessage.end(), ssTransfer.begin(), ssTransfer.end());
+    vchMessage.insert(vchMessage.end(), UCharCast(ssTransfer.data()), UCharCast(ssTransfer.data() + ssTransfer.size()));
     script << OP_AVN_ASSET << ToByteVector(vchMessage) << OP_DROP;
 }
 
@@ -1684,7 +1726,7 @@ void CReissueAsset::ConstructTransaction(CScript& script) const
     vchMessage.push_back(AVN_N); // n
     vchMessage.push_back(AVN_R); // r
 
-    vchMessage.insert(vchMessage.end(), ssReissue.begin(), ssReissue.end());
+    vchMessage.insert(vchMessage.end(), UCharCast(ssReissue.data()), UCharCast(ssReissue.data() + ssReissue.size()));
     script << OP_AVN_ASSET << ToByteVector(vchMessage) << OP_DROP;
 }
 
@@ -3172,7 +3214,7 @@ bool CheckReissueBurnTx(const CTxOut& txOut)
         return false;
 
     // Check destination address is the correct burn address
-    if (EncodeDestination(destination) != Params().ReissueAssetBurnAddress())
+    if (EncodeDestination(destination) != "RXReissueAssetXXXXXXXXXXXXXXVEFAWu")
         return false;
 
     return true;
@@ -3628,47 +3670,47 @@ bool GetAssetData(const CScript& script, CAssetOutputEntry& data)
 
 CAmount GetIssueAssetBurnAmount()
 {
-    return Params().IssueAssetBurnAmount();
+    return 500 * COIN;
 }
 
 CAmount GetReissueAssetBurnAmount()
 {
-    return Params().ReissueAssetBurnAmount();
+    return 100 * COIN;
 }
 
 CAmount GetIssueSubAssetBurnAmount()
 {
-    return Params().IssueSubAssetBurnAmount();
+    return 100 * COIN;
 }
 
 CAmount GetIssueUniqueAssetBurnAmount()
 {
-    return Params().IssueUniqueAssetBurnAmount();
+    return 5 * COIN;
 }
 
 CAmount GetIssueMsgChannelAssetBurnAmount()
 {
-    return Params().IssueMsgChannelAssetBurnAmount();
+    return 100 * COIN;
 }
 
 CAmount GetIssueQualifierAssetBurnAmount()
 {
-    return Params().IssueQualifierAssetBurnAmount();
+    return 1000 * COIN;
 }
 
 CAmount GetIssueSubQualifierAssetBurnAmount()
 {
-    return Params().IssueSubQualifierAssetBurnAmount();
+    return 100 * COIN;
 }
 
 CAmount GetIssueRestrictedAssetBurnAmount()
 {
-    return Params().IssueRestrictedAssetBurnAmount();
+    return 1500 * COIN;
 }
 
 CAmount GetAddNullQualifierTagBurnAmount()
 {
-    return Params().AddNullQualifierTagBurnAmount();
+    return COIN / 10;
 }
 
 CAmount GetBurnAmount(const int nType)
@@ -3715,27 +3757,27 @@ std::string GetBurnAddress(const AssetType type)
 {
     switch (type) {
         case AssetType::ROOT:
-            return Params().IssueAssetBurnAddress();
+            return "RXissueAssetXXXXXXXXXXXXXXXXXhhZGt";
         case AssetType::SUB:
-            return Params().IssueSubAssetBurnAddress();
+            return "RXissueSubAssetXXXXXXXXXXXXXWcwhwL";
         case AssetType::MSGCHANNEL:
-            return Params().IssueMsgChannelAssetBurnAddress();
+            return "RXissueMsgChanneLAssetXXXXXXSjHvAY";
         case AssetType::OWNER:
             return "";
         case AssetType::UNIQUE:
-            return Params().IssueUniqueAssetBurnAddress();
+            return "RXissueUniqueAssetXXXXXXXXXXWEAe58";
         case AssetType::VOTE:
             return "";
         case AssetType::REISSUE:
-            return Params().ReissueAssetBurnAddress();
+            return "RXReissueAssetXXXXXXXXXXXXXXVEFAWu";
         case AssetType::QUALIFIER:
-            return Params().IssueQualifierAssetBurnAddress();
+            return "RXissueQuaLifierXXXXXXXXXXXXUgEDbC";
         case AssetType::SUB_QUALIFIER:
-            return Params().IssueSubQualifierAssetBurnAddress();
+            return "RXissueSubQuaLifierXXXXXXXXXVTzvv5";
         case AssetType::RESTRICTED:
-            return Params().IssueRestrictedAssetBurnAddress();
+            return "RXissueRestrictedXXXXXXXXXXXXzJZ1q";
         case AssetType::NULL_ADD_QUALIFIER:
-            return Params().AddNullQualifierTagBurnAddress();
+            return "RXaddTagBurnXXXXXXXXXXXXXXXXZQm5ya";
         default:
             return "";
     }
@@ -3978,7 +4020,8 @@ void CNullAssetTxData::ConstructTransaction(CScript &script) const
     ssAssetTxData << *this;
 
     std::vector<unsigned char> vchMessage;
-    vchMessage.insert(vchMessage.end(), ssAssetTxData.begin(), ssAssetTxData.end());
+    auto data = UCharCast(ssAssetTxData.data());
+    vchMessage.insert(vchMessage.end(), data, data + ssAssetTxData.size());
     script << ToByteVector(vchMessage);
 }
 
@@ -3988,7 +4031,8 @@ void CNullAssetTxData::ConstructGlobalRestrictionTransaction(CScript &script) co
     ssAssetTxData << *this;
 
     std::vector<unsigned char> vchMessage;
-    vchMessage.insert(vchMessage.end(), ssAssetTxData.begin(), ssAssetTxData.end());
+    auto data = UCharCast(ssAssetTxData.data());
+    vchMessage.insert(vchMessage.end(), data, data + ssAssetTxData.size());
     script << OP_AVN_ASSET << OP_RESERVED << OP_RESERVED << ToByteVector(vchMessage);
 }
 
@@ -4004,7 +4048,8 @@ void CNullAssetTxVerifierString::ConstructTransaction(CScript &script) const
     ssAssetTxData << *this;
 
     std::vector<unsigned char> vchMessage;
-    vchMessage.insert(vchMessage.end(), ssAssetTxData.begin(), ssAssetTxData.end());
+    auto data = UCharCast(ssAssetTxData.data());
+    vchMessage.insert(vchMessage.end(), data, data + ssAssetTxData.size());
     script << OP_AVN_ASSET << OP_RESERVED << ToByteVector(vchMessage);
 }
 
@@ -4888,7 +4933,7 @@ bool CheckReissueAsset(const CReissueAsset& asset, std::string& strError)
     /// -------- TESTNET ONLY ---------- ///
     // Testnet has a couple blocks that have invalid nReissue values before constriants were created
     bool fSkip = false;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+    if (Params().GetChainType() == ChainType::TESTNET) {
         if (asset.strName == "GAMINGWEB" && asset.nReissuable == 109) {
             fSkip = true;
         } else if (asset.strName == "UINT8" && asset.nReissuable == -47) {
@@ -4991,7 +5036,7 @@ bool ContextualCheckReissueAsset(CAssetsCache* assetCache, const CReissueAsset& 
         bool fNotFound = false;
 
         // Try and get the verifier string if it was changed
-        if (!tx.GetVerifierStringFromTx(new_verifier, strError, fNotFound)) {
+        if (!GetVerifierStringFromTx(tx, new_verifier, strError, fNotFound)) {
             // If it return false for any other reason besides not being found, fail the transaction check
             if (!fNotFound) {
                 return false;

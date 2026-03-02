@@ -6,13 +6,17 @@
 #include <assets/messages.h>
 #include <logging.h>
 
-static const char MESSAGE_FLAG = 'Z'; // Message
-static const char MY_MESSAGE_CHANNEL = 'C'; // My followed Channels
-static const char MY_SEEN_ADDRESSES = 'S'; // Addresses that have been seen on the chain
-static const char DB_FLAG = 'D'; // Database Flags
+// Compatibility: old error() function logged a message and returned false.
+// Removed in BTC 30.2. Define as macro wrapping LogError.
+#define error(...) ([&]() -> bool { LogError(__VA_ARGS__); return false; }())
 
-static const char MY_TAGGED_ADDRESSES = 'T'; // Addresses that have been tagged
-static const char MY_RESTRICTED_ADDRESSES = 'R'; // Addresses that have been restricted
+static const uint8_t MESSAGE_FLAG = 'Z'; // Message
+static const uint8_t MY_MESSAGE_CHANNEL = 'C'; // My followed Channels
+static const uint8_t MY_SEEN_ADDRESSES = 'S'; // Addresses that have been seen on the chain
+static const uint8_t DB_FLAG = 'D'; // Database Flags
+
+static const uint8_t MY_TAGGED_ADDRESSES = 'T'; // Addresses that have been tagged
+static const uint8_t MY_RESTRICTED_ADDRESSES = 'R'; // Addresses that have been restricted
 
 CMessageDB::CMessageDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
     : CDBWrapper(DBParams{
@@ -46,7 +50,7 @@ bool CMessageDB::LoadMessages(std::set<CMessage>& setMessages)
 
     // Load messages
     while (pcursor->Valid()) {
-        std::pair<char, COutPoint> key;
+        std::pair<uint8_t, COutPoint> key;
         if (pcursor->GetKey(key) && key.first == MESSAGE_FLAG) {
             CMessage message;
             if (pcursor->GetValue(message)) {
@@ -72,7 +76,7 @@ bool CMessageDB::EraseAllMessages(int& count)
 
     // Load messages
     while (pcursor->Valid()) {
-        std::pair<char, COutPoint> key;
+        std::pair<uint8_t, COutPoint> key;
         if (pcursor->GetKey(key) && key.first == MESSAGE_FLAG) {
             CMessage message;
             if (pcursor->GetValue(message)) {
@@ -160,7 +164,7 @@ bool CMessageChannelDB::LoadMyMessageChannels(std::set<std::string>& setChannels
 
     // Load messages
     while (pcursor->Valid()) {
-        std::pair<char, std::string> key;
+        std::pair<uint8_t, std::string> key;
         if (pcursor->GetKey(key) && key.first == MY_MESSAGE_CHANNEL) {
             setChannels.insert(key.second);
             pcursor->Next();
@@ -174,12 +178,12 @@ bool CMessageChannelDB::LoadMyMessageChannels(std::set<std::string>& setChannels
 
 bool CMessageDB::WriteFlag(const std::string &name, bool fValue)
 {
-    return Write(std::make_pair(DB_FLAG, name), fValue ? '1' : '0');
+    return Write(std::make_pair(DB_FLAG, name), fValue ? static_cast<uint8_t>('1') : static_cast<uint8_t>('0'));
 }
 
 bool CMessageDB::ReadFlag(const std::string &name, bool &fValue)
 {
-    char ch;
+    uint8_t ch;
     if (!Read(std::make_pair(DB_FLAG, name), ch))
         return false;
     fValue = ch == '1';
@@ -203,12 +207,12 @@ bool CMessageChannelDB::EraseUsedAddress(const std::string& address)
 
 bool CMessageChannelDB::WriteFlag(const std::string &name, bool fValue)
 {
-    return Write(std::make_pair(DB_FLAG, name), fValue ? '1' : '0');
+    return Write(std::make_pair(DB_FLAG, name), fValue ? static_cast<uint8_t>('1') : static_cast<uint8_t>('0'));
 }
 
 bool CMessageChannelDB::ReadFlag(const std::string &name, bool &fValue)
 {
-    char ch;
+    uint8_t ch;
     if (!Read(std::make_pair(DB_FLAG, name), ch))
         return false;
     fValue = ch == '1';
@@ -281,7 +285,7 @@ bool CMyRestrictedDB::LoadMyTaggedAddresses(std::vector<std::tuple<std::string, 
 
     // Load messages
     while (pcursor->Valid()) {
-        std::pair<char, std::pair<std::string, std::string>> key;
+        std::pair<uint8_t, std::pair<std::string, std::string>> key;
         if (pcursor->GetKey(key) && key.first == MY_TAGGED_ADDRESSES) {
             std::pair<int, uint32_t> value;
             if (pcursor->GetValue(value)) {
@@ -324,7 +328,7 @@ bool CMyRestrictedDB::LoadMyRestrictedAddresses(std::vector<std::tuple<std::stri
 
     // Load messages
     while (pcursor->Valid()) {
-        std::pair<char, std::pair<std::string, std::string>> key;
+        std::pair<uint8_t, std::pair<std::string, std::string>> key;
         if (pcursor->GetKey(key) && key.first == MY_RESTRICTED_ADDRESSES) {
             std::pair<int, uint32_t> value;
             if (pcursor->GetValue(value)) {
@@ -342,12 +346,12 @@ bool CMyRestrictedDB::LoadMyRestrictedAddresses(std::vector<std::tuple<std::stri
 
 bool CMyRestrictedDB::WriteFlag(const std::string &name, bool fValue)
 {
-    return Write(std::make_pair(DB_FLAG, name), fValue ? '1' : '0');
+    return Write(std::make_pair(DB_FLAG, name), fValue ? static_cast<uint8_t>('1') : static_cast<uint8_t>('0'));
 }
 
 bool CMyRestrictedDB::ReadFlag(const std::string &name, bool &fValue)
 {
-    char ch;
+    uint8_t ch;
     if (!Read(std::make_pair(DB_FLAG, name), ch))
         return false;
     fValue = ch == '1';

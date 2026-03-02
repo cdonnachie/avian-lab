@@ -64,6 +64,10 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 
 bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 {
+    // AVN: Asset scripts are never considered dust
+    if (txout.scriptPubKey.IsAssetScript())
+        return false;
+
     return (txout.nValue < GetDustThreshold(txout, dustRelayFeeIn));
 }
 
@@ -134,6 +138,7 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
     }
 
     unsigned int datacarrier_bytes_left = max_datacarrier_bytes.value_or(0);
+    unsigned int nAssetDataOut = 0;
     TxoutType whichType;
     for (const CTxOut& txout : tx.vout) {
         if (!::IsStandard(txout.scriptPubKey, whichType)) {
@@ -148,10 +153,18 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
                 return false;
             }
             datacarrier_bytes_left -= size;
+        } else if (whichType == TxoutType::RESTRICTED_ASSET_DATA) {
+            nAssetDataOut++;
         } else if ((whichType == TxoutType::MULTISIG) && (!permit_bare_multisig)) {
             reason = "bare-multisig";
             return false;
         }
+    }
+
+    // AVN: Only 100 restricted asset data outputs permitted per tx
+    if (nAssetDataOut > 100) {
+        reason = "too-many-op-avn-asset";
+        return false;
     }
 
     // Only MAX_DUST_OUTPUTS_PER_TX dust is permitted(on otherwise valid ephemeral dust)

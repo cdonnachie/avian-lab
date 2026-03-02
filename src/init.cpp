@@ -93,6 +93,17 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 
+// AVN: Asset system includes
+#include <assets/assets.h>
+#include <assets/assetdb.h>
+#include <assets/assettypes.h>
+#include <assets/restricteddb.h>
+#include <assets/myassetsdb.h>
+#include <assets/messages.h>
+#include <assets/snapshotrequestdb.h>
+#include <assets/assetsnapshotdb.h>
+#include <assets/rewards.h>
+
 #include <algorithm>
 #include <cerrno>
 #include <condition_variable>
@@ -159,6 +170,19 @@ static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
 static constexpr int MIN_CORE_FDS = MIN_LEVELDB_FDS + NUM_FDS_MESSAGE_CAPTURE;
 static const char* DEFAULT_ASMAP_FILENAME="ip_asn.map";
+
+// AVN: Global asset database and cache pointers
+// (Core asset globals like passets, passetsdb, passetsCache are defined in assets.cpp)
+CMessageDB* pmessagedb = nullptr;
+CMessageChannelDB* pmessagechanneldb = nullptr;
+CMyRestrictedDB* pmyrestricteddb = nullptr;
+CLRUCache<std::string, CMessage>* pMessagesCache = nullptr;
+CLRUCache<std::string, int8_t>* pMessageSubscribedChannelsCache = nullptr;
+CLRUCache<std::string, int8_t>* pMessagesSeenAddressCache = nullptr;
+CSnapshotRequestDB* pSnapshotRequestDb = nullptr;
+CAssetSnapshotDB* pAssetSnapshotDb = nullptr;
+CDistributeSnapshotRequestDB* pDistributeSnapshotDb = nullptr;
+bool fMessaging = false;
 
 /**
  * The PID file facilities.
@@ -397,6 +421,26 @@ void Shutdown(NodeContext& node)
     if (node.validation_signals) {
         node.validation_signals->UnregisterAllValidationInterfaces();
     }
+
+    // AVN: Clean up asset databases and caches
+    delete passets; passets = nullptr;
+    delete passetsdb; passetsdb = nullptr;
+    delete passetsCache; passetsCache = nullptr;
+    delete prestricteddb; prestricteddb = nullptr;
+    delete passetsVerifierCache; passetsVerifierCache = nullptr;
+    delete passetsQualifierCache; passetsQualifierCache = nullptr;
+    delete passetsRestrictionCache; passetsRestrictionCache = nullptr;
+    delete passetsGlobalRestrictionCache; passetsGlobalRestrictionCache = nullptr;
+    delete pmessagedb; pmessagedb = nullptr;
+    delete pmessagechanneldb; pmessagechanneldb = nullptr;
+    delete pmyrestricteddb; pmyrestricteddb = nullptr;
+    delete pMessagesCache; pMessagesCache = nullptr;
+    delete pMessageSubscribedChannelsCache; pMessageSubscribedChannelsCache = nullptr;
+    delete pMessagesSeenAddressCache; pMessagesSeenAddressCache = nullptr;
+    delete pSnapshotRequestDb; pSnapshotRequestDb = nullptr;
+    delete pAssetSnapshotDb; pAssetSnapshotDb = nullptr;
+    delete pDistributeSnapshotDb; pDistributeSnapshotDb = nullptr;
+
     node.mempool.reset();
     node.fee_estimator.reset();
     node.chainman.reset();
@@ -1797,6 +1841,69 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                      *node.mempool, *node.warnings,
                                      peerman_opts);
     validation_signals.RegisterValidationInterface(node.peerman.get());
+
+    // ********************************************************* Step 7b: Initialize asset databases
+    {
+        const size_t nAssetDBCache = 1 << 20; // 1 MB per asset database
+
+        // Delete any prior instances (handles re-entry)
+        delete passets; delete passetsdb; delete passetsCache;
+        delete prestricteddb;
+        delete passetsVerifierCache; delete passetsQualifierCache;
+        delete passetsRestrictionCache; delete passetsGlobalRestrictionCache;
+        delete pmessagedb; delete pmessagechanneldb;
+        delete pMessagesCache; delete pMessageSubscribedChannelsCache; delete pMessagesSeenAddressCache;
+        delete pmyrestricteddb;
+        delete pSnapshotRequestDb; delete pAssetSnapshotDb; delete pDistributeSnapshotDb;
+
+        // Core asset databases
+        passetsdb = new CAssetsDB(args.GetDataDirNet(), nAssetDBCache, false, do_reindex);
+        passets = new CAssetsCache();
+        passetsCache = new CLRUCache<std::string, CDatabasedAssetData>(MAX_CACHE_ASSETS_SIZE);
+
+        // Messaging databases
+        pMessagesCache = new CLRUCache<std::string, CMessage>(1000);
+        pMessageSubscribedChannelsCache = new CLRUCache<std::string, int8_t>(1000);
+        pMessagesSeenAddressCache = new CLRUCache<std::string, int8_t>(1000);
+        pmessagedb = new CMessageDB(args.GetDataDirNet(), nAssetDBCache, false, false);
+        pmessagechanneldb = new CMessageChannelDB(args.GetDataDirNet(), nAssetDBCache, false, false);
+
+        // My restricted addresses database
+        pmyrestricteddb = new CMyRestrictedDB(args.GetDataDirNet(), nAssetDBCache, false, false);
+
+        // Restricted asset caches
+        prestricteddb = new CRestrictedDB(args.GetDataDirNet(), nAssetDBCache, false, do_reindex);
+        passetsVerifierCache = new CLRUCache<std::string, CNullAssetTxVerifierString>(MAX_CACHE_ASSETS_SIZE);
+        passetsQualifierCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+        passetsRestrictionCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+        passetsGlobalRestrictionCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
+
+        // Reward snapshot databases
+        pSnapshotRequestDb = new CSnapshotRequestDB(args.GetDataDirNet(), nAssetDBCache, false, false);
+        pAssetSnapshotDb = new CAssetSnapshotDB(args.GetDataDirNet(), nAssetDBCache, false, false);
+        pDistributeSnapshotDb = new CDistributeSnapshotRequestDB(args.GetDataDirNet(), nAssetDBCache, false, false);
+
+        // Load assets from database
+        if (!passetsdb->LoadAssets(*passetsCache, &passets->mapAssetsAddressAmount, fAssetIndex)) {
+            return InitError(_("Failed to load Assets Database"));
+        }
+
+        // Read reissued mempool state
+        if (!passetsdb->ReadReissuedMempoolState(mapReissuedAssets, mapReissuedTx)) {
+            LogPrintf("Database failed to load last Reissued Mempool State. Will start from empty state.\n");
+        }
+
+        LogPrintf("Successfully loaded assets from database. Cache size: %d\n", passetsCache->Size());
+
+        // Configure messaging
+        if (!AreMessagesDeployed()) {
+            LogPrintf("Messaging is disabled\n");
+            fMessaging = false;
+        } else {
+            fMessaging = true;
+            LogPrintf("Messaging is enabled\n");
+        }
+    }
 
     // ********************************************************* Step 8: start indexers
 

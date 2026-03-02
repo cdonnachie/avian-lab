@@ -4,18 +4,26 @@
 
 #include <assets/rewards.h>
 #include <assets/assetsnapshotdb.h>
+#include <assets/snapshotrequestdb.h>
 #include <assets/assets.h>
 #include <hash.h>
 #include <key_io.h>
 #include <logging.h>
 #include <chainparams.h>
+#include <cmath>
 #include <sstream>
+
+extern CSnapshotRequestDB* pSnapshotRequestDb;
+extern CAssetSnapshotDB* pAssetSnapshotDb;
+extern CDistributeSnapshotRequestDB* pDistributeSnapshotDb;
 
 std::map<uint256, CRewardSnapshot> mapRewardSnapshots;
 
 uint256 CRewardSnapshot::GetHash() const
 {
-    return SerializeHash(*this, SER_GETHASH);
+    HashWriter ss{};
+    ss << *this;
+    return ss.GetHash();
 }
 
 bool AddDistributeRewardSnapshot(CRewardSnapshot& p_rewardSnapshot)
@@ -38,15 +46,15 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
     vecDistributionList.clear();
 
     if (passets == nullptr) {
-        LogPrint(BCLog::REWARDS, "%s: Invalid assets cache!\n", __func__);
+        LogPrintf("%s: Invalid assets cache!\n", __func__);
         return false;
     }
     if (pSnapshotRequestDb == nullptr) {
-        LogPrint(BCLog::REWARDS, "%s: Invalid Snapshot Request cache!\n", __func__);
+        LogPrintf("%s: Invalid Snapshot Request cache!\n", __func__);
         return false;
     }
     if (pAssetSnapshotDb == nullptr) {
-        LogPrint(BCLog::REWARDS, "%s: Invalid asset snapshot cache!\n", __func__);
+        LogPrintf("%s: Invalid asset snapshot cache!\n", __func__);
         return false;
     }
 
@@ -61,7 +69,7 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
 
     if (p_rewardSnapshot.strDistributionAsset != "AVN") {
         if (!passets->GetAssetMetaDataIfExists(p_rewardSnapshot.strDistributionAsset, distributionAsset)) {
-            LogPrint(BCLog::REWARDS, "%s: Failed to retrieve asset details for '%s'\n", __func__, p_rewardSnapshot.strDistributionAsset.c_str());
+            LogPrintf("%s: Failed to retrieve asset details for '%s'\n", __func__, p_rewardSnapshot.strDistributionAsset.c_str());
             return false;
         }
 
@@ -75,28 +83,28 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
         CAmount srcDivisor = pow(10, COIN_DIGITS_PAST_DECIMAL - distributionAsset.units);
         modifiedPaymentInAssetUnits /= srcDivisor;
 
-        LogPrint(BCLog::REWARDS, "%s: Distribution asset '%s' has units %d and divisor %d\n", __func__,
+        LogPrintf("%s: Distribution asset '%s' has units %d and divisor %d\n", __func__,
                  p_rewardSnapshot.strDistributionAsset.c_str(), distributionAsset.units, srcUnitDivisor);
     }
     else {
-        LogPrint(BCLog::REWARDS, "%s: Distribution is AVN with divisor %d\n", __func__, srcUnitDivisor);
+        LogPrintf("%s: Distribution is AVN with divisor %d\n", __func__, srcUnitDivisor);
     }
 
-    LogPrint(BCLog::REWARDS, "%s: Scaled payment amount in %s is %d\n", __func__,
+    LogPrintf("%s: Scaled payment amount in %s is %d\n", __func__,
              p_rewardSnapshot.strDistributionAsset.c_str(), modifiedPaymentInAssetUnits);
 
     //  Get details on the ownership asset
     CNewAsset ownershipAsset;
     CAmount tgtUnitDivisor = 0;
     if (!passets->GetAssetMetaDataIfExists(p_rewardSnapshot.strOwnershipAsset, ownershipAsset)) {
-        LogPrint(BCLog::REWARDS, "%s: Failed to retrieve asset details for '%s'\n", __func__, p_rewardSnapshot.strOwnershipAsset.c_str());
+        LogPrintf("%s: Failed to retrieve asset details for '%s'\n", __func__, p_rewardSnapshot.strOwnershipAsset.c_str());
         return false;
     }
 
     //  Save the ownership asset's divisor
     tgtUnitDivisor = static_cast<CAmount>(pow(10, COIN_DIGITS_PAST_DECIMAL - ownershipAsset.units));
 
-    LogPrint(BCLog::REWARDS, "%s: Ownership asset '%s' has units %d and divisor %d\n", __func__,
+    LogPrintf("%s: Ownership asset '%s' has units %d and divisor %d\n", __func__,
              p_rewardSnapshot.strOwnershipAsset.c_str(), ownershipAsset.units, tgtUnitDivisor);
 
     //  Remove exception addresses & amounts from the list
@@ -114,7 +122,7 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
 
     CAssetSnapshotDBEntry snapshotEntry;
     if (!pAssetSnapshotDb->RetrieveOwnershipSnapshot(p_rewardSnapshot.strOwnershipAsset, p_rewardSnapshot.nHeight, snapshotEntry)) {
-        LogPrint(BCLog::REWARDS, "%s: Failed to retrieve ownership snapshot list!\n", __func__);
+        LogPrintf("%s: Failed to retrieve ownership snapshot list!\n", __func__);
         return false;
     }
 
@@ -122,7 +130,7 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
         //  Ignore exception and burn addresses
         if (
                 exceptionAddressSet.find(currPair.first) == exceptionAddressSet.end()
-                && !Params().IsBurnAddress(currPair.first)
+                && !false /* TODO: IsBurnAddress not yet in CChainParams */
                 ) {
             //  Address is valid so add it to the payment list
             nonExceptionOwnerships.insert(OwnerAndAmount(currPair.first, currPair.second));
@@ -132,15 +140,15 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
 
     //  Make sure we have some addresses to pay to
     if (nonExceptionOwnerships.size() == 0) {
-        LogPrint(BCLog::REWARDS, "%s: Ownership of '%s' includes only exception/burn addresses.\n", __func__,
+        LogPrintf("%s: Ownership of '%s' includes only exception/burn addresses.\n", __func__,
                  p_rewardSnapshot.strOwnershipAsset.c_str());
         return false;
     }
 
-    LogPrint(BCLog::REWARDS, "%s: Total amount owned %d\n", __func__,
+    LogPrintf("%s: Total amount owned %d\n", __func__,
              totalAmtOwned);
 
-    LogPrint(BCLog::REWARDS, "%s: Total payout amount %d\n", __func__,
+    LogPrintf("%s: Total payout amount %d\n", __func__,
              modifiedPaymentInAssetUnits);
 
     CAmount totalSentAsRewards = 0;
@@ -157,7 +165,7 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
 
         totalSentAsRewards += rewardAmt;
 
-        LogPrint(BCLog::REWARDS, "%s: Found ownership address for '%s': '%s' owns %d => reward %d\n", __func__,
+        LogPrintf("%s: Found ownership address for '%s': '%s' owns %d => reward %d\n", __func__,
                  p_rewardSnapshot.strOwnershipAsset.c_str(), ownership.address.c_str(),
                  ownership.amount, rewardAmt);
 
@@ -168,7 +176,7 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
 
     CAmount change = totalAmtOwned - totalSentAsRewards;
     if (change > 0) {
-        LogPrint(BCLog::REWARDS, "%s: Found change amount of %u\n", __func__, change);
+        LogPrintf("%s: Found change amount of %u\n", __func__, change);
     }
 
     return true;

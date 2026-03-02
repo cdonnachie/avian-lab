@@ -5,6 +5,7 @@
 
 #include <txmempool.h>
 
+#include <assets/assets.h>
 #include <chain.h>
 #include <coins.h>
 #include <common/system.h>
@@ -559,6 +560,94 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
     m_total_fee -= it->GetFee();
     cachedInnerUsage -= it->DynamicMemoryUsage();
     cachedInnerUsage -= memusage::DynamicUsage(it->GetMemPoolParentsConst()) + memusage::DynamicUsage(it->GetMemPoolChildrenConst());
+
+    /** AVN START - Clean up asset tracking maps */
+    const uint256 hash = it->GetTx().GetHash().ToUint256();
+
+    // If the transaction being removed from the mempool is locking other reissues, free them
+    if (mapReissuedTx.count(hash)) {
+        if (mapReissuedAssets.count(mapReissuedTx.at(hash))) {
+            mapReissuedAssets.erase(mapReissuedTx.at(hash));
+            mapReissuedTx.erase(hash);
+        }
+    }
+
+    // Erase from the asset mempool maps if they match txid
+    if (mapHashToAsset.count(hash)) {
+        mapAssetToHash.erase(mapHashToAsset.at(hash));
+        mapHashToAsset.erase(hash);
+    }
+
+    // Erase from the restricted asset mempool maps if they match txids
+    if (mapHashToAddressMarkedFrozen.count(hash)) {
+        for (const auto& item : mapHashToAddressMarkedFrozen.at(hash))
+            mapAddressesMarkedFrozen.at(item).erase(hash);
+        mapHashToAddressMarkedFrozen.erase(hash);
+    }
+
+    if (mapHashMarkedGlobalFrozen.count(hash)) {
+        for (const auto& item : mapHashMarkedGlobalFrozen.at(hash))
+            mapAssetMarkedGlobalFrozen.at(item).erase(hash);
+        mapHashMarkedGlobalFrozen.erase(hash);
+    }
+
+    if (mapHashQualifiersChanged.count(hash)) {
+        for (const auto& item : mapHashQualifiersChanged.at(hash))
+            mapAddressesQualifiersChanged.at(item).erase(hash);
+        mapHashQualifiersChanged.erase(hash);
+    }
+
+    if (mapHashVerifierChanged.count(hash)) {
+        for (const auto& item : mapHashVerifierChanged.at(hash))
+            mapAssetVerifierChanged.at(item).erase(hash);
+        mapHashVerifierChanged.erase(hash);
+    }
+
+    if (mapHashGlobalFreezingAssetTransactions.count(hash)) {
+        for (const auto& item : mapHashGlobalFreezingAssetTransactions.at(hash)) {
+            if (mapGlobalFreezingAssetTransactions.count(item)) {
+                mapGlobalFreezingAssetTransactions.at(item).erase(hash);
+                if (mapGlobalFreezingAssetTransactions.at(item).empty())
+                    mapGlobalFreezingAssetTransactions.erase(item);
+            }
+        }
+        mapHashGlobalFreezingAssetTransactions.erase(hash);
+    }
+
+    if (mapHashGlobalUnFreezingAssetTransactions.count(hash)) {
+        for (const auto& item : mapHashGlobalUnFreezingAssetTransactions.at(hash)) {
+            if (mapGlobalUnFreezingAssetTransactions.count(item)) {
+                mapGlobalUnFreezingAssetTransactions.at(item).erase(hash);
+                if (mapGlobalUnFreezingAssetTransactions.at(item).empty())
+                    mapGlobalUnFreezingAssetTransactions.erase(item);
+            }
+        }
+        mapHashGlobalUnFreezingAssetTransactions.erase(hash);
+    }
+
+    if (mapHashToAddressAddedTag.count(hash)) {
+        for (const auto& item : mapHashToAddressAddedTag.at(hash)) {
+            if (mapAddressAddedTag.count(item)) {
+                mapAddressAddedTag.at(item).erase(hash);
+                if (mapAddressAddedTag.at(item).empty())
+                    mapAddressAddedTag.erase(item);
+            }
+        }
+        mapHashToAddressAddedTag.erase(hash);
+    }
+
+    if (mapHashToAddressRemoveTag.count(hash)) {
+        for (const auto& item : mapHashToAddressRemoveTag.at(hash)) {
+            if (mapAddressRemoveTag.count(item)) {
+                mapAddressRemoveTag.at(item).erase(hash);
+                if (mapAddressRemoveTag.at(item).empty())
+                    mapAddressRemoveTag.erase(item);
+            }
+        }
+        mapHashToAddressRemoveTag.erase(hash);
+    }
+    /** AVN END */
+
     mapTx.erase(it);
     nTransactionsUpdated++;
 }
@@ -682,6 +771,166 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
             ClearPrioritisation(tx->GetHash());
         }
     }
+    if (m_opts.signals) {
+        m_opts.signals->MempoolTransactionsRemovedForBlock(txs_removed_for_block, nBlockHeight);
+    }
+    lastRollingFeeUpdate = GetTime();
+    blockSinceLastRollingFeeBump = true;
+}
+
+void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight, ConnectedBlockAssetData& connectedBlockData)
+{
+    AssertLockHeld(cs);
+    Assume(!m_have_changeset);
+    std::set<uint256> setAlreadyRemoving;
+
+    std::vector<RemovedMempoolTransactionInfo> txs_removed_for_block;
+    std::vector<CTransaction> assetConflictTxs;
+
+    if (mapTx.size() || mapNextTx.size() || mapDeltas.size()) {
+        txs_removed_for_block.reserve(vtx.size());
+        for (const auto& tx : vtx) {
+            txiter it = mapTx.find(tx->GetHash());
+            if (it != mapTx.end()) {
+                setEntries stage;
+                stage.insert(it);
+                txs_removed_for_block.emplace_back(*it);
+                RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+            }
+            removeConflicts(*tx);
+            ClearPrioritisation(tx->GetHash());
+        }
+    }
+
+    /** AVN START - Remove mempool transactions that conflict with connected block asset data */
+    // Remove mempool txs that tried to create assets that are now confirmed
+    for (const auto& it : connectedBlockData.newAssetsToAdd) {
+        if (mapAssetToHash.count(it.asset.strName)) {
+            uint256 assetHash = mapAssetToHash.at(it.asset.strName);
+            txiter i = mapTx.find(Txid::FromUint256(assetHash));
+            if (i != mapTx.end()) {
+                assetConflictTxs.emplace_back(i->GetTx());
+                setEntries stage;
+                stage.insert(i);
+                RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+                setAlreadyRemoving.insert(assetHash);
+            }
+        }
+    }
+
+    // Remove mempool txs that conflict with newly confirmed verifier string changes
+    for (const auto& it : connectedBlockData.newVerifiersToAdd) {
+        if (mapAssetVerifierChanged.count(it.assetName)) {
+            for (const auto& txhash : mapAssetVerifierChanged.at(it.assetName)) {
+                if (!setAlreadyRemoving.count(txhash)) {
+                    txiter i = mapTx.find(Txid::FromUint256(txhash));
+                    if (i != mapTx.end()) {
+                        assetConflictTxs.emplace_back(i->GetTx());
+                        setEntries stage;
+                        stage.insert(i);
+                        RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+                        setAlreadyRemoving.insert(txhash);
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove mempool txs that conflict with newly confirmed qualifier changes
+    for (const auto& it : connectedBlockData.newQualifiersToAdd) {
+        if (mapAddressesQualifiersChanged.count(it.address)) {
+            for (const auto& txhash : mapAddressesQualifiersChanged.at(it.address)) {
+                if (!setAlreadyRemoving.count(txhash)) {
+                    txiter i = mapTx.find(Txid::FromUint256(txhash));
+                    if (i != mapTx.end()) {
+                        assetConflictTxs.emplace_back(i->GetTx());
+                        setEntries stage;
+                        stage.insert(i);
+                        RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+                        setAlreadyRemoving.insert(txhash);
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove mempool txs that conflict with newly confirmed global restriction changes
+    for (const auto& it : connectedBlockData.newGlobalRestrictionsToAdd) {
+        if (it.type == RestrictedType::GLOBAL_FREEZE) {
+            if (mapAssetMarkedGlobalFrozen.count(it.assetName)) {
+                for (const auto& txhash : mapAssetMarkedGlobalFrozen.at(it.assetName)) {
+                    if (!setAlreadyRemoving.count(txhash)) {
+                        txiter i = mapTx.find(Txid::FromUint256(txhash));
+                        if (i != mapTx.end()) {
+                            assetConflictTxs.emplace_back(i->GetTx());
+                            setEntries stage;
+                            stage.insert(i);
+                            RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+                            setAlreadyRemoving.insert(txhash);
+                        }
+                    }
+                }
+            }
+            if (mapGlobalFreezingAssetTransactions.count(it.assetName)) {
+                for (const auto& txhash : mapGlobalFreezingAssetTransactions.at(it.assetName)) {
+                    if (!setAlreadyRemoving.count(txhash)) {
+                        txiter i = mapTx.find(Txid::FromUint256(txhash));
+                        if (i != mapTx.end()) {
+                            assetConflictTxs.emplace_back(i->GetTx());
+                            setEntries stage;
+                            stage.insert(i);
+                            RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+                            setAlreadyRemoving.insert(txhash);
+                        }
+                    }
+                }
+            }
+        } else if (it.type == RestrictedType::GLOBAL_UNFREEZE) {
+            if (mapGlobalUnFreezingAssetTransactions.count(it.assetName)) {
+                for (const auto& txhash : mapGlobalUnFreezingAssetTransactions.at(it.assetName)) {
+                    if (!setAlreadyRemoving.count(txhash)) {
+                        txiter i = mapTx.find(Txid::FromUint256(txhash));
+                        if (i != mapTx.end()) {
+                            assetConflictTxs.emplace_back(i->GetTx());
+                            setEntries stage;
+                            stage.insert(i);
+                            RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+                            setAlreadyRemoving.insert(txhash);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove mempool txs that conflict with newly confirmed address restriction changes
+    for (const auto& it : connectedBlockData.newAddressRestrictionsToAdd) {
+        if (it.type == RestrictedType::FREEZE_ADDRESS) {
+            auto pair = std::make_pair(it.address, it.assetName);
+            if (mapAddressesMarkedFrozen.count(pair)) {
+                for (const auto& txhash : mapAddressesMarkedFrozen.at(pair)) {
+                    if (!setAlreadyRemoving.count(txhash)) {
+                        txiter i = mapTx.find(Txid::FromUint256(txhash));
+                        if (i != mapTx.end()) {
+                            assetConflictTxs.emplace_back(i->GetTx());
+                            setEntries stage;
+                            stage.insert(i);
+                            RemoveStaged(stage, true, MemPoolRemovalReason::BLOCK);
+                            setAlreadyRemoving.insert(txhash);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Clean up conflicts for the additionally removed asset transactions
+    for (const auto& tx : assetConflictTxs) {
+        removeConflicts(tx);
+        ClearPrioritisation(tx.GetHash());
+    }
+    /** AVN END */
+
     if (m_opts.signals) {
         m_opts.signals->MempoolTransactionsRemovedForBlock(txs_removed_for_block, nBlockHeight);
     }

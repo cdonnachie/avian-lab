@@ -732,10 +732,12 @@ public:
         LOCKS_EXCLUDED(::cs_main);
 
     // Block (dis)connection on a given view:
-    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view)
+    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view,
+                                     class CAssetsCache* assetsCache = nullptr)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
     bool ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
-                      CCoinsViewCache& view, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+                      CCoinsViewCache& view, bool fJustCheck = false,
+                      class CAssetsCache* assetsCache = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Apply the effects of a block disconnection on the UTXO set.
     bool DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);

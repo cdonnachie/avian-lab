@@ -4,9 +4,16 @@
 
 #include <assets/messages.h>
 #include <assets/myassetsdb.h>
+#include <assets/assets.h>
 #include <key_io.h>
 #include <logging.h>
 
+// Extern declarations for globals defined in init.cpp
+extern CMessageDB* pmessagedb;
+extern CMessageChannelDB* pmessagechanneldb;
+extern CLRUCache<std::string, CMessage>* pMessagesCache;
+extern CLRUCache<std::string, int8_t>* pMessageSubscribedChannelsCache;
+extern CLRUCache<std::string, int8_t>* pMessagesSeenAddressCache;
 
 std::set<COutPoint> setDirtyMessagesRemove;
 std::map<COutPoint, CMessage> mapDirtyMessagesAdd;
@@ -109,14 +116,14 @@ bool GetMessage(const COutPoint& out, CMessage& message)
         return false;
 
     // Check database cache
-    if (pMessagesCache->Exists(out.ToSerializedString())) {
-        message = pMessagesCache->Get(out.ToSerializedString());
+    if (pMessagesCache->Exists(out.ToString())) {
+        message = pMessagesCache->Get(out.ToString());
         return true;
     }
 
     // Check the database
     if (pmessagedb->ReadMessage(out, message)) {
-        pMessagesCache->Put(out.ToSerializedString(), message);
+        pMessagesCache->Put(out.ToString(), message);
         return true;
     }
 

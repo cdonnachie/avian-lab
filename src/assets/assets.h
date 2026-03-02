@@ -563,4 +563,27 @@ bool ContextualCheckReissueAsset(CAssetsCache* assetCache, const CReissueAsset& 
 bool ContextualCheckUniqueAssetTx(CAssetsCache* assetCache, std::string& strError, const CTransaction& tx);
 bool ContextualCheckUniqueAsset(CAssetsCache* assetCache, const CNewAsset& unique_asset, std::string& strError);
 
+//! Free functions for transaction asset type checking (converted from CTransaction member functions)
+bool IsNewAsset(const CTransaction& tx);
+bool IsNewUniqueAsset(const CTransaction& tx);
+bool VerifyNewUniqueAsset(const CTransaction& tx, std::string& strError);
+bool VerifyNewAsset(const CTransaction& tx, std::string& strError);
+bool IsNewMsgChannelAsset(const CTransaction& tx);
+bool VerifyNewMsgChannelAsset(const CTransaction& tx, std::string& strError);
+bool IsNewQualifierAsset(const CTransaction& tx);
+bool VerifyNewQualfierAsset(const CTransaction& tx, std::string& strError);
+bool IsNewRestrictedAsset(const CTransaction& tx);
+bool VerifyNewRestrictedAsset(const CTransaction& tx, std::string& strError);
+bool GetVerifierStringFromTx(const CTransaction& tx, CNullAssetTxVerifierString& verifier, std::string& strError, bool& fNotFound);
+bool GetVerifierStringFromTx(const CTransaction& tx, CNullAssetTxVerifierString& verifier, std::string& strError);
+bool IsReissueAsset(const CTransaction& tx);
+bool VerifyReissueAsset(const CTransaction& tx, std::string& strError);
+bool CheckAddingTagBurnFee(const CTransaction& tx, const int& count);
+
+//! Deployment check functions
+bool AreAssetsDeployed();
+bool AreMessagesDeployed();
+bool AreRestrictedAssetsDeployed();
+bool IsAvianNameSystemDeployed();
+
 #endif //BITCOIN_ASSETS_ASSETS_H
