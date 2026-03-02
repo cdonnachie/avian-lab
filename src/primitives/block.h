@@ -15,6 +15,8 @@
 
 #include <string>
 
+#include <util/fs.h>
+
 // Dual Algo: An impossible pow hash (can't meet any target)
 const uint256 HIGH_HASH = uint256{"0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"};
 
@@ -38,6 +40,10 @@ enum POW_TYPE {
 // Must be called before any block hashing occurs (except genesis).
 void SetPoWHashParams(uint32_t nX16rtTimestamp, uint32_t nDualAlgoTimestamp);
 bool ArePoWHashParamsSet();
+
+// PowCache disk persistence: save/load expensive PoW hash cache to/from disk
+bool SavePowCache(const fs::path& cache_path);
+bool LoadPowCache(const fs::path& cache_path);
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work

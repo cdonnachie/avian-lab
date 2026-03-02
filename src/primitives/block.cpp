@@ -8,10 +8,13 @@
 #include <primitives/block.h>
 
 #include <hash.h>
+#include <logging.h>
 #include <span.h>
 #include <streams.h>
 #include <sync.h>
 #include <tinyformat.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 
 #include <algo/minotaurx/minotaurx.h>
 #include <algo/x16r/x16r.h>
@@ -54,6 +57,119 @@ void SetPoWHashParams(uint32_t nX16rtTimestamp, uint32_t nDualAlgoTimestamp)
 bool ArePoWHashParamsSet()
 {
     return g_bPoWParamsSet;
+}
+
+// ========================================================================
+// PowCache disk persistence
+// Format: [uint64_t version][uint64_t count][count × (uint256 key + uint256 value)]
+// ========================================================================
+static constexpr uint64_t POWCACHE_FILE_VERSION = 1;
+
+bool SavePowCache(const fs::path& cache_path)
+{
+    LOCK(cs_powcache);
+    if (g_pow_cache.empty()) {
+        LogInfo("PowCache: nothing to save (cache empty)\n");
+        return true;
+    }
+
+    // Write to temporary file, then atomically rename
+    const fs::path tmp_path = cache_path + ".new";
+    AutoFile file{fsbridge::fopen(tmp_path, "wb")};
+    if (file.IsNull()) {
+        LogError("PowCache: failed to open %s for writing\n", fs::PathToString(tmp_path));
+        return false;
+    }
+
+    try {
+        uint64_t version = POWCACHE_FILE_VERSION;
+        uint64_t count = g_pow_cache.size();
+        file << version;
+        file << count;
+
+        for (const auto& [headerHash, powHash] : g_pow_cache) {
+            file << headerHash;
+            file << powHash;
+        }
+
+        if (!file.Commit()) {
+            (void)file.fclose();
+            fs::remove(tmp_path);
+            LogError("PowCache: failed to flush %s\n", fs::PathToString(tmp_path));
+            return false;
+        }
+
+        if (file.fclose() != 0) {
+            fs::remove(tmp_path);
+            LogError("PowCache: failed to close %s\n", fs::PathToString(tmp_path));
+            return false;
+        }
+
+        if (!RenameOver(tmp_path, cache_path)) {
+            fs::remove(tmp_path);
+            LogError("PowCache: failed to rename %s to %s\n", fs::PathToString(tmp_path), fs::PathToString(cache_path));
+            return false;
+        }
+
+        LogInfo("PowCache: saved %llu entries to %s\n", (unsigned long long)count, fs::PathToString(cache_path));
+    } catch (const std::exception& e) {
+        LogError("PowCache: error saving: %s\n", e.what());
+        (void)file.fclose();
+        fs::remove(tmp_path);
+        return false;
+    }
+    return true;
+}
+
+bool LoadPowCache(const fs::path& cache_path)
+{
+    if (!fs::exists(cache_path)) {
+        LogInfo("PowCache: no cache file found at %s, starting fresh\n", fs::PathToString(cache_path));
+        return true;
+    }
+
+    AutoFile file{fsbridge::fopen(cache_path, "rb")};
+    if (file.IsNull()) {
+        LogError("PowCache: failed to open %s for reading\n", fs::PathToString(cache_path));
+        return false;
+    }
+
+    try {
+        uint64_t version;
+        file >> version;
+        if (version != POWCACHE_FILE_VERSION) {
+            LogError("PowCache: unsupported version %llu in %s, ignoring\n", (unsigned long long)version, fs::PathToString(cache_path));
+            return true; // Not fatal, just start with empty cache
+        }
+
+        uint64_t count;
+        file >> count;
+
+        // Sanity check: each entry is 64 bytes (two uint256), limit to reasonable size
+        if (count > 50000000ULL) {
+            LogError("PowCache: file claims %llu entries, ignoring as too large\n", (unsigned long long)count);
+            return true;
+        }
+
+        LOCK(cs_powcache);
+        g_pow_cache.clear();
+        g_pow_cache.reserve(count);
+
+        uint256 headerHash, powHash;
+        for (uint64_t i = 0; i < count; ++i) {
+            file >> headerHash;
+            file >> powHash;
+            g_pow_cache[headerHash] = powHash;
+        }
+
+        LogInfo("PowCache: loaded %llu entries from %s\n", (unsigned long long)count, fs::PathToString(cache_path));
+    } catch (const std::exception& e) {
+        LogError("PowCache: error loading: %s. Starting with empty cache.\n", e.what());
+        LOCK(cs_powcache);
+        g_pow_cache.clear();
+        return true; // Not fatal
+    }
+    return true;
 }
 
 uint256 CBlockHeader::GetSHA256Hash() const

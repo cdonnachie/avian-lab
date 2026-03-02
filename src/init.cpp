@@ -103,6 +103,7 @@
 #include <assets/snapshotrequestdb.h>
 #include <assets/assetsnapshotdb.h>
 #include <assets/rewards.h>
+#include <primitives/block.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -420,6 +421,11 @@ void Shutdown(NodeContext& node)
     node.chain_clients.clear();
     if (node.validation_signals) {
         node.validation_signals->UnregisterAllValidationInterfaces();
+    }
+
+    // AVN: Save PowCache to disk for faster restarts
+    if (node.args) {
+        SavePowCache(node.args->GetDataDirNet() / "powcache.dat");
     }
 
     // AVN: Clean up asset databases and caches
@@ -1903,6 +1909,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             fMessaging = true;
             LogPrintf("Messaging is enabled\n");
         }
+    }
+
+    // AVN: Load PowCache from disk for faster header validation
+    {
+        uiInterface.InitMessage(_("Loading POW cache..."));
+        LoadPowCache(args.GetDataDirNet() / "powcache.dat");
     }
 
     // ********************************************************* Step 8: start indexers
