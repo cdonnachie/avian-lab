@@ -114,6 +114,11 @@ const std::vector<std::string> CHECKLEVEL_DOC {
     "level 4 tries to reconnect the blocks",
     "each level includes the checks of the previous levels",
 };
+
+// AVN: Optional index flags (default off)
+bool fAddressIndex = false;
+bool fSpentIndex = false;
+bool fTimestampIndex = false;
 /** The number of blocks to keep below the deepest prune lock.
  *  There is nothing special about this number. It is higher than what we
  *  expect to see in regular mainnet reorgs, but not so high that it would
