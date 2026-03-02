@@ -6,6 +6,7 @@
 #ifndef BITCOIN_ASSETS_ASSETTYPES_H
 #define BITCOIN_ASSETS_ASSETTYPES_H
 
+#include <addresstype.h>
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
 #include <serialize.h>
@@ -54,6 +55,25 @@ enum class RestrictedType
 
 int IntFromAssetType(AssetType type);
 AssetType AssetTypeFromInt(int nType);
+
+// Integer constants matching IsAssetScript() return values.
+// These correspond to TxoutType enum class values in script/solver.h but are used
+// as plain ints by the asset subsystem's IsAssetScript() which predates enum class.
+static constexpr int TX_NEW_ASSET = 8;
+static constexpr int TX_REISSUE_ASSET = 9;
+static constexpr int TX_TRANSFER_ASSET = 10;
+static constexpr int TX_RESTRICTED_ASSET_DATA = 11;
+
+// Output entry describing an asset found in a transaction output
+struct CAssetOutputEntry
+{
+    int type;               // TX_NEW_ASSET, TX_TRANSFER_ASSET, TX_REISSUE_ASSET
+    std::string assetName;
+    CTxDestination destination;
+    CAmount nAmount;
+    std::string message;    // for transfers with attached message
+    int64_t expireTime{0};  // for transfers with expiration
+};
 
 static constexpr int8_t IPFS_SHA2_256 = 0x12;
 static constexpr int8_t TXID_NOTIFIER = 0x54;

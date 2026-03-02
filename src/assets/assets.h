@@ -57,6 +57,8 @@ class CScript;
 class CTransaction;
 class CTxOut;
 class Coin;
+class CAssetsDB;
+class CRestrictedDB;
 struct CAssetOutputEntry;
 struct CBlockAssetUndo;
 
@@ -67,6 +69,18 @@ struct CBlockAssetUndo;
 // If an asset name is in this map, any other reissue transactions wont be accepted into the mempool
 extern std::map<uint256, std::string> mapReissuedTx;
 extern std::map<std::string, uint256> mapReissuedAssets;
+
+// Asset global state
+extern CAssetsCache* passets;
+extern CAssetsDB* passetsdb;
+extern CLRUCache<std::string, CDatabasedAssetData>* passetsCache;
+extern CRestrictedDB* prestricteddb;
+extern CLRUCache<std::string, CNullAssetTxVerifierString>* passetsVerifierCache;
+extern CLRUCache<std::string, int8_t>* passetsQualifierCache;
+extern CLRUCache<std::string, int8_t>* passetsRestrictionCache;
+extern CLRUCache<std::string, int8_t>* passetsGlobalRestrictionCache;
+extern bool fAssetIndex;
+extern bool g_asset_reindex;
 
 class CAssets {
 public:

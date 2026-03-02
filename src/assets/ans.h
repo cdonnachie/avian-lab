@@ -3,13 +3,11 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef AVIAN_ANS_H
-#define AVIAN_ANS_H
+#ifndef BITCOIN_ASSETS_ANS_H
+#define BITCOIN_ASSETS_ANS_H
 
 #include <string>
 #include <array>
-
-#include "univalue.h"
 
 /* Class for ANS (Avian Name System) ID */
 class CAvianNameSystemID {
@@ -26,7 +24,6 @@ public:
     CAvianNameSystemID(std::string ansID);
 
     std::string to_string();
-    UniValue to_object();
 
     Type type() { return m_type; };
     std::string addr() { return m_addr; };
@@ -61,4 +58,4 @@ constexpr std::array<CAvianNameSystemID::Type, 2> ANSTypes {
     CAvianNameSystemID::IP
 };
 
-#endif
+#endif // BITCOIN_ASSETS_ANS_H
