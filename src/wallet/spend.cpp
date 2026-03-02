@@ -29,6 +29,7 @@
 #include <wallet/spend.h>
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
+#include <assets/assets.h>
 
 #include <cmath>
 
@@ -524,6 +525,127 @@ CoinsResult AvailableCoins(const CWallet& wallet,
     }
 
     return result;
+}
+
+CoinsResult AvailableCoinsWithAssets(const CWallet& wallet,
+                                     const CCoinControl* coinControl,
+                                     std::optional<CFeeRate> feerate,
+                                     const CoinFilterParams& params)
+{
+    AssertLockHeld(wallet.cs_wallet);
+
+    // First get the regular available coins
+    CoinsResult result = AvailableCoins(wallet, coinControl, feerate, params);
+
+    // Now scan for asset UTXOs
+    const bool can_grind_r = wallet.CanGrindR();
+    std::set<Txid> trusted_parents;
+
+    for (const auto& [outpoint, txo] : wallet.GetTXOs()) {
+        const CWalletTx& wtx = txo.GetWalletTx();
+        const CTxOut& output = txo.GetTxOut();
+
+        // Only interested in asset scripts
+        if (!output.scriptPubKey.IsAssetScript())
+            continue;
+
+        if (wallet.IsSpent(outpoint))
+            continue;
+
+        int nDepth = wallet.GetTxDepthInMainChain(wtx);
+        if (nDepth < 0)
+            continue;
+
+        // We should not consider coins which aren't at least in our mempool
+        if (nDepth == 0 && !wtx.InMempool())
+            continue;
+
+        bool safeTx = CachedTxIsTrusted(wallet, wtx, trusted_parents);
+        bool tx_from_me = CachedTxIsFromMe(wallet, wtx);
+
+        std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(output.scriptPubKey);
+        int input_bytes = provider ? CalculateMaximumSignedInputSize(output, COutPoint(), provider.get(), can_grind_r, coinControl) : -1;
+        bool solvable = input_bytes > -1;
+
+        auto available_output = COutput(outpoint, output, nDepth, input_bytes, solvable, safeTx, wtx.GetTxTime(), tx_from_me, feerate);
+
+        // Extract asset name from script
+        CAssetTransfer assetTransfer;
+        CNewAsset newAsset;
+        CReissueAsset reissueAsset;
+        std::string strAddress;
+        std::string assetName;
+
+        if (TransferAssetFromScript(output.scriptPubKey, assetTransfer, strAddress)) {
+            assetName = assetTransfer.strName;
+        } else if (AssetFromScript(output.scriptPubKey, newAsset, strAddress)) {
+            assetName = newAsset.strName;
+        } else if (OwnerAssetFromScript(output.scriptPubKey, assetName, strAddress)) {
+            // assetName already set
+        } else if (ReissueAssetFromScript(output.scriptPubKey, reissueAsset, strAddress)) {
+            assetName = reissueAsset.strName;
+        } else {
+            continue; // Unknown asset script type
+        }
+
+        if (!assetName.empty()) {
+            result.mapAssetCoins[assetName].push_back(available_output);
+        }
+    }
+
+    return result;
+}
+
+bool SelectAssets(const CWallet& wallet,
+                  const std::map<std::string, std::vector<COutput>>& mapAssetCoins,
+                  const std::map<std::string, CAmount>& mapAssetTargets,
+                  std::set<COutput>& setCoinsRet,
+                  std::map<std::string, CAmount>& nValueRet)
+{
+    AssertLockHeld(wallet.cs_wallet);
+    setCoinsRet.clear();
+    nValueRet.clear();
+
+    for (const auto& [assetName, nTargetValue] : mapAssetTargets) {
+        auto it = mapAssetCoins.find(assetName);
+        if (it == mapAssetCoins.end())
+            return false; // No coins available for this asset
+
+        const std::vector<COutput>& vCoins = it->second;
+
+        // Simple greedy selection: sort by value descending, pick until target met
+        std::vector<COutput> sortedCoins = vCoins;
+        std::sort(sortedCoins.begin(), sortedCoins.end(), [](const COutput& a, const COutput& b) {
+            return a.txout.nValue > b.txout.nValue;
+        });
+
+        CAmount nValueSelected = 0;
+        for (const auto& coin : sortedCoins) {
+            // Extract asset amount from script (not the nValue which is the AVN dust amount)
+            CAssetTransfer assetTransfer;
+            std::string strAddress;
+            CAmount assetAmount = 0;
+
+            if (TransferAssetFromScript(coin.txout.scriptPubKey, assetTransfer, strAddress)) {
+                assetAmount = assetTransfer.nAmount;
+            } else {
+                continue; // Can only spend transfer type outputs
+            }
+
+            setCoinsRet.insert(coin);
+            nValueSelected += assetAmount;
+
+            if (nValueSelected >= nTargetValue) {
+                nValueRet[assetName] = nValueSelected;
+                break;
+            }
+        }
+
+        if (nValueSelected < nTargetValue)
+            return false; // Insufficient asset funds
+    }
+
+    return true;
 }
 
 const CTxOut& FindNonChangeParentOutput(const CWallet& wallet, const COutPoint& outpoint)

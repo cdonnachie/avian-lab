@@ -118,6 +118,26 @@ public:
     //! Caps weight of resulting tx
     std::optional<int> m_max_tx_weight{std::nullopt};
 
+    //! AVN: Custom change destination for asset change outputs
+    CTxDestination destAssetChange = CNoDestination();
+    //! AVN: Currently selected asset name for coin control
+    std::string strAssetSelected;
+    //! AVN: Selected asset UTXOs
+    std::set<COutPoint> setAssetsSelected;
+
+    //! AVN: Check if an asset UTXO is selected
+    bool HasAssetSelected() const { return !setAssetsSelected.empty(); }
+    //! AVN: Select an asset UTXO
+    void SelectAsset(const COutPoint& output) { setAssetsSelected.insert(output); }
+    //! AVN: Unselect an asset UTXO
+    void UnSelectAsset(const COutPoint& output) { setAssetsSelected.erase(output); }
+    //! AVN: Unselect all asset UTXOs
+    void UnSelectAllAssets() { setAssetsSelected.clear(); }
+    //! AVN: List selected asset UTXOs
+    std::vector<COutPoint> ListSelectedAssets() const { return {setAssetsSelected.begin(), setAssetsSelected.end()}; }
+    //! AVN: Check if the given asset UTXO is selected
+    bool IsAssetSelected(const COutPoint& outpoint) const { return setAssetsSelected.count(outpoint) > 0; }
+
     CCoinControl();
 
     /**

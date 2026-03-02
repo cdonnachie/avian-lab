@@ -7,6 +7,7 @@
 
 #include <consensus/amount.h>
 #include <primitives/transaction_identifier.h>
+#include <script/standard.h>
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
 
@@ -34,11 +35,33 @@ struct COutputEntry
     CAmount amount;
     int vout;
 };
+
+/** AVN: Asset output entry for tracking asset transfers in wallet transactions */
+struct CAssetOutputEntry
+{
+    TxoutType type;               //!< Asset transaction type (new, transfer, reissue, etc.)
+    std::string assetName;        //!< Name of the asset
+    CTxDestination destination;   //!< Recipient address
+    CAmount nAmount;              //!< Amount of asset
+    std::string message;          //!< Optional IPFS message hash
+    int64_t expireTime;           //!< Expiration timestamp for messages
+    int vout;                     //!< Output index in the transaction
+};
+
 void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
                         std::list<COutputEntry>& listReceived,
                         std::list<COutputEntry>& listSent,
                         CAmount& nFee,
                         bool include_change);
+
+/** AVN: Get amounts including asset transfer details */
+void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
+                        std::list<COutputEntry>& listReceived,
+                        std::list<COutputEntry>& listSent,
+                        CAmount& nFee,
+                        bool include_change,
+                        std::list<CAssetOutputEntry>& assetsReceived,
+                        std::list<CAssetOutputEntry>& assetsSent);
 bool CachedTxIsFromMe(const CWallet& wallet, const CWalletTx& wtx);
 bool CachedTxIsTrusted(const CWallet& wallet, const CWalletTx& wtx, std::set<Txid>& trusted_parents) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
 bool CachedTxIsTrusted(const CWallet& wallet, const CWalletTx& wtx);

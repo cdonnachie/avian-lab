@@ -45,6 +45,9 @@ TxSize CalculateMaximumSignedTxSize(const CTransaction& tx, const CWallet* walle
 struct CoinsResult {
     std::map<OutputType, std::vector<COutput>> coins;
 
+    /** AVN: Asset coins grouped by asset name */
+    std::map<std::string, std::vector<COutput>> mapAssetCoins;
+
     /** Concatenate and return all COutputs as one vector */
     std::vector<COutput> All() const;
 
@@ -93,6 +96,30 @@ CoinsResult AvailableCoins(const CWallet& wallet,
                            const CCoinControl* coinControl = nullptr,
                            std::optional<CFeeRate> feerate = std::nullopt,
                            const CoinFilterParams& params = {}) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
+
+/**
+ * AVN: Populate the CoinsResult struct with both regular and asset COutputs.
+ * Asset outputs are organized by asset name in mapAssetCoins.
+ */
+CoinsResult AvailableCoinsWithAssets(const CWallet& wallet,
+                                     const CCoinControl* coinControl = nullptr,
+                                     std::optional<CFeeRate> feerate = std::nullopt,
+                                     const CoinFilterParams& params = {}) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
+
+/**
+ * AVN: Select asset coins to meet the required amounts per asset.
+ * @param[in]  wallet            The wallet to select coins from
+ * @param[in]  mapAssetCoins     Available asset UTXOs grouped by asset name
+ * @param[in]  mapAssetTargets   Target amounts per asset name
+ * @param[out] setCoinsRet       Selected coin outputs
+ * @param[out] nValueRet         Total value of selected coins (per asset)
+ * returns                       true if selection was successful
+ */
+bool SelectAssets(const CWallet& wallet,
+                  const std::map<std::string, std::vector<COutput>>& mapAssetCoins,
+                  const std::map<std::string, CAmount>& mapAssetTargets,
+                  std::set<COutput>& setCoinsRet,
+                  std::map<std::string, CAmount>& nValueRet) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
 
 /**
  * Find non-change parent output.
