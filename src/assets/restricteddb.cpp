@@ -1,11 +1,9 @@
 // Copyright (c) 2019 The Raven Core developers
+// Copyright (c) 2022 The Avian Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "restricteddb.h"
-#include "validation.h"
-
-#include <boost/thread.hpp>
+#include <assets/restricteddb.h>
 
 static const char DB_FLAG = 'D';
 static const char VERIFIER_FLAG = 'V';
@@ -15,8 +13,13 @@ static const char RESTRICTED_ADDRESS_FLAG = 'R';
 static const char GLOBAL_RESTRICTION_FLAG = 'G';
 
 
-
-CRestrictedDB::CRestrictedDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "assets" / "restricted", nCacheSize, fMemory, fWipe) {
+CRestrictedDB::CRestrictedDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
+    : CDBWrapper(DBParams{
+          .path = datadir / "assets" / "restricted",
+          .cache_bytes = nCacheSize,
+          .memory_only = fMemory,
+          .wipe_data = fWipe})
+{
 }
 
 // Restricted Verifier Strings
@@ -124,15 +127,12 @@ bool CRestrictedDB::ReadFlag(const std::string &name, bool &fValue)
 
 bool CRestrictedDB::GetQualifierAddresses(std::string& qualifier, std::vector<std::string>& addresses)
 {
-    FlushStateToDisk();
-
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
     pcursor->Seek(std::make_pair(QULAIFIER_ADDRESS_FLAG, std::make_pair(qualifier, std::string())));
 
     // Load all qualifiers related to that given address
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == QULAIFIER_ADDRESS_FLAG && key.second.first == qualifier) {
             addresses.emplace_back(key.second.second);
@@ -153,7 +153,6 @@ bool CRestrictedDB::CheckForAddressRootQualifier(const std::string& address, con
 
     // Load all qualifiers related to that given address
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == ADDRESS_QULAIFIER_FLAG && key.second.first == address) {
             if (key.second.second == qualifier || key.second.second.rfind(std::string(qualifier + "/"), 0) == 0) {
@@ -170,15 +169,12 @@ bool CRestrictedDB::CheckForAddressRootQualifier(const std::string& address, con
 
 bool CRestrictedDB::GetAddressQualifiers(std::string& address, std::vector<std::string>& qualifiers)
 {
-    FlushStateToDisk();
-
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
     pcursor->Seek(std::make_pair(ADDRESS_QULAIFIER_FLAG, std::make_pair(address, std::string())));
 
     // Load all qualifiers related to that given address
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == ADDRESS_QULAIFIER_FLAG && key.second.first == address) {
             qualifiers.emplace_back(key.second.second);
@@ -193,15 +189,12 @@ bool CRestrictedDB::GetAddressQualifiers(std::string& address, std::vector<std::
 
 bool CRestrictedDB::GetAddressRestrictions(std::string& address, std::vector<std::string>& restrictions)
 {
-    FlushStateToDisk();
-
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
     pcursor->Seek(std::make_pair(RESTRICTED_ADDRESS_FLAG, std::make_pair(address, std::string())));
 
     // Load all restrictions related to the given address
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::pair<std::string, std::string> > key;
         if (pcursor->GetKey(key) && key.first == RESTRICTED_ADDRESS_FLAG && key.second.first == address) {
             restrictions.emplace_back(key.second.second);
@@ -216,15 +209,12 @@ bool CRestrictedDB::GetAddressRestrictions(std::string& address, std::vector<std
 
 bool CRestrictedDB::GetGlobalRestrictions(std::vector<std::string>& restrictions)
 {
-    FlushStateToDisk();
-
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
     pcursor->Seek(std::make_pair(GLOBAL_RESTRICTION_FLAG, std::string()));
 
     // Load all restrictions related to the given address
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::string> key;
         if (pcursor->GetKey(key) && key.first == GLOBAL_RESTRICTION_FLAG) {
             restrictions.emplace_back(key.second);
