@@ -264,6 +264,24 @@ inline constexpr const char* WTXIDRELAY{"wtxidrelay"};
  * txreconciliation, as described by BIP 330.
  */
 inline constexpr const char* SENDTXRCNCL{"sendtxrcncl"};
+/**
+ * Contains an AssetDataRequest.
+ * Peer should respond with assetdata.
+ * @since protocol version 70017.
+ */
+inline constexpr const char* GETASSETDATA{"getassetdata"};
+/**
+ * Contains asset data.
+ * Sent in response to a "getassetdata" message.
+ * @since protocol version 70017.
+ */
+inline constexpr const char* ASSETDATA{"assetdata"};
+/**
+ * The asstnotfound message is a reply to a getassetdata message which requested an
+ * object the receiving node does not have available for relay.
+ * @since protocol version 70018.
+ */
+inline constexpr const char* ASSETNOTFOUND{"asstnotfound"};
 }; // namespace NetMsgType
 
 /** All known message types (see above). Keep this in the same order as the list of messages above. */
@@ -303,6 +321,9 @@ inline const std::array ALL_NET_MESSAGE_TYPES{std::to_array<std::string>({
     NetMsgType::CFCHECKPT,
     NetMsgType::WTXIDRELAY,
     NetMsgType::SENDTXRCNCL,
+    NetMsgType::GETASSETDATA,
+    NetMsgType::ASSETDATA,
+    NetMsgType::ASSETNOTFOUND,
 })};
 
 /** nServices flags */
@@ -527,5 +548,27 @@ public:
 
 /** Convert a TX/WITNESS_TX/WTX CInv to a GenTxid. */
 GenTxid ToGenTxid(const CInv& inv);
+
+/** AVN: Asset inventory message data for GETASSETDATA/ASSETDATA protocol */
+class CInvAsset
+{
+public:
+    std::string name;
+
+    CInvAsset() : name() {}
+    explicit CInvAsset(const std::string& strName) : name(strName) {}
+
+    SERIALIZE_METHODS(CInvAsset, obj) { READWRITE(obj.name); }
+
+    friend bool operator<(const CInvAsset& a, const CInvAsset& b)
+    {
+        return a.name < b.name;
+    }
+
+    std::string ToString() const;
+};
+
+/** Maximum number of entries in an asset inv protocol message */
+static const unsigned int MAX_ASSET_INV_SZ = 1024;
 
 #endif // BITCOIN_PROTOCOL_H

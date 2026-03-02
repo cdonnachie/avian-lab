@@ -87,7 +87,7 @@ public:
         m_chain_type = ChainType::MAIN;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
-        consensus.nSubsidyHalvingInterval = 2100000; // ~4 yrs at 30s block time
+        consensus.nSubsidyHalvingInterval = 2100000; // ~2 yrs at 30s block time
         consensus.nBIP34Enabled = true;
         consensus.nBIP65Enabled = true;
         consensus.nBIP66Enabled = true;

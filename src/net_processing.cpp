@@ -7,6 +7,7 @@
 
 #include <addrman.h>
 #include <arith_uint256.h>
+#include <assets/assets.h>
 #include <banman.h>
 #include <blockencodings.h>
 #include <blockfilter.h>
@@ -411,6 +412,13 @@ struct Peer {
     /** Time offset computed during the version handshake based on the
      * timestamp the peer sent in the version message. */
     std::atomic<std::chrono::seconds> m_time_offset{0s};
+
+    /** AVN: Asset data request queue from this peer */
+    std::deque<CInvAsset> m_asset_getdata_requests GUARDED_BY(NetEventsInterface::g_msgproc_mutex);
+    /** AVN: Set of asset names to request data for from this peer */
+    std::set<std::string> m_asset_inventory_to_send GUARDED_BY(NetEventsInterface::g_msgproc_mutex);
+    /** AVN: Whether we need to send a GETASSETDATA message to this peer */
+    bool m_get_asset_data GUARDED_BY(NetEventsInterface::g_msgproc_mutex){false};
 
     explicit Peer(NodeId id, ServiceFlags our_services, bool is_inbound)
         : m_id{id}
@@ -4921,6 +4929,70 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         return;
     }
 
+    /** AVN START - Asset P2P messages */
+    if (msg_type == NetMsgType::GETASSETDATA) {
+        if (m_chainman.IsInitialBlockDownload()) {
+            LogDebug(BCLog::NET, "Ignoring getassetdata from peer=%d because node is in initial block download\n", pfrom.GetId());
+            return;
+        }
+
+        std::vector<CInvAsset> vInvAsset;
+        vRecv >> vInvAsset;
+
+        if (vInvAsset.size() > MAX_ASSET_INV_SZ) {
+            Misbehaving(*peer, strprintf("getassetdata message size() = %u", vInvAsset.size()));
+            return;
+        }
+
+        for (const auto& item : vInvAsset) {
+            if (item.name.size() > MAX_ASSET_LENGTH) {
+                Misbehaving(*peer, strprintf("getassetdata assetname size() = %u", item.name.size()));
+                return;
+            }
+        }
+
+        LogDebug(BCLog::NET, "received getassetdata (%u invassetsz) peer=%d\n", vInvAsset.size(), pfrom.GetId());
+
+        // Process each asset data request
+        for (const auto& inv : vInvAsset) {
+            if (!IsAssetNameValid(inv.name)) {
+                continue;
+            }
+
+            if (passets) {
+                CNewAsset asset;
+                int height;
+                uint256 hash;
+                if (passets->GetAssetMetaDataIfExists(inv.name, asset, height, hash)) {
+                    auto data = CDatabasedAssetData(asset, height, hash);
+                    if (passetsCache) {
+                        passetsCache->Put(inv.name, data);
+                    }
+                    MakeAndPushMessage(pfrom, NetMsgType::ASSETDATA, SerializedAssetData(data));
+                } else {
+                    // Send not-found response
+                    CDatabasedAssetData notFoundData;
+                    notFoundData.asset.strName = "_NF";
+                    MakeAndPushMessage(pfrom, NetMsgType::ASSETDATA, SerializedAssetData(notFoundData));
+                }
+            }
+        }
+        return;
+    }
+
+    if (msg_type == NetMsgType::ASSETNOTFOUND) {
+        // We do not care about the ASSETNOTFOUND message, but logging an Unknown Command
+        // message would be undesirable as we transmit it ourselves.
+        return;
+    }
+
+    if (msg_type == NetMsgType::ASSETDATA) {
+        // Asset data received from peer - currently we just log it
+        LogDebug(BCLog::NET, "received assetdata from peer=%d\n", pfrom.GetId());
+        return;
+    }
+    /** AVN END */
+
     // Ignore unknown commands for extensibility
     LogDebug(BCLog::NET, "Unknown command \"%s\" from peer=%d\n", SanitizeString(msg_type), pfrom.GetId());
     return;
@@ -5944,5 +6016,28 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
             MakeAndPushMessage(*pto, NetMsgType::GETDATA, vGetData);
     } // release cs_main
     MaybeSendFeefilter(*pto, *peer, current_time);
+
+    /** AVN START - Send GETASSETDATA messages */
+    if (pto->GetCommonVersion() >= ASSETDATA_VERSION && peer->m_get_asset_data) {
+        peer->m_get_asset_data = false;
+
+        std::vector<CInvAsset> vInvAssets;
+        vInvAssets.reserve(std::min<size_t>(peer->m_asset_inventory_to_send.size(), MAX_ASSET_INV_SZ));
+
+        for (const auto& assetName : peer->m_asset_inventory_to_send) {
+            vInvAssets.push_back(CInvAsset(assetName));
+            if (vInvAssets.size() == MAX_ASSET_INV_SZ) {
+                MakeAndPushMessage(*pto, NetMsgType::GETASSETDATA, vInvAssets);
+                vInvAssets.clear();
+            }
+        }
+        peer->m_asset_inventory_to_send.clear();
+
+        if (!vInvAssets.empty()) {
+            MakeAndPushMessage(*pto, NetMsgType::GETASSETDATA, vInvAssets);
+        }
+    }
+    /** AVN END */
+
     return true;
 }

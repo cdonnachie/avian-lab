@@ -123,3 +123,8 @@ GenTxid ToGenTxid(const CInv& inv)
     assert(inv.IsGenTxMsg());
     return inv.IsMsgWtx() ? GenTxid{Wtxid::FromUint256(inv.hash)} : GenTxid{Txid::FromUint256(inv.hash)};
 }
+
+std::string CInvAsset::ToString() const
+{
+    return strprintf("CInvAsset for asset: %s", name);
+}

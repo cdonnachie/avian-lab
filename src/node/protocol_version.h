@@ -9,13 +9,13 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 70016;
+static const int PROTOCOL_VERSION = 70034;
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
 
 //! disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 31800;
+static const int MIN_PEER_PROTO_VERSION = 70033;
 
 //! BIP 0031, pong message, is enabled for all versions AFTER this one
 static const int BIP0031_VERSION = 60000;
@@ -34,5 +34,14 @@ static const int INVALID_CB_NO_BAN_VERSION = 70015;
 
 //! "wtxidrelay" command for wtxid-based relay starts with this version
 static const int WTXID_RELAY_VERSION = 70016;
+
+//! assetdata network request is allowed for this version
+static const int ASSETDATA_VERSION = 70017;
+
+//! getassetdata returns asstnotfound, and assetdata doesn't have blockhash in the data
+static const int ASSETDATA_VERSION_UPDATED = 70020;
+
+//! x16rt + minotaurx dual algo
+static const int DUAL_ALGO_VERSION = 70031;
 
 #endif // BITCOIN_NODE_PROTOCOL_VERSION_H

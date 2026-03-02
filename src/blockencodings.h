@@ -6,6 +6,7 @@
 #define BITCOIN_BLOCKENCODINGS_H
 
 #include <primitives/block.h>
+#include <assets/assettypes.h>
 
 #include <functional>
 
@@ -149,6 +150,33 @@ public:
     bool IsTxAvailable(size_t index) const;
     // segwit_active enforces witness mutation checks just before reporting a healthy status
     ReadStatus FillBlock(CBlock& block, const std::vector<CTransactionRef>& vtx_missing, bool segwit_active);
+};
+
+/** AVN: Serialized asset data for P2P ASSETDATA messages */
+class SerializedAssetData {
+public:
+    std::string name;
+    int8_t units;
+    CAmount amount;
+    int8_t reissuable;
+    int8_t hasIPFS;
+    std::string ipfs;
+    int32_t nHeight;
+
+    SerializedAssetData() : units(0), amount(0), reissuable(0), hasIPFS(0), nHeight(0) {}
+
+    explicit SerializedAssetData(const CDatabasedAssetData& assetData)
+        : name(assetData.asset.strName),
+          units(assetData.asset.units),
+          amount(assetData.asset.nAmount),
+          reissuable(assetData.asset.nReissuable),
+          hasIPFS(assetData.asset.nHasIPFS),
+          ipfs(assetData.asset.strIPFSHash),
+          nHeight(assetData.nHeight) {}
+
+    SERIALIZE_METHODS(SerializedAssetData, obj) {
+        READWRITE(obj.name, obj.amount, obj.units, obj.reissuable, obj.hasIPFS, obj.ipfs, obj.nHeight);
+    }
 };
 
 #endif // BITCOIN_BLOCKENCODINGS_H
