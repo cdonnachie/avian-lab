@@ -74,7 +74,10 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
     const char* pszTimestamp = "RavencoinLite is still here";
-    const CScript genesisOutputScript = CScript() << ParseHex("01fds01189fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf09087") << OP_CHECKSIG;
+    // Original hex "01fds01189fe5548..." contains invalid char 's' at position 4.
+    // Avian's old ParseHex (BTC 0.16 era) stopped at the first invalid char,
+    // producing only bytes [0x01, 0xFD]. Replicate that exact behavior here.
+    const CScript genesisOutputScript = CScript() << std::vector<unsigned char>{0x01, 0xFD} << OP_CHECKSIG;
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
 }
 
