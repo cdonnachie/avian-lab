@@ -2,14 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <validation.h>
-#include <chainparams.h>
-#include <wallet/wallet.h>
-#include <script/ismine.h>
-#include <base58.h>
-#include "messages.h"
-#include "myassetsdb.h"
-#include <primitives/block.h>
+#include <assets/messages.h>
+#include <assets/myassetsdb.h>
+#include <key_io.h>
+#include <logging.h>
 
 
 std::set<COutPoint> setDirtyMessagesRemove;
@@ -23,7 +19,7 @@ std::set<std::string> setSubscribedChannelsAskedForFalse;
 std::set<std::string> setDirtySeenAddressAdd;
 std::set<std::string> setAddressAskedForFalse;
 
-CCriticalSection cs_messaging;
+Mutex cs_messaging;
 
 
 int8_t IntFromMessageStatus(MessageStatus status)
@@ -185,86 +181,6 @@ void OrphanMessage(const CMessage& message)
     // Remove from other dirty caches
     mapDirtyMessagesAdd.erase(message.out);
 }
-
-#ifdef ENABLE_WALLET
-bool ScanForMessageChannels(std::string& strError)
-{
-    LOCK2(cs_messaging, cs_main);
-
-    LogPrintf("%s : Start Scanning For Message Channels\n", __func__);
-
-    if (vpwallets.size() == 0) {
-        strError = "Wallet isn't active on this client. Can't scan for MsgChannels";
-        return false;
-    }
-
-    CBlockIndex* blockIndex = chainActive[Params().GetAssetActivationHeight()];
-
-    while (blockIndex) {
-        CBlock block;
-        if (!ReadBlockFromDisk(block, blockIndex, Params().GetConsensus())) {
-            strError = "Block not found on disk";
-            return false;
-        }
-
-        for (const auto& tx : block.vtx) {
-
-            auto ptx = tx.get();
-            if (!ptx) {
-                strError = "Failed to get transaction pointer";
-                return false;
-            }
-
-            for (auto out : ptx->vout) {
-                int nType = -1;
-                bool fOwner = false;
-                if (vpwallets[0]->IsMine(out) == ISMINE_SPENDABLE) { // Is the out mine
-                    if (out.scriptPubKey.IsAssetScript(nType, fOwner)) {
-                        CAssetOutputEntry assetData;
-                        // Get the asset data from the script
-                        if (GetAssetData(out.scriptPubKey, assetData)) {
-                            AssetType type;
-                            IsAssetNameValid(assetData.assetName, type);
-
-                            if (assetData.type == TX_TRANSFER_ASSET) {
-                                if (type == AssetType::MSGCHANNEL || type == AssetType::OWNER) { // Subscribe to any channels or owner tokens you own
-                                    AddChannel(assetData.assetName);
-                                    AddAddressSeen(EncodeDestination(assetData.destination));
-                                } else if (type == AssetType::ROOT || type == AssetType::SUB) { // Subscribe to any assets you are sent, if they are sent to a new address
-                                    if (!IsChannelSubscribed(assetData.assetName + OWNER_TAG)) {
-                                        if (!IsAddressSeen(EncodeDestination(assetData.destination))) {
-                                            AddChannel(assetData.assetName + OWNER_TAG);
-                                            AddAddressSeen(EncodeDestination(assetData.destination));
-                                        }
-                                    }
-                                }
-                            } else if (assetData.type == TX_NEW_ASSET || assetData.type == TX_REISSUE_ASSET) {
-                                if (fOwner || type == AssetType::MSGCHANNEL) {
-                                    AddChannel(assetData.assetName);
-                                    AddAddressSeen(EncodeDestination(assetData.destination));
-                                } else if (type == AssetType::ROOT || type == AssetType::SUB || type == AssetType::RESTRICTED) {
-                                    AddChannel(assetData.assetName + "!");
-                                    AddAddressSeen(EncodeDestination(assetData.destination));
-                                }
-                            }
-                        } else {
-                            LogPrintf("%s : Failed to get GetAssetData call\n", __func__);
-                        }
-                    }
-                }
-            }
-        }
-        blockIndex = chainActive[blockIndex->nHeight + 1];
-    }
-
-    LogPrintf("%s : Finished Scanning For Message Channels. Subscribed Messages Channels Found: %u\n", __func__, setDirtyChannelsAdd.size());
-    for (auto item : setDirtyChannelsAdd) {
-        LogPrintf("%s, ",item);
-    }
-    LogPrintf("\n");
-    return true;
-}
-#endif
 
 bool IsAddressSeen(const std::string &address)
 {

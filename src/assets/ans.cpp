@@ -3,38 +3,34 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "ans.h"
+#include <assets/ans.h>
 
-#include <iostream>
 #include <string>
 #include <sstream>
+#include <cstring>
+#include <cstdint>
 
-#include "string.h"
-
-#include "univalue.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "base58.h"
-#include "script/standard.h"
-
-#include "boost/asio.hpp"
-
-using namespace boost::asio::ip;
+#include <util/strencodings.h>
+#include <key_io.h>
 
 /* Static prefix */
 const std::string CAvianNameSystemID::prefix = "ANS";
 
-/* Staic domain */
+/* Static domain */
 const std::string CAvianNameSystemID::domain = ".AVN";
 
 static std::string IPToHex(std::string strIP)
 {
-    boost::system::error_code error;
-    auto ip = address_v4::from_string(strIP, error);
-    if (error) return "0";
-
+    // Parse IPv4 address manually (replaces boost::asio::ip::address_v4)
+    uint32_t parts[4];
+    if (sscanf(strIP.c_str(), "%u.%u.%u.%u", &parts[0], &parts[1], &parts[2], &parts[3]) != 4)
+        return "0";
+    for (int i = 0; i < 4; i++) {
+        if (parts[i] > 255) return "0";
+    }
+    uint32_t ip = (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
     std::stringstream ss;
-    ss << std::hex << ip.to_ulong();
+    ss << std::hex << ip;
     return ss.str();
 }
 
@@ -43,19 +39,24 @@ static std::string HexToIP(std::string hexIP)
     if(!IsHexNumber(hexIP)) return "0.0.0.0";
 
     unsigned int hex = std::stoul(hexIP, 0, 16);
-    auto ip = address_v4(hex);
-    return ip.to_string();
+    uint8_t a = (hex >> 24) & 0xFF;
+    uint8_t b = (hex >> 16) & 0xFF;
+    uint8_t c = (hex >> 8) & 0xFF;
+    uint8_t d = hex & 0xFF;
+    return std::to_string(a) + "." + std::to_string(b) + "." + std::to_string(c) + "." + std::to_string(d);
 }
 
 bool CAvianNameSystemID::CheckIP(std::string rawip, bool isHex) {
     std::string ip = rawip;
     if (isHex) ip = HexToIP(rawip.c_str());
 
-    boost::system::error_code error;
-    address_v4::from_string(ip, error);
-
-    if (error) return false;
-    else return true;
+    uint32_t parts[4];
+    if (sscanf(ip.c_str(), "%u.%u.%u.%u", &parts[0], &parts[1], &parts[2], &parts[3]) != 4)
+        return false;
+    for (int i = 0; i < 4; i++) {
+        if (parts[i] > 255) return false;
+    }
+    return true;
 }
 
 // TODO: Add error result?
@@ -80,14 +81,14 @@ std::string CAvianNameSystemID::FormatTypeData(Type type, std::string typeData, 
     if (type == ADDR) {
         CTxDestination destination = DecodeDestination(typeData);
         if (!IsValidDestination(destination)) {
-            error = (typeData != "") 
-            ? std::string("Invalid Avian address: ") + typeData 
+            error = (typeData != "")
+            ? std::string("Invalid Avian address: ") + typeData
             : std::string("Empty Avian address.");
         }
     } else if (type == IP) {
         if (!CheckIP(typeData, false)) {
-            error = (typeData != "") 
-            ? std::string("Invalid IPv4 address: ") + typeData 
+            error = (typeData != "")
+            ? std::string("Invalid IPv4 address: ") + typeData
             : std::string("Empty IPv4 addresss.");
         }
         returnStr = IPToHex(typeData);
@@ -179,20 +180,4 @@ std::string CAvianNameSystemID::to_string() {
     }
 
     return id;
-}
-
-UniValue CAvianNameSystemID::to_object()
-{
-    UniValue ansInfo(UniValue::VOBJ);
-
-    ansInfo.pushKV("ans_id", this->to_string());
-    ansInfo.pushKV("type_hex", this->type());
-
-    if (this->type() == CAvianNameSystemID::ADDR) {
-        ansInfo.pushKV("ans_addr", this->addr());
-    } else if (this->type() == CAvianNameSystemID::IP) {
-        ansInfo.pushKV("ans_ip", this->ip());
-    }
-
-    return ansInfo;
 }

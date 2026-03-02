@@ -1,12 +1,10 @@
 // Copyright (c) 2018-2019 The Raven Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include "validation.h"
-#include "myassetsdb.h"
-#include "messages.h"
-#include <boost/thread.hpp>
 
-#include <boost/thread.hpp>
+#include <assets/myassetsdb.h>
+#include <assets/messages.h>
+#include <logging.h>
 
 static const char MESSAGE_FLAG = 'Z'; // Message
 static const char MY_MESSAGE_CHANNEL = 'C'; // My followed Channels
@@ -16,7 +14,13 @@ static const char DB_FLAG = 'D'; // Database Flags
 static const char MY_TAGGED_ADDRESSES = 'T'; // Addresses that have been tagged
 static const char MY_RESTRICTED_ADDRESSES = 'R'; // Addresses that have been restricted
 
-CMessageDB::CMessageDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "messages" / "messages", nCacheSize, fMemory, fWipe) {
+CMessageDB::CMessageDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
+    : CDBWrapper(DBParams{
+          .path = datadir / "messages" / "messages",
+          .cache_bytes = nCacheSize,
+          .memory_only = fMemory,
+          .wipe_data = fWipe})
+{
 }
 
 bool CMessageDB::WriteMessage(const CMessage &message)
@@ -42,7 +46,6 @@ bool CMessageDB::LoadMessages(std::set<CMessage>& setMessages)
 
     // Load messages
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, COutPoint> key;
         if (pcursor->GetKey(key) && key.first == MESSAGE_FLAG) {
             CMessage message;
@@ -69,7 +72,6 @@ bool CMessageDB::EraseAllMessages(int& count)
 
     // Load messages
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, COutPoint> key;
         if (pcursor->GetKey(key) && key.first == MESSAGE_FLAG) {
             CMessage message;
@@ -124,7 +126,13 @@ bool CMessageDB::Flush() {
     return true;
 }
 
-CMessageChannelDB::CMessageChannelDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "messages" / "channels", nCacheSize, fMemory, fWipe) {
+CMessageChannelDB::CMessageChannelDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
+    : CDBWrapper(DBParams{
+          .path = datadir / "messages" / "channels",
+          .cache_bytes = nCacheSize,
+          .memory_only = fMemory,
+          .wipe_data = fWipe})
+{
 }
 
 bool CMessageChannelDB::WriteMyMessageChannel(const std::string& channelname)
@@ -152,7 +160,6 @@ bool CMessageChannelDB::LoadMyMessageChannels(std::set<std::string>& setChannels
 
     // Load messages
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::string> key;
         if (pcursor->GetKey(key) && key.first == MY_MESSAGE_CHANNEL) {
             setChannels.insert(key.second);
@@ -240,7 +247,13 @@ bool CMessageChannelDB::Flush() {
 }
 
 
-CMyRestrictedDB::CMyRestrictedDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "myrestricted", nCacheSize, fMemory, fWipe) {
+CMyRestrictedDB::CMyRestrictedDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
+    : CDBWrapper(DBParams{
+          .path = datadir / "myrestricted",
+          .cache_bytes = nCacheSize,
+          .memory_only = fMemory,
+          .wipe_data = fWipe})
+{
 }
 
 bool CMyRestrictedDB::WriteTaggedAddress(const std::string& address, const std::string& tag_name, const bool fAdd, const uint32_t& nHeight)
@@ -268,7 +281,6 @@ bool CMyRestrictedDB::LoadMyTaggedAddresses(std::vector<std::tuple<std::string, 
 
     // Load messages
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::pair<std::string, std::string>> key;
         if (pcursor->GetKey(key) && key.first == MY_TAGGED_ADDRESSES) {
             std::pair<int, uint32_t> value;
@@ -312,7 +324,6 @@ bool CMyRestrictedDB::LoadMyRestrictedAddresses(std::vector<std::tuple<std::stri
 
     // Load messages
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, std::pair<std::string, std::string>> key;
         if (pcursor->GetKey(key) && key.first == MY_RESTRICTED_ADDRESSES) {
             std::pair<int, uint32_t> value;

@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <set>
-#include <boost/thread.hpp>
+#include <assets/snapshotrequestdb.h>
 
-#include "snapshotrequestdb.h"
+#include <logging.h>
+#include <set>
 
 static const char SNAPSHOTREQUEST_FLAG = 'S';
 
@@ -30,8 +30,13 @@ CSnapshotRequestDBEntry::CSnapshotRequestDBEntry(
 }
 
 CSnapshotRequestDB::CSnapshotRequestDB(
-    size_t nCacheSize, bool fMemory, bool fWipe)
-    : CDBWrapper(GetDataDir() / "rewards" / "snapshotrequest", nCacheSize, fMemory, fWipe) {
+    const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
+    : CDBWrapper(DBParams{
+          .path = datadir / "rewards" / "snapshotrequest",
+          .cache_bytes = nCacheSize,
+          .memory_only = fMemory,
+          .wipe_data = fWipe})
+{
 }
 
 bool CSnapshotRequestDB::ScheduleSnapshot(
@@ -130,7 +135,6 @@ bool CSnapshotRequestDB::RetrieveSnapshotRequestsForHeight(
 
     // Load all pending rewards
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, int> key;
 
         //  Only retrieve entries at the provided block height
@@ -157,8 +161,13 @@ bool CSnapshotRequestDB::RetrieveSnapshotRequestsForHeight(
 }
 
 CDistributeSnapshotRequestDB::CDistributeSnapshotRequestDB(
-        size_t nCacheSize, bool fMemory, bool fWipe)
-        : CDBWrapper(GetDataDir() / "rewards" / "distributerequests", nCacheSize, fMemory, fWipe) {
+        const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
+        : CDBWrapper(DBParams{
+              .path = datadir / "rewards" / "distributerequests",
+              .cache_bytes = nCacheSize,
+              .memory_only = fMemory,
+              .wipe_data = fWipe})
+{
 }
 
 // Schedule a distribution to occur
@@ -171,8 +180,6 @@ bool CDistributeSnapshotRequestDB::OverrideDistributeSnapshot(const uint256& has
 {
     return  Write(std::make_pair(DISTRIBUTEREQUEST_FLAG, hash), p_rewardSnapshot);
 }
-
-bool OverrideDistributeSnapshot(const uint256& hash, const CRewardSnapshot& p_rewardSnapshot);
 
 // Add a new distribution transaction
 bool CDistributeSnapshotRequestDB::AddDistributeTransaction(const uint256& hash, const int& nBatchNumber, const uint256& txid)
@@ -207,7 +214,6 @@ void CDistributeSnapshotRequestDB::LoadAllDistributeSnapshot(std::map<uint256, C
 
     // Load all pending rewards
     while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
         std::pair<char, uint256> key;
 
         //  Only retrieve entries at the provided block height

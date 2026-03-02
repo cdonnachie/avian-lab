@@ -2,12 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "assetsnapshotdb.h"
-#include "validation.h"
-#include "base58.h"
-
-#include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
+#include <assets/assetsnapshotdb.h>
+#include <assets/assets.h>
+#include <key_io.h>
+#include <logging.h>
 
 static const char SNAPSHOTCHECK_FLAG = 'C'; // Snapshot Check
 
@@ -32,7 +30,13 @@ CAssetSnapshotDBEntry::CAssetSnapshotDBEntry(
     heightAndName = std::to_string(height) + assetName;
 }
 
-CAssetSnapshotDB::CAssetSnapshotDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "rewards" / "assetsnapshot", nCacheSize, fMemory, fWipe) {
+CAssetSnapshotDB::CAssetSnapshotDB(const fs::path& datadir, size_t nCacheSize, bool fMemory, bool fWipe)
+    : CDBWrapper(DBParams{
+          .path = datadir / "rewards" / "assetsnapshot",
+          .cache_bytes = nCacheSize,
+          .memory_only = fMemory,
+          .wipe_data = fWipe})
+{
 }
 
 bool CAssetSnapshotDB::AddAssetOwnershipSnapshot(
