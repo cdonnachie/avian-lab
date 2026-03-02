@@ -10,6 +10,7 @@
 #include <hash.h>
 #include <span.h>
 #include <streams.h>
+#include <sync.h>
 #include <tinyformat.h>
 
 #include <algo/minotaurx/minotaurx.h>
@@ -17,6 +18,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <unordered_map>
 
 #define TIME_MASK 0xffffff80
 
@@ -24,6 +26,23 @@
 static uint32_t g_nX16rtTimestamp = 0;
 static uint32_t g_nDualAlgoTimestamp = 0;
 static bool g_bPoWParamsSet = false;
+
+// ========================================================================
+// PowCache: global cache mapping SHA256d header hash -> PoW hash
+// Avoids recomputing expensive X16R/X16RT/MinotaurX hashes
+// ========================================================================
+static constexpr size_t DEFAULT_POW_CACHE_SIZE = 10000000;
+
+struct Uint256Hasher {
+    size_t operator()(const uint256& v) const {
+        // Use first 8 bytes as hash (good distribution for block hashes)
+        return ReadLE64(v.data());
+    }
+};
+
+static RecursiveMutex cs_powcache;
+static std::unordered_map<uint256, uint256, Uint256Hasher> g_pow_cache GUARDED_BY(cs_powcache);
+static size_t g_pow_cache_max_size = DEFAULT_POW_CACHE_SIZE;
 
 void SetPoWHashParams(uint32_t nX16rtTimestamp, uint32_t nDualAlgoTimestamp)
 {
@@ -88,12 +107,37 @@ uint256 CBlockHeader::GetHash() const
         return GetSHA256Hash();
     }
 
+    // Per-object cache (fast path, no lock needed)
     if (m_hasPoWHash) {
         return m_cachedPoWHash;
     }
 
+    // Global PowCache lookup (keyed by SHA256d header hash)
+    uint256 headerHash = GetSHA256Hash();
+    {
+        LOCK(cs_powcache);
+        auto it = g_pow_cache.find(headerHash);
+        if (it != g_pow_cache.end()) {
+            m_cachedPoWHash = it->second;
+            m_hasPoWHash = true;
+            return m_cachedPoWHash;
+        }
+    }
+
+    // Cache miss: compute the expensive PoW hash
     m_cachedPoWHash = ComputePoWHash(g_nX16rtTimestamp, g_nDualAlgoTimestamp);
     m_hasPoWHash = true;
+
+    // Store in global cache
+    {
+        LOCK(cs_powcache);
+        if (g_pow_cache.size() >= g_pow_cache_max_size * 2) {
+            // Simple eviction: clear when we hit 2x max size
+            g_pow_cache.clear();
+        }
+        g_pow_cache[headerHash] = m_cachedPoWHash;
+    }
+
     return m_cachedPoWHash;
 }
 
