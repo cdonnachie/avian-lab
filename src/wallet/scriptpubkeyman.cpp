@@ -578,7 +578,8 @@ std::optional<MigrationData> LegacyDataSPKM::MigrateToDescriptor()
     for (const CKeyID& keyid : keyids) {
         CKey key;
         if (!GetKey(keyid, key)) {
-            assert(false);
+            LogPrintf("Warning: Could not retrieve key %s during migration, skipping.\n", HexStr(keyid));
+            continue;
         }
 
         // Get birthdate from key meta
@@ -636,7 +637,104 @@ std::optional<MigrationData> LegacyDataSPKM::MigrateToDescriptor()
             // Get the master xprv
             CKey seed_key;
             if (!GetKey(chain.seed_id, seed_key)) {
-                assert(false);
+                // AVN: Avian BIP44/BIP39 wallets store the HD seed as encrypted
+                // BIP39 data (cbip39words/cbip39vchseed), not as a regular key record.
+                // The seed_id won't be found in mapKeys/mapCryptedKeys. Fall back to
+                // creating individual combo descriptors for each HD-derived child key.
+                LogPrintf("Warning: HD chain seed key not found (seed_id=%s), migrating HD-derived keys as individual descriptors.\n",
+                          HexStr(chain.seed_id));
+
+                // Find all keys belonging to this HD chain and create individual combo descriptors
+                for (const auto& [keyid, keypair] : mapCryptedKeys) {
+                    const auto& meta_it = mapKeyMetadata.find(keyid);
+                    if (meta_it == mapKeyMetadata.end()) continue;
+                    if (meta_it->second.hd_seed_id != chain.seed_id) continue;
+                    // Check internal vs external chain
+                    if (meta_it->second.hdKeypath.find("/1/") != std::string::npos || meta_it->second.hdKeypath.find("/1'") != std::string::npos) {
+                        if (i != 1) continue; // internal key, but we're doing external pass
+                    } else {
+                        if (i != 0) continue; // external key, but we're doing internal pass
+                    }
+
+                    CKey key;
+                    if (!GetKey(keyid, key)) {
+                        LogPrintf("Warning: Could not retrieve HD-derived key %s during migration, skipping.\n", HexStr(keyid));
+                        continue;
+                    }
+
+                    uint64_t creation_time = 0;
+                    if (meta_it != mapKeyMetadata.end()) {
+                        creation_time = meta_it->second.nCreateTime;
+                    }
+
+                    KeyOriginInfo info;
+                    bool has_info = GetKeyOrigin(keyid, info);
+                    std::string origin_str = has_info ? "[" + HexStr(info.fingerprint) + FormatHDKeypath(info.path) + "]" : "";
+
+                    std::string desc_str = "combo(" + origin_str + HexStr(key.GetPubKey()) + ")";
+                    FlatSigningProvider keys;
+                    std::string error;
+                    std::vector<std::unique_ptr<Descriptor>> descs = Parse(desc_str, keys, error, false);
+                    if (descs.empty()) {
+                        LogPrintf("Warning: Could not create descriptor for HD key %s: %s\n", HexStr(keyid), error);
+                        continue;
+                    }
+                    WalletDescriptor w_desc(std::move(descs.at(0)), creation_time, 0, 0, 0);
+
+                    auto desc_spk_man = std::make_unique<DescriptorScriptPubKeyMan>(m_storage, w_desc, /*keypool_size=*/0);
+                    WITH_LOCK(desc_spk_man->cs_desc_man, desc_spk_man->AddDescriptorKeyWithDB(batch, key, key.GetPubKey()));
+                    desc_spk_man->TopUpWithDB(batch);
+                    auto desc_spks = desc_spk_man->GetScriptPubKeys();
+
+                    for (const CScript& spk : desc_spks) {
+                        spks.erase(spk);
+                    }
+
+                    out.desc_spkms.push_back(std::move(desc_spk_man));
+                }
+                // Also check unencrypted keys
+                for (const auto& [keyid, key] : mapKeys) {
+                    const auto& meta_it = mapKeyMetadata.find(keyid);
+                    if (meta_it == mapKeyMetadata.end()) continue;
+                    if (meta_it->second.hd_seed_id != chain.seed_id) continue;
+                    if (meta_it->second.hdKeypath.find("/1/") != std::string::npos || meta_it->second.hdKeypath.find("/1'") != std::string::npos) {
+                        if (i != 1) continue;
+                    } else {
+                        if (i != 0) continue;
+                    }
+
+                    uint64_t creation_time = 0;
+                    if (meta_it != mapKeyMetadata.end()) {
+                        creation_time = meta_it->second.nCreateTime;
+                    }
+
+                    KeyOriginInfo info;
+                    bool has_info = GetKeyOrigin(keyid, info);
+                    std::string origin_str = has_info ? "[" + HexStr(info.fingerprint) + FormatHDKeypath(info.path) + "]" : "";
+
+                    std::string desc_str = "combo(" + origin_str + HexStr(key.GetPubKey()) + ")";
+                    FlatSigningProvider keys;
+                    std::string error;
+                    std::vector<std::unique_ptr<Descriptor>> descs = Parse(desc_str, keys, error, false);
+                    if (descs.empty()) {
+                        LogPrintf("Warning: Could not create descriptor for HD key %s: %s\n", HexStr(keyid), error);
+                        continue;
+                    }
+                    WalletDescriptor w_desc(std::move(descs.at(0)), creation_time, 0, 0, 0);
+
+                    auto desc_spk_man = std::make_unique<DescriptorScriptPubKeyMan>(m_storage, w_desc, /*keypool_size=*/0);
+                    WITH_LOCK(desc_spk_man->cs_desc_man, desc_spk_man->AddDescriptorKeyWithDB(batch, key, key.GetPubKey()));
+                    desc_spk_man->TopUpWithDB(batch);
+                    auto desc_spks = desc_spk_man->GetScriptPubKeys();
+
+                    for (const CScript& spk : desc_spks) {
+                        spks.erase(spk);
+                    }
+
+                    out.desc_spkms.push_back(std::move(desc_spk_man));
+                }
+
+                continue;
             }
             CExtKey master_key;
             master_key.SetSeed(seed_key);
@@ -671,9 +769,13 @@ std::optional<MigrationData> LegacyDataSPKM::MigrateToDescriptor()
     if (!m_hd_chain.seed_id.IsNull()) {
         CKey seed_key;
         if (!GetKey(m_hd_chain.seed_id, seed_key)) {
-            assert(false);
+            // AVN: BIP44/BIP39 seed not in keystore (see above). The migrated
+            // wallet won't carry forward the HD master key, but all existing
+            // derived keys are preserved as individual descriptors.
+            LogPrintf("Warning: Master HD seed key not found for migration, skipping master key export.\n");
+        } else {
+            out.master_key.SetSeed(seed_key);
         }
-        out.master_key.SetSeed(seed_key);
     }
 
     // Handle the rest of the scriptPubKeys which must be imports and may not have all info

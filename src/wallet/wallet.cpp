@@ -1636,6 +1636,22 @@ bool CWallet::IsMine(const CScript& script) const
         return res;
     }
 
+    // AVN: For asset scripts (P2PKH + OP_AVN_ASSET suffix), extract the
+    // underlying standard P2PKH script and check if that address is ours.
+    // Asset scripts are: OP_DUP OP_HASH160 <20-byte hash> OP_EQUALVERIFY OP_CHECKSIG OP_AVN_ASSET <data>
+    // The first 25 bytes are the standard P2PKH script.
+    if (script.IsAssetScript() && script.size() >= 25) {
+        CScript underlyingScript(script.begin(), script.begin() + 25);
+        const auto& asset_it = m_cached_spks.find(underlyingScript);
+        if (asset_it != m_cached_spks.end()) {
+            bool res = false;
+            for (const auto& spkm : asset_it->second) {
+                res = res || spkm->IsMine(underlyingScript);
+            }
+            return res;
+        }
+    }
+
     return false;
 }
 
@@ -3988,8 +4004,9 @@ util::Result<void> CWallet::ApplyMigrationData(WalletBatch& local_wallet_batch, 
             }
         }
         if (!is_mine) {
-            // Both not ours and not in the watchonly wallet
-            return util::Error{strprintf(_("Error: Transaction %s in wallet cannot be identified to belong to migrated wallets"), wtx->GetHash().GetHex())};
+            // AVN: Orphaned transaction (e.g. from a removed watch-only address).
+            // Delete it rather than failing migration.
+            txids_to_delete.push_back(wtx->GetHash());
         }
     }
 
@@ -4050,7 +4067,10 @@ util::Result<void> CWallet::ApplyMigrationData(WalletBatch& local_wallet_batch, 
                 continue;
             }
 
-            return util::Error{_("Error: Address book data in wallet cannot be identified to belong to migrated wallets")};
+            // AVN: Orphaned address book entry (e.g. from a removed watch-only address).
+            // Delete it rather than failing migration.
+            dests_to_delete.push_back(dest);
+            continue;
         }
     }
 
