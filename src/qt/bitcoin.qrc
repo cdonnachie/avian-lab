@@ -1,6 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
     <qresource prefix="/icons">
-        <file alias="bitcoin">res/icons/bitcoin.png</file>
+        <file alias="bitcoin">res/icons/avian.png</file>
         <file alias="address-book">res/icons/address-book.png</file>
         <file alias="send">res/icons/send.png</file>
         <file alias="connect_0">res/icons/connect0.png</file>
@@ -44,6 +44,34 @@
         <file alias="hd_disabled">res/icons/hd_disabled.png</file>
         <file alias="network_disabled">res/icons/network_disabled.png</file>
         <file alias="proxy">res/icons/proxy.png</file>
+        <file alias="asset_administrator">res/icons/asset_administrator.png</file>
+        <file alias="asset_administrator_dark">res/icons/asset_administrator_dark.png</file>
+        <file alias="asset_create">res/icons/asset_create.png</file>
+        <file alias="asset_create_selected">res/icons/asset_create_selected.png</file>
+        <file alias="asset_edit">res/icons/asset_edit.png</file>
+        <file alias="asset_edit_selected">res/icons/asset_edit_selected.png</file>
+        <file alias="asset_manage">res/icons/asset_manage.png</file>
+        <file alias="asset_manage_selected">res/icons/asset_manage_selected.png</file>
+        <file alias="asset_transfer">res/icons/asset_transfer.png</file>
+        <file alias="asset_transfer_selected">res/icons/asset_transfer_selected.png</file>
+        <file alias="restricted_asset">res/icons/restricted_asset.png</file>
+        <file alias="restricted_asset_selected">res/icons/restricted_asset_selected.png</file>
+        <file alias="tx_asset_input">res/icons/tx_asset_input.png</file>
+        <file alias="tx_asset_output">res/icons/tx_asset_output.png</file>
+    </qresource>
+    <qresource prefix="/css">
+        <file alias="Dark">res/css/Dark.css</file>
+        <file alias="Light">res/css/Light.css</file>
+    </qresource>
+    <qresource prefix="/images">
+        <file alias="arrow_down_dark">res/images/arrow_down_dark.png</file>
+        <file alias="arrow_down_light">res/images/arrow_down_light.png</file>
+        <file alias="arrow_left_dark">res/images/arrow_left_dark.png</file>
+        <file alias="arrow_left_light">res/images/arrow_left_light.png</file>
+        <file alias="arrow_right_dark">res/images/arrow_right_dark.png</file>
+        <file alias="arrow_right_light">res/images/arrow_right_light.png</file>
+        <file alias="arrow_up_dark">res/images/arrow_up_dark.png</file>
+        <file alias="arrow_up_light">res/images/arrow_up_light.png</file>
     </qresource>
     <qresource prefix="/animation">
         <file alias="spinner-000">res/animation/spinner-000.png</file>
