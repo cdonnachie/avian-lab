@@ -92,6 +92,12 @@ using util::ToString;
 
 namespace wallet {
 
+CScript GetRecipientScript(const CRecipient& recipient)
+{
+    if (!recipient.scriptOverride.empty()) return recipient.scriptOverride;
+    return GetScriptForDestination(recipient.dest);
+}
+
 bool AddWalletSetting(interfaces::Chain& chain, const std::string& wallet_name)
 {
     const auto update_function = [&wallet_name](common::SettingsValue& setting_value) {

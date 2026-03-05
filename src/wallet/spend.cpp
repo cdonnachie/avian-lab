@@ -1163,12 +1163,12 @@ void DiscourageFeeSniping(CMutableTransaction& tx, FastRandomContext& rng_fast,
 
 size_t GetSerializeSizeForRecipient(const CRecipient& recipient)
 {
-    return ::GetSerializeSize(CTxOut(recipient.nAmount, GetScriptForDestination(recipient.dest)));
+    return ::GetSerializeSize(CTxOut(recipient.nAmount, GetRecipientScript(recipient)));
 }
 
 bool IsDust(const CRecipient& recipient, const CFeeRate& dustRelayFee)
 {
-    return ::IsDust(CTxOut(recipient.nAmount, GetScriptForDestination(recipient.dest)), dustRelayFee);
+    return ::IsDust(CTxOut(recipient.nAmount, GetRecipientScript(recipient)), dustRelayFee);
 }
 
 static util::Result<CreatedTransactionResult> CreateTransactionInternal(
@@ -1338,7 +1338,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     txNew.vout.reserve(vecSend.size() + 1); // + 1 because of possible later insert
     for (const auto& recipient : vecSend)
     {
-        txNew.vout.emplace_back(recipient.nAmount, GetScriptForDestination(recipient.dest));
+        txNew.vout.emplace_back(recipient.nAmount, GetRecipientScript(recipient));
     }
     const CAmount change_amount = result.GetChange(coin_selection_params.min_viable_change, coin_selection_params.m_change_fee);
     if (change_amount > 0) {

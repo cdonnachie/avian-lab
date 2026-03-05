@@ -301,7 +301,11 @@ struct CRecipient
     CTxDestination dest;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
+    CScript scriptOverride; // AVN: When non-empty, use this instead of GetScriptForDestination(dest)
 };
+
+// AVN: Get the output script for a recipient (uses scriptOverride if set)
+CScript GetRecipientScript(const CRecipient& recipient);
 
 class WalletRescanReserver; //forward declarations for ScanForWalletTransactions/RescanFromTime
 /**
