@@ -7,7 +7,7 @@
 
 #include <consensus/amount.h>
 #include <primitives/transaction_identifier.h>
-#include <script/standard.h>
+#include <addresstype.h>
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
 

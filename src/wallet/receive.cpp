@@ -9,7 +9,7 @@
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
 #include <assets/assets.h>
-#include <script/standard.h>
+#include <addresstype.h>
 
 namespace wallet {
 bool InputIsMine(const CWallet& wallet, const CTxIn& txin)
