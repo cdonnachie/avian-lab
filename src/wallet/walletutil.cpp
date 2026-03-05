@@ -67,12 +67,8 @@ WalletDescriptor GenerateWalletDescriptor(const CExtPubKey& master_key, const Ou
     } // no default case, so the compiler can warn about missing cases
     assert(!desc_prefix.empty());
 
-    // Mainnet derives at 0', testnet and regtest derive at 1'
-    if (Params().IsTestChain()) {
-        desc_prefix += "/1h";
-    } else {
-        desc_prefix += "/0h";
-    }
+    // AVN: Avian uses BIP44 coin type 921 (registered in SLIP-0044)
+    desc_prefix += "/921h";
 
     std::string internal_path = internal ? "/1" : "/0";
     std::string desc_str = desc_prefix + "/0h" + internal_path + desc_suffix;
