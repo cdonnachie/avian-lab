@@ -16,6 +16,7 @@
 #include <kernel/messagestartchars.h>
 #include <kernel/notifications_interface.h>
 #include <logging.h>
+#include <node/interface_ui.h>
 #include <pow.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -112,6 +113,10 @@ bool BlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, s
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
     pcursor->Seek(std::make_pair(DB_BLOCK_INDEX, uint256()));
 
+    int nCount = 0;
+    int nHighest = 1; // Will be updated as we discover higher blocks
+    int nLastPercent = -1;
+
     // Load m_block_index
     while (pcursor->Valid()) {
         if (interrupt) return false;
@@ -134,9 +139,23 @@ bool BlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, s
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                if (!CheckProofOfWorkFromIndex(pindexNew->GetBlockHash(), pindexNew->nBits, pindexNew->nTime, pindexNew->nVersion, consensusParams)) {
-                    LogError("%s: CheckProofOfWork failed: %s\n", __func__, pindexNew->ToString());
-                    return false;
+                // AVN: Disable PoW sanity check while loading block index from disk.
+                // While it is technically feasible to verify the PoW, doing so is
+                // very slow as it requires computing every PoW hash during every startup.
+                // We trust the data on the local disk instead.
+                // if (!CheckProofOfWorkFromIndex(pindexNew->GetBlockHash(), pindexNew->nBits, pindexNew->nTime, pindexNew->nVersion, consensusParams)) {
+                //     LogError("%s: CheckProofOfWork failed: %s\n", __func__, pindexNew->ToString());
+                //     return false;
+                // }
+
+                // AVN: Track highest block and show loading progress every 5%
+                if (pindexNew->nHeight > nHighest)
+                    nHighest = pindexNew->nHeight;
+                nCount++;
+                int nPercent = 100 * nCount / nHighest;
+                if (nPercent >= 0 && nPercent <= 100 && nPercent / 5 != nLastPercent / 5) {
+                    nLastPercent = nPercent;
+                    uiInterface.InitMessage(strprintf("Loading blocks... %d%%", nPercent));
                 }
 
                 pcursor->Next();

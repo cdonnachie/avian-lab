@@ -1380,6 +1380,15 @@ static ChainstateLoadResult InitAndLoadChainstate(
             _("Error reading from database, shutting down."),
             "", CClientUIInterface::MSG_ERROR);
     };
+    // AVN: Load PowCache from disk BEFORE block index loading.
+    // LoadBlockIndexGuts calls GetHash() for every block, which computes
+    // expensive PoW hashes (X16R/X16RT/MinotaurX). Loading the cache first
+    // avoids recomputing millions of hashes on every startup.
+    {
+        uiInterface.InitMessage(_("Loading POW cache..."));
+        LoadPowCache(args.GetDataDirNet() / "powcache.dat");
+    }
+
     uiInterface.InitMessage(_("Loading block index…"));
     auto catch_exceptions = [](auto&& f) -> ChainstateLoadResult {
         try {
@@ -1909,12 +1918,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             fMessaging = true;
             LogPrintf("Messaging is enabled\n");
         }
-    }
-
-    // AVN: Load PowCache from disk for faster header validation
-    {
-        uiInterface.InitMessage(_("Loading POW cache..."));
-        LoadPowCache(args.GetDataDirNet() / "powcache.dat");
     }
 
     // ********************************************************* Step 8: start indexers
