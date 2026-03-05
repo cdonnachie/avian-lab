@@ -13,6 +13,12 @@
 #include <core_io.h>
 #include <validation.h>
 
+#ifdef ENABLE_WALLET
+#include <wallet/rpc/util.h>
+#include <wallet/spend.h>
+#include <wallet/wallet.h>
+#endif
+
 #include <univalue.h>
 
 static UniValue UnitValueFromAmount(const CAmount& amount, int8_t units)
@@ -478,6 +484,184 @@ static RPCHelpMan checkglobalrestriction()
     };
 }
 
+#ifdef ENABLE_WALLET
+template <typename It>
+static void safe_advance(It& it, It end, size_t n) {
+    while (n-- > 0 && it != end)
+        ++it;
+};
+
+static RPCHelpMan listmyassets()
+{
+    return RPCHelpMan{
+        "listmyassets",
+        "Returns a list of all assets that are owned by this wallet.\n",
+        {
+            {"asset", RPCArg::Type::STR, RPCArg::Default{"*"}, "Filters results -- must be an asset name or a partial asset name followed by '*' ('*' matches all trailing characters)"},
+            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "When false result is just a list of asset balances -- when true results include outpoints"},
+            {"count", RPCArg::Type::NUM, RPCArg::DefaultHint{"all"}, "Truncates results to include only the first count assets found"},
+            {"start", RPCArg::Type::NUM, RPCArg::Default{0}, "Results skip over the first start assets found (if negative it skips back from the end)"},
+            {"confs", RPCArg::Type::NUM, RPCArg::Default{0}, "Results are skipped if they don't have this number of confirmations"},
+        },
+        {
+            RPCResult{"verbose=false",
+                RPCResult::Type::OBJ_DYN, "", "",
+                {
+                    {RPCResult::Type::NUM, "asset_name", "asset balance"},
+                }
+            },
+            RPCResult{"verbose=true",
+                RPCResult::Type::OBJ_DYN, "", "",
+                {
+                    {RPCResult::Type::OBJ, "asset_name", "",
+                    {
+                        {RPCResult::Type::NUM, "balance", "the asset balance"},
+                        {RPCResult::Type::ARR, "outpoints", "",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::STR_HEX, "txid", "the txid"},
+                                {RPCResult::Type::NUM, "vout", "the vout"},
+                                {RPCResult::Type::NUM, "amount", "the amount"},
+                            }},
+                        }},
+                    }},
+                }
+            },
+        },
+        RPCExamples{
+            HelpExampleCli("listmyassets", "")
+          + HelpExampleCli("listmyassets", "\"ASSET*\" true 10 20")
+          + HelpExampleRpc("listmyassets", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            const std::shared_ptr<const wallet::CWallet> pwallet = wallet::GetWalletForJSONRPCRequest(request);
+            if (!pwallet) return UniValue::VNULL;
+
+            std::string filter = "*";
+            if (!request.params[0].isNull())
+                filter = request.params[0].get_str();
+            if (filter.empty())
+                filter = "*";
+
+            bool verbose = false;
+            if (!request.params[1].isNull())
+                verbose = request.params[1].get_bool();
+
+            size_t count = INT_MAX;
+            if (!request.params[2].isNull()) {
+                if (request.params[2].getInt<int>() < 1)
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, "count must be greater than 1.");
+                count = request.params[2].getInt<int>();
+            }
+
+            long start = 0;
+            if (!request.params[3].isNull()) {
+                start = request.params[3].getInt<int>();
+            }
+
+            int confs = 0;
+            if (!request.params[4].isNull()) {
+                confs = request.params[4].getInt<int>();
+            }
+
+            // Get available asset coins from wallet
+            LOCK(pwallet->cs_wallet);
+            wallet::CoinFilterParams coin_params;
+            coin_params.min_amount = 0;
+            wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, coin_params);
+
+            // Build balances per asset
+            std::string prefix;
+            bool matchAll = (filter == "*");
+            if (!matchAll && filter.back() == '*') {
+                prefix = filter.substr(0, filter.size() - 1);
+                matchAll = false;
+            } else if (!matchAll) {
+                prefix = filter;
+            }
+
+            std::map<std::string, CAmount> balances;
+            std::map<std::string, std::vector<wallet::COutput>> assetOutputs;
+
+            for (const auto& [assetName, outputs] : available.mapAssetCoins) {
+                // Apply filter
+                if (!matchAll) {
+                    if (filter.back() == '*' || filter != assetName) {
+                        // Prefix match
+                        if (!prefix.empty() && assetName.find(prefix) != 0)
+                            continue;
+                        if (prefix.empty() && filter != assetName)
+                            continue;
+                    }
+                }
+
+                CAmount balance = 0;
+                std::vector<wallet::COutput> filteredOutputs;
+                for (const auto& output : outputs) {
+                    // Check confirmations
+                    if (confs > 0 && output.depth < confs)
+                        continue;
+
+                    CAssetOutputEntry data;
+                    if (GetAssetData(output.txout.scriptPubKey, data)) {
+                        balance += data.nAmount;
+                        filteredOutputs.push_back(output);
+                    }
+                }
+                if (balance > 0 || !filteredOutputs.empty()) {
+                    balances[assetName] = balance;
+                    if (verbose)
+                        assetOutputs[assetName] = std::move(filteredOutputs);
+                }
+            }
+
+            // Pagination
+            auto bal = balances.begin();
+            if (start >= 0)
+                safe_advance(bal, balances.end(), (size_t)start);
+            else
+                safe_advance(bal, balances.end(), balances.size() + start);
+            auto end = bal;
+            safe_advance(end, balances.end(), count);
+
+            // Generate output
+            UniValue result(UniValue::VOBJ);
+            if (verbose) {
+                for (; bal != end && bal != balances.end(); bal++) {
+                    UniValue asset(UniValue::VOBJ);
+                    asset.pushKV("balance", AssetUnitValueFromAmount(bal->second, bal->first));
+
+                    UniValue outpoints(UniValue::VARR);
+                    if (assetOutputs.count(bal->first)) {
+                        for (const auto& out : assetOutputs.at(bal->first)) {
+                            UniValue tempOut(UniValue::VOBJ);
+                            tempOut.pushKV("txid", out.outpoint.hash.GetHex());
+                            tempOut.pushKV("vout", (int)out.outpoint.n);
+
+                            CAssetOutputEntry data;
+                            if (GetAssetData(out.txout.scriptPubKey, data)) {
+                                tempOut.pushKV("amount", AssetUnitValueFromAmount(data.nAmount, bal->first));
+                            }
+                            outpoints.push_back(std::move(tempOut));
+                        }
+                    }
+                    asset.pushKV("outpoints", std::move(outpoints));
+                    result.pushKV(bal->first, std::move(asset));
+                }
+            } else {
+                for (; bal != end && bal != balances.end(); bal++) {
+                    result.pushKV(bal->first, AssetUnitValueFromAmount(bal->second, bal->first));
+                }
+            }
+
+            return result;
+        },
+    };
+}
+#endif // ENABLE_WALLET
+
 void RegisterAssetRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -488,6 +672,9 @@ void RegisterAssetRPCCommands(CRPCTable& t)
         {"assets", &listaddressesbyasset},
         {"restricted assets", &checkaddressrestriction},
         {"restricted assets", &checkglobalrestriction},
+#ifdef ENABLE_WALLET
+        {"assets", &listmyassets},
+#endif
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);

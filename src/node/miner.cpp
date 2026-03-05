@@ -189,6 +189,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     CTxOut txoutFounder;
     FounderPayment founderPayment(chainparams.GetConsensus());
     founderPayment.FillFounderPayment(coinbaseTx, nHeight, nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus()), txoutFounder);
+    pblock->txoutFounder = txoutFounder;
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);

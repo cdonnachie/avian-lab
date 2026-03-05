@@ -266,6 +266,18 @@ static int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensu
 {
     int32_t nVersion = VERSIONBITS_TOP_BITS;
 
+    // AVN: Dual Algo — after powForkTime, bit 29 is cleared (version base = 0)
+    if (pindexPrev != nullptr && params.powForkTime > 0 && pindexPrev->nTime > params.powForkTime) {
+        nVersion = 0;
+    }
+
+    // AVN: After Avian assets deployment, use VERSIONBITS_TOP_BITS_ASSETS (0x30000000)
+    if (pindexPrev != nullptr &&
+        params.vUpgrades[Consensus::UPGRADE_AVIAN_ASSETS].nTimestamp != std::numeric_limits<uint32_t>::max() &&
+        pindexPrev->nTime > params.vUpgrades[Consensus::UPGRADE_AVIAN_ASSETS].nTimestamp) {
+        nVersion = VERSIONBITS_TOP_BITS_ASSETS;
+    }
+
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         Consensus::DeploymentPos pos = static_cast<Consensus::DeploymentPos>(i);
         VersionBitsConditionChecker checker(params, pos);
@@ -274,6 +286,9 @@ static int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensu
             nVersion |= checker.Mask();
         }
     }
+
+    // AVN: Always set bit 25 (matches original Avian behavior)
+    nVersion |= 1 << 25;
 
     return nVersion;
 }
@@ -322,8 +337,17 @@ public:
 
     bool Condition(const CBlockIndex* pindex) const override
     {
-        return pindex->nHeight >= m_params.MinBIP9WarningHeight &&
-               ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
+        if (pindex->nHeight < m_params.MinBIP9WarningHeight) return false;
+
+        // AVN: After dual-algo activation (powForkTime), the high bits of
+        // nVersion are repurposed for POW_TYPE encoding. Don't require
+        // VERSIONBITS_TOP_MASK match for blocks past the fork time.
+        if (m_params.powForkTime > 0 && pindex->nTime > m_params.powForkTime) {
+            return ((pindex->nVersion >> m_bit) & 1) != 0 &&
+                   ((::ComputeBlockVersion(pindex->pprev, m_params, m_caches) >> m_bit) & 1) == 0;
+        }
+
+        return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
                ((pindex->nVersion >> m_bit) & 1) != 0 &&
                ((::ComputeBlockVersion(pindex->pprev, m_params, m_caches) >> m_bit) & 1) == 0;
     }
@@ -338,6 +362,9 @@ std::vector<std::pair<int, bool>> VersionBitsCache::CheckUnknownActivations(cons
         WarningBitsConditionChecker checker(chainparams, m_caches, bit);
         ThresholdState state = checker.GetStateFor(pindex, m_warning_caches.at(bit));
         if (state == ACTIVE || state == LOCKED_IN) {
+            // AVN: Skip known dummy test bits used by Avian's dual-algo encoding
+            if (bit == 28 || bit == 25 || bit == 6 || bit == 7)
+                continue;
             result.emplace_back(bit, state == ACTIVE);
         }
     }

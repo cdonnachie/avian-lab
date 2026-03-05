@@ -5,9 +5,11 @@
 
 #include <bitcoin-build-config.h> // IWYU pragma: keep
 
+#include <addresstype.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <chainparamsbase.h>
+#include <common/args.h>
 #include <common/system.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
@@ -17,6 +19,7 @@
 #include <core_io.h>
 #include <deploymentinfo.h>
 #include <deploymentstatus.h>
+#include <founder_payment.h>
 #include <interfaces/mining.h>
 #include <key_io.h>
 #include <net.h>
@@ -638,6 +641,7 @@ static RPCHelpMan getblocktemplate()
                 }},
                 {"longpollid", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "delay processing request until the result would vary significantly from the \"longpollid\" of a prior template"},
                 {"data", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "proposed block data to check, encoded in hexadecimal; valid only for mode=\"proposal\""},
+                {"powalgo", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "PoW algorithm for block template: \"x16rt\" (default) or \"minotaurx\""},
             },
             },
         },
@@ -682,6 +686,14 @@ static RPCHelpMan getblocktemplate()
                     {RPCResult::Type::STR_HEX, "key", "values must be in the coinbase (keys may be ignored)"},
                 }},
                 {RPCResult::Type::NUM, "coinbasevalue", "maximum allowable input to coinbase transaction, including the generation award and transaction fees (in satoshis)"},
+                {RPCResult::Type::NUM, "minerpayment", "miner portion of coinbase value (coinbasevalue minus founder payment)"},
+                {RPCResult::Type::OBJ, "founder", "founder/dev fee payment information",
+                {
+                    {RPCResult::Type::STR, "payee", "founder payment address"},
+                    {RPCResult::Type::STR_HEX, "script", "founder payment scriptPubKey"},
+                    {RPCResult::Type::NUM, "amount", "founder payment amount in satoshis"},
+                }},
+                {RPCResult::Type::BOOL, "founder_payments_started", "whether founder payments are active at this height"},
                 {RPCResult::Type::STR, "longpollid", "an id to include with a request to longpoll on an update to this template"},
                 {RPCResult::Type::STR, "target", "The hash target"},
                 {RPCResult::Type::NUM_TIME, "mintime", "The minimum timestamp appropriate for the next block time, expressed in " + UNIX_EPOCH_TIME + ". Adjusted for the proposed BIP94 timewarp rule."},
@@ -713,6 +725,7 @@ static RPCHelpMan getblocktemplate()
     std::string strMode = "template";
     UniValue lpval = NullUniValue;
     std::set<std::string> setClientRules;
+    std::string strAlgo = gArgs.GetArg("-powalgo", DEFAULT_POW_TYPE);
     if (!request.params[0].isNull())
     {
         const UniValue& oparam = request.params[0].get_obj();
@@ -751,6 +764,11 @@ static RPCHelpMan getblocktemplate()
             return BIP22ValidationResult(TestBlockValidity(chainman.ActiveChainstate(), block, /*check_pow=*/false, /*check_merkle_root=*/true));
         }
 
+        // AVN: Parse powalgo from request
+        const UniValue& algoval = oparam.find_value("powalgo");
+        if (algoval.isStr())
+            strAlgo = algoval.get_str();
+
         const UniValue& aClientRules = oparam.find_value("rules");
         if (aClientRules.isArray()) {
             for (unsigned int i = 0; i < aClientRules.size(); ++i) {
@@ -758,6 +776,21 @@ static RPCHelpMan getblocktemplate()
                 setClientRules.insert(v.get_str());
             }
         }
+    }
+
+    // AVN: Resolve powalgo string to POW_TYPE
+    POW_TYPE powType = POW_TYPE_X16RT;
+    {
+        bool algoFound = false;
+        for (unsigned int i = 0; i < NUM_BLOCK_TYPES; i++) {
+            if (strAlgo == POW_TYPE_NAMES[i]) {
+                powType = static_cast<POW_TYPE>(i);
+                algoFound = true;
+                break;
+            }
+        }
+        if (!algoFound)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid pow algorithm requested");
     }
 
     if (strMode != "template")
@@ -859,8 +892,10 @@ static RPCHelpMan getblocktemplate()
     static CBlockIndex* pindexPrev;
     static int64_t time_start;
     static std::unique_ptr<BlockTemplate> block_template;
+    static POW_TYPE lastPowType = NUM_BLOCK_TYPES;
     if (!pindexPrev || pindexPrev->GetBlockHash() != tip ||
-        (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - time_start > 5))
+        (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - time_start > 5) ||
+        lastPowType != powType)
     {
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = nullptr;
@@ -870,9 +905,12 @@ static RPCHelpMan getblocktemplate()
         CBlockIndex* pindexPrevNew = chainman.m_blockman.LookupBlockIndex(tip);
         time_start = GetTime();
 
-        // Create new block
-        block_template = miner.createNewBlock();
+        // Create new block with requested PoW algorithm
+        node::BlockCreateOptions create_options;
+        create_options.pow_type = static_cast<int>(powType);
+        block_template = miner.createNewBlock(create_options);
         CHECK_NONFATAL(block_template);
+        lastPowType = powType;
 
 
         // Need to update only after we know createNewBlock succeeded
@@ -988,7 +1026,28 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("previousblockhash", block.hashPrevBlock.GetHex());
     result.pushKV("transactions", std::move(transactions));
     result.pushKV("coinbaseaux", std::move(aux));
-    result.pushKV("coinbasevalue", (int64_t)block.vtx[0]->vout[0].nValue);
+    result.pushKV("coinbasevalue", (int64_t)block.vtx[0]->GetValueOut());
+
+    // AVN: Founder payment information for mining pools
+    {
+        FounderPayment founderPayment(consensusParams);
+        int nNextHeight = pindexPrev->nHeight + 1;
+
+        CAmount nMinerValue = block.vtx[0]->GetValueOut();
+        UniValue founderObj(UniValue::VOBJ);
+        if (block.txoutFounder != CTxOut()) {
+            nMinerValue -= block.txoutFounder.nValue;
+            CTxDestination address;
+            ExtractDestination(block.txoutFounder.scriptPubKey, address);
+            founderObj.pushKV("payee", EncodeDestination(address));
+            founderObj.pushKV("script", HexStr(block.txoutFounder.scriptPubKey));
+            founderObj.pushKV("amount", (int64_t)block.txoutFounder.nValue);
+        }
+        result.pushKV("minerpayment", (int64_t)nMinerValue);
+        result.pushKV("founder", std::move(founderObj));
+        result.pushKV("founder_payments_started", nNextHeight > founderPayment.getStartBlock());
+    }
+
     result.pushKV("longpollid", tip.GetHex() + ToString(nTransactionsUpdatedLast));
     result.pushKV("target", hashTarget.GetHex());
     result.pushKV("mintime", GetMinimumTime(pindexPrev, consensusParams.DifficultyAdjustmentInterval()));
