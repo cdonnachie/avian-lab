@@ -256,6 +256,10 @@ bool OptionsModel::Init(bilingual_str& error)
 
     m_mask_values = settings.value("mask_values", false).toBool();
 
+    if (!settings.contains("fDarkModeEnabled"))
+        settings.setValue("fDarkModeEnabled", false);
+    m_dark_mode_enabled = settings.value("fDarkModeEnabled", false).toBool();
+
     return true;
 }
 
@@ -478,6 +482,8 @@ QVariant OptionsModel::getOption(OptionID option, const std::string& suffix) con
         return SettingToBool(setting(), false);
     case MaskValues:
         return m_mask_values;
+    case DarkModeEnabled:
+        return m_dark_mode_enabled;
     default:
         return QVariant();
     }
@@ -685,6 +691,12 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value, const std::
     case MaskValues:
         m_mask_values = value.toBool();
         settings.setValue("mask_values", m_mask_values);
+        break;
+    case DarkModeEnabled:
+        m_dark_mode_enabled = value.toBool();
+        settings.setValue("fDarkModeEnabled", m_dark_mode_enabled);
+        GUIUtil::loadTheme(m_dark_mode_enabled);
+        Q_EMIT darkModeChanged(m_dark_mode_enabled);
         break;
     default:
         break;

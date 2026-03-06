@@ -48,7 +48,7 @@ QListView:disabled {
   font: 12pt "Manrope";
 }
 
-AvianAmountField,
+BitcoinAmountField,
 QAbstractSpinBox,
 QComboBox,
 QPlainTextEdit,
@@ -63,7 +63,7 @@ QLineEdit {
   font: 12pt "Manrope";
 }
 
-AvianAmountField:hover:!focus,
+BitcoinAmountField:hover:!focus,
 QAbstractSpinBox:hover:!focus,
 QComboBox:hover:!focus,
 QPlainTextEdit:hover:!focus,
@@ -74,14 +74,14 @@ QLineEdit:hover:!focus {
   border-color: #18a7b7;
 }
 
-AvianAmountField:hover:!focus,
+BitcoinAmountField:hover:!focus,
 QAbstractSpinBox:hover:!focus,
 QPlainTextEdit:hover:!focus,
 QLineEdit:hover:!focus {
   padding: -1px 7px -1px 7px;
 }
 
-AvianAmountField:focus,
+BitcoinAmountField:focus,
 QAbstractSpinBox:focus,
 QComboBox:checked,
 QComboBox:focus,
@@ -93,7 +93,7 @@ QLineEdit:focus {
   border-color: #18a7b7;
 }
 
-AvianAmountField:disabled,
+BitcoinAmountField:disabled,
 QAbstractSpinBox:disabled,
 QComboBox:disabled,
 QPlainTextEdit:disabled,
@@ -738,7 +738,7 @@ QScrollBar::handle:vertical:focus {
 
 QScrollBar::add-line:horizontal {
   margin: 0px 0px 0px 0px;
-  border-image: url(":/images/arrow_right_disabled.png");
+  border-image: url(":/images/arrow_right_light");
   height: 12px;
   width: 12px;
   subcontrol-position: right;
@@ -756,7 +756,7 @@ QScrollBar::add-line:horizontal:on {
 
 QScrollBar::add-line:vertical {
   margin: 3px 0px 3px 0px;
-  border-image: url(":/images/arrow_down_disabled.png");
+  border-image: url(":/images/arrow_down_light");
   height: 12px;
   width: 12px;
   subcontrol-position: bottom;
@@ -774,7 +774,7 @@ QScrollBar::add-line:vertical:on {
 
 QScrollBar::sub-line:horizontal {
   margin: 0px 3px 0px 3px;
-  border-image: url(":/images/arrow_left_disabled.png");
+  border-image: url(":/images/arrow_left_light");
   height: 12px;
   width: 12px;
   subcontrol-position: left;
@@ -792,7 +792,7 @@ QScrollBar::sub-line:horizontal:on {
 
 QScrollBar::sub-line:vertical {
   margin: 3px 0px 3px 0px;
-  border-image: url(":/images/arrow_up_disabled.png");
+  border-image: url(":/images/arrow_up_light");
   height: 12px;
   width: 12px;
   subcontrol-position: top;

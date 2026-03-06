@@ -467,6 +467,20 @@ bool openBitcoinConf()
     return res;
 }
 
+void loadTheme(bool darkmode)
+{
+    QString fileName = QStringLiteral(":/css/");
+    fileName += darkmode ? QStringLiteral("Dark") : QStringLiteral("Light");
+
+    QFile qFile(fileName);
+    if (qFile.open(QFile::ReadOnly)) {
+        qApp->setStyleSheet(QLatin1String(qFile.readAll()));
+    } else {
+        // If theme file can't be loaded, clear any existing stylesheet
+        qApp->setStyleSheet(QString());
+    }
+}
+
 ToolTipToRichTextFilter::ToolTipToRichTextFilter(int _size_threshold, QObject *parent) :
     QObject(parent),
     size_threshold(_size_threshold)

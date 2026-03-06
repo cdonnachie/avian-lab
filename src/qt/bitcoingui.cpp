@@ -95,6 +95,9 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
         move(QGuiApplication::primaryScreen()->availableGeometry().center() - frameGeometry().center());
     }
 
+    // Load dark/light theme stylesheet
+    GUIUtil::loadTheme(settings.value("fDarkModeEnabled", false).toBool());
+
     setContextMenuPolicy(Qt::PreventContextMenu);
 
 #ifdef ENABLE_WALLET
