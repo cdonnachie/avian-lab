@@ -34,7 +34,7 @@ QString BitcoinUnits::longName(Unit unit)
     case Unit::BTC: return QString("AVN");
     case Unit::mBTC: return QString("mAVN");
     case Unit::uBTC: return QString::fromUtf8("µAVN");
-    case Unit::SAT: return QString("ravenshi");
+    case Unit::SAT: return QString("avianshi");
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
@@ -56,7 +56,7 @@ QString BitcoinUnits::description(Unit unit)
     case Unit::BTC: return QString("Avians");
     case Unit::mBTC: return QString("Milli-Avians (1 / 1" THIN_SP_UTF8 "000)");
     case Unit::uBTC: return QString("Micro-Avians (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
-    case Unit::SAT: return QString("Ravenshi (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+    case Unit::SAT: return QString("Avianshi (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }

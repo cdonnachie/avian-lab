@@ -507,7 +507,7 @@ void AssetControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     // tool tips
     QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");
     double dFeeVary = (nBytes != 0) ? (double)nPayFee / nBytes : 0;
-    QString toolTip4 = tr("Can vary +/- %1 satoshi(s) per input.").arg(dFeeVary);
+    QString toolTip4 = tr("Can vary +/- %1 avianshi(s) per input.").arg(dFeeVary);
 
     l3->setToolTip(toolTip4);
     l4->setToolTip(toolTip4);

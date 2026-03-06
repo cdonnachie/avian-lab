@@ -188,7 +188,7 @@ bool fMessaging = false;
 /**
  * The PID file facilities.
  */
-static const char* BITCOIN_PID_FILENAME = "bitcoind.pid";
+static const char* BITCOIN_PID_FILENAME = "aviand.pid";
 /**
  * True if this process has created a PID file.
  * Used to determine whether we should remove the PID file on shutdown.
