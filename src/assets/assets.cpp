@@ -32,6 +32,7 @@
 #include <assets/restricteddb.h>
 #include <protocol.h>
 #include <util/chaintype.h>
+#include <univalue.h>
 
 // Compatibility: old error() function logged a message and returned false.
 // Removed in BTC 30.2. Define as macro wrapping LogError.
@@ -5187,4 +5188,39 @@ std::string GetUserErrorString(const ErrorReport& report)
         default:
             return _("Error not set");
     }
+}
+
+UniValue UnitValueFromAmount(const CAmount& amount, int8_t units)
+{
+    bool sign = amount < 0;
+    int64_t n_abs = (sign ? -amount : amount);
+    int64_t quotient = n_abs;
+    int64_t remainder = 0;
+
+    if (units > 0) {
+        int64_t divisor = 1;
+        for (int i = 0; i < units; i++) divisor *= 10;
+        quotient = n_abs / divisor;
+        remainder = n_abs % divisor;
+    }
+
+    if (units == 0) {
+        return UniValue(UniValue::VNUM, strprintf("%s%d", sign ? "-" : "", quotient));
+    }
+
+    return UniValue(UniValue::VNUM, strprintf("%s%d.%0*d", sign ? "-" : "", quotient, units, remainder));
+}
+
+UniValue AssetUnitValueFromAmount(const CAmount& amount, const std::string& assetName)
+{
+    uint8_t units = MAX_UNIT;
+    if (IsAssetNameAnOwner(assetName)) {
+        units = OWNER_UNITS;
+    } else if (passets) {
+        CNewAsset assetData;
+        if (passets->GetAssetMetaDataIfExists(assetName, assetData)) {
+            units = assetData.units;
+        }
+    }
+    return UnitValueFromAmount(amount, units);
 }

@@ -14,6 +14,8 @@
 #include <qt/walletmodel.h>
 
 #include <wallet/coincontrol.h>
+#include <wallet/wallet.h>
+#include <wallet/spend.h>
 #include <policy/policy.h>
 #include <validation.h>
 
@@ -556,10 +558,18 @@ void AssetControlDialog::updateAssetList(bool fSetOnStart)
     if (!model || !model->getOptionsModel() || !model->getAddressTableModel())
         return;
 
-    // TODO: Port wallet asset list query through interfaces::Wallet
-    // For now, the asset list will be empty until wallet integration is complete
     QStringList list;
     list << "";
+    wallet::CWallet* pwallet = model->wallet().wallet();
+    if (pwallet) {
+        LOCK(pwallet->cs_wallet);
+        wallet::CoinFilterParams params;
+        params.min_amount = 0;
+        wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+        for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+            list << QString::fromStdString(assetName);
+        }
+    }
     stringModel->setStringList(list);
 
     int index = ui->assetList->findText(QString::fromStdString(assetControl->strAssetSelected));

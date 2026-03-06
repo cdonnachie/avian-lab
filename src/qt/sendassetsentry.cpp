@@ -15,6 +15,8 @@
 #include <qt/guiconstants.h>
 
 #include <wallet/coincontrol.h>
+#include <wallet/wallet.h>
+#include <wallet/spend.h>
 #include <assets/assets.h>
 
 #include <QGraphicsDropShadowEffect>
@@ -427,11 +429,22 @@ void SendAssetsEntry::switchAdministratorList(bool fSwitchStatus)
 
     if (fShowAdministratorList) {
         ui->administratorCheckbox->setChecked(true);
-        // TODO: Port wallet asset list query through interfaces::Wallet
-        // For now, the asset list will be empty until wallet integration is complete
         if (!AssetControlDialog::assetControl || !AssetControlDialog::assetControl->HasAssetSelected()) {
             QStringList list;
             list << "";
+            if (model) {
+                wallet::CWallet* pwallet = model->wallet().wallet();
+                if (pwallet) {
+                    LOCK(pwallet->cs_wallet);
+                    wallet::CoinFilterParams params;
+                    params.min_amount = 0;
+                    wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+                    for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+                        if (IsAssetNameAnOwner(assetName))
+                            list << QString::fromStdString(assetName);
+                    }
+                }
+            }
             stringModel->setStringList(list);
             ui->assetSelectionBox->lineEdit()->setPlaceholderText(tr("Select an administrator asset to transfer"));
             ui->assetSelectionBox->setFocus();
@@ -450,10 +463,22 @@ void SendAssetsEntry::switchAdministratorList(bool fSwitchStatus)
         ui->ownershipWarningMessage->show();
     } else {
         ui->administratorCheckbox->setChecked(false);
-        // TODO: Port wallet asset list query through interfaces::Wallet
         if (!AssetControlDialog::assetControl || !AssetControlDialog::assetControl->HasAssetSelected()) {
             QStringList list;
             list << "";
+            if (model) {
+                wallet::CWallet* pwallet = model->wallet().wallet();
+                if (pwallet) {
+                    LOCK(pwallet->cs_wallet);
+                    wallet::CoinFilterParams params;
+                    params.min_amount = 0;
+                    wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+                    for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+                        if (!IsAssetNameAnOwner(assetName))
+                            list << QString::fromStdString(assetName);
+                    }
+                }
+            }
             stringModel->setStringList(list);
             ui->assetSelectionBox->lineEdit()->setPlaceholderText(tr("Select an asset to transfer"));
             ui->assetAmountLabel->clear();

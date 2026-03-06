@@ -13,6 +13,8 @@
 #include <string>
 #include <set>
 #include <map>
+
+class UniValue;
 #include <unordered_map>
 #include <list>
 #include <vector>
@@ -585,5 +587,11 @@ bool AreAssetsDeployed();
 bool AreMessagesDeployed();
 bool AreRestrictedAssetsDeployed();
 bool IsAvianNameSystemDeployed();
+
+//! Format a raw asset amount using the asset's unit precision
+UniValue UnitValueFromAmount(const CAmount& amount, int8_t units);
+
+//! Format a raw asset amount, looking up the asset's units from the cache
+UniValue AssetUnitValueFromAmount(const CAmount& amount, const std::string& assetName);
 
 #endif //BITCOIN_ASSETS_ASSETS_H

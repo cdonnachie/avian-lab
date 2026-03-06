@@ -906,6 +906,12 @@ RPCHelpMan abandontransaction();
 RPCHelpMan rescanblockchain();
 RPCHelpMan abortrescan();
 
+// assets (wallet/rpc/assets.cpp)
+RPCHelpMan listmyassets();
+RPCHelpMan issue();
+RPCHelpMan transfer();
+RPCHelpMan reissue();
+
 std::span<const CRPCCommand> GetWalletRPCCommands()
 {
     static const CRPCCommand commands[]{
@@ -968,6 +974,11 @@ std::span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &walletpassphrase},
         {"wallet", &walletpassphrasechange},
         {"wallet", &walletprocesspsbt},
+        /** AVN: Asset wallet RPCs */
+        {"assets", &listmyassets},
+        {"assets", &issue},
+        {"assets", &transfer},
+        {"assets", &reissue},
     };
     return commands;
 }

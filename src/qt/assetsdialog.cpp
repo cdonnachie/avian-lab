@@ -24,6 +24,7 @@
 #include <kernel/chainparams.h>
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h>
+#include <wallet/spend.h>
 #include <validation.h>
 #include <node/interface_ui.h>
 #include <qt/createassetdialog.h>
@@ -423,9 +424,6 @@ void AssetsDialog::accept()
 
 SendAssetsEntry *AssetsDialog::addEntry()
 {
-    // TODO: GetAllMyAssets requires wallet pointer not available via model interface (rule 3)
-    std::vector<std::string> assets;
-
     QStringList list;
     bool fIsOwner = false;
     bool fIsAssetControl = false;
@@ -433,10 +431,17 @@ SendAssetsEntry *AssetsDialog::addEntry()
         list << QString::fromStdString(AssetControlDialog::assetControl->strAssetSelected);
         fIsOwner = IsAssetNameAnOwner(AssetControlDialog::assetControl->strAssetSelected);
         fIsAssetControl = true;
-    } else {
-        for (auto name : assets) {
-            if (!IsAssetNameAnOwner(name))
-                list << QString::fromStdString(name);
+    } else if (model) {
+        wallet::CWallet* pwallet = model->wallet().wallet();
+        if (pwallet) {
+            LOCK(pwallet->cs_wallet);
+            wallet::CoinFilterParams params;
+            params.min_amount = 0;
+            wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+            for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+                if (!IsAssetNameAnOwner(assetName))
+                    list << QString::fromStdString(assetName);
+            }
         }
     }
 
