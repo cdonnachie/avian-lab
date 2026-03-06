@@ -747,7 +747,7 @@ QScrollBar::add-line:horizontal {
 
 QScrollBar::add-line:horizontal:hover,
 QScrollBar::add-line:horizontal:on {
-  border-image: url(":/images/arrow_right_light.png");
+  border-image: url(":/images/arrow_right_light");
   height: 12px;
   width: 12px;
   subcontrol-position: right;
@@ -765,7 +765,7 @@ QScrollBar::add-line:vertical {
 
 QScrollBar::add-line:vertical:hover,
 QScrollBar::add-line:vertical:on {
-  border-image: url(":/images/arrow_down_light.png");
+  border-image: url(":/images/arrow_down_light");
   height: 12px;
   width: 12px;
   subcontrol-position: bottom;
@@ -783,7 +783,7 @@ QScrollBar::sub-line:horizontal {
 
 QScrollBar::sub-line:horizontal:hover,
 QScrollBar::sub-line:horizontal:on {
-  border-image: url(":/images/arrow_left_light.png");
+  border-image: url(":/images/arrow_left_light");
   height: 12px;
   width: 12px;
   subcontrol-position: left;
@@ -801,7 +801,7 @@ QScrollBar::sub-line:vertical {
 
 QScrollBar::sub-line:vertical:hover,
 QScrollBar::sub-line:vertical:on {
-  border-image: url(":/images/arrow_up_light.png");
+  border-image: url(":/images/arrow_up_light");
   height: 12px;
   width: 12px;
   subcontrol-position: top;
