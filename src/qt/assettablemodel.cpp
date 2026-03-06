@@ -119,6 +119,12 @@ public:
                             setAssetsToSkip.insert(bal->first);
                             continue;
                         }
+                        // Owner-only token: look up base asset metadata for IPFS/ANS
+                        CNewAsset assetData;
+                        if (currentActiveAssetCache->GetAssetMetaDataIfExists(name, assetData)) {
+                            ipfsHash = assetData.strIPFSHash;
+                            ansID = assetData.strANSID;
+                        }
                     }
                     cachedBalances.append(AssetRecord(bal->first, bal->second, units, fIsAdministrator, EncodeAssetData(ipfsHash), ansID));
                 }
@@ -241,11 +247,13 @@ QVariant AssetTableModel::data(const QModelIndex &index, int role) const
                 return QVariant();
 
             if (!rec->fIsAdministrator)
-                QVariant();
+                return QVariant();
 
             QPixmap pixmap;
-
-            pixmap = QPixmap::fromImage(QImage(":/icons/asset_administrator"));
+            if (darkModeEnabled)
+                pixmap = QPixmap::fromImage(QImage(":/icons/asset_administrator_dark"));
+            else
+                pixmap = QPixmap::fromImage(QImage(":/icons/asset_administrator"));
 
             return pixmap;
         }

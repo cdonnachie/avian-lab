@@ -104,6 +104,11 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     connect(overviewPage, &OverviewPage::assetIssueSubClicked, createAssetsPage, &CreateAssetDialog::focusSubAsset);
     connect(overviewPage, &OverviewPage::assetIssueUniqueClicked, createAssetsPage, &CreateAssetDialog::focusUniqueAsset);
     connect(overviewPage, &OverviewPage::assetReissueClicked, manageAssetsPage, &ReissueAssetDialog::focusReissueAsset);
+    // Navigate to the appropriate page when context menu actions are triggered
+    connect(overviewPage, &OverviewPage::assetSendClicked, this, &WalletView::gotoAssetsPage);
+    connect(overviewPage, &OverviewPage::assetIssueSubClicked, this, &WalletView::gotoCreateAssetsPage);
+    connect(overviewPage, &OverviewPage::assetIssueUniqueClicked, this, &WalletView::gotoCreateAssetsPage);
+    connect(overviewPage, &OverviewPage::assetReissueClicked, this, &WalletView::gotoManageAssetsPage);
     /** AVN END */
 
     connect(sendCoinsPage, &SendCoinsDialog::coinsSent, this, &WalletView::coinsSent);

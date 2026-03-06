@@ -46,6 +46,8 @@
         <file alias="proxy">res/icons/proxy.png</file>
         <file alias="asset_administrator">res/icons/asset_administrator.png</file>
         <file alias="asset_administrator_dark">res/icons/asset_administrator_dark.png</file>
+        <file alias="external_link">res/icons/external_link.png</file>
+        <file alias="external_link_dark">res/icons/external_link_dark.png</file>
         <file alias="asset_create">res/icons/asset_create.png</file>
         <file alias="asset_create_selected">res/icons/asset_create_selected.png</file>
         <file alias="asset_edit">res/icons/asset_edit.png</file>
