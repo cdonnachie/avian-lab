@@ -491,8 +491,7 @@ public:
     bool hasExternalSigner() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER); }
     bool privateKeysDisabled() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS); }
     bool taprootEnabled() override {
-        auto spk_man = m_wallet->GetScriptPubKeyMan(OutputType::BECH32M, /*internal=*/false);
-        return spk_man != nullptr;
+        return false; // Taproot is not deployed on Avian
     }
     OutputType getDefaultAddressType() override { return m_wallet->m_default_address_type; }
     CAmount getDefaultMaxTxFee() override { return m_wallet->m_default_max_tx_fee; }
@@ -646,8 +645,30 @@ public:
     std::vector<std::pair<std::string, std::string>> listWalletDir() override
     {
         std::vector<std::pair<std::string, std::string>> paths;
-        for (auto& [path, format] : ListDatabases(GetWalletDir())) {
+        fs::path wallet_dir = GetWalletDir();
+        for (auto& [path, format] : ListDatabases(wallet_dir)) {
             paths.emplace_back(fs::PathToString(path), format);
+        }
+        // Also scan data directory root for legacy wallet .dat files from older
+        // Avian versions that stored wallets directly in the data dir rather
+        // than in the wallets/ subdirectory. Use absolute paths so that
+        // GetWalletPath() can resolve them correctly.
+        if (!gArgs.IsArgSet("-walletdir")) {
+            fs::path data_dir = gArgs.GetDataDirNet();
+            if (wallet_dir != data_dir) {
+                for (auto& [path, format] : ListDatabases(data_dir)) {
+                    if (path.empty()) {
+                        // Top-level wallet.dat in datadir root
+                        fs::path abs_path = data_dir / "wallet.dat";
+                        paths.emplace_back(fs::PathToString(abs_path), format);
+                    } else if (path.has_extension() && path.extension() == ".dat") {
+                        // Other .dat files (e.g. craig.dat) in datadir root
+                        fs::path abs_path = data_dir / path;
+                        paths.emplace_back(fs::PathToString(abs_path), format);
+                    }
+                    // Skip subdirectory entries (e.g. wallets/...) to avoid duplicates
+                }
+            }
         }
         return paths;
     }

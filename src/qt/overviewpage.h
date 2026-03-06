@@ -80,6 +80,10 @@ private:
     QAction* assetIssueUniqueAction{nullptr};
     QAction* assetReissueAction{nullptr};
     QAction* assetCopyNameAction{nullptr};
+    QAction* assetCopyAmountAction{nullptr};
+    QAction* assetCopyHashAction{nullptr};
+    QAction* assetOpenIPFSAction{nullptr};
+    QAction* assetViewANSAction{nullptr};
     /** AVN END */
 
 private Q_SLOTS:

@@ -83,10 +83,23 @@ bool VerifyWallets(WalletContext& context)
             return false;
         }
         const auto& wallet_file = wallet.get_str();
-        const fs::path path = fsbridge::AbsPathJoin(GetWalletDir(), fs::PathFromString(wallet_file));
+        // Strip redundant "wallets/" prefix if GetWalletDir() already points
+        // to the wallets subdirectory. This handles stale settings entries that
+        // were saved relative to the data dir root.
+        std::string resolved_wallet_file = wallet_file;
+        fs::path wallet_dir = GetWalletDir();
+        if (wallet_dir.filename() == "wallets" &&
+            (resolved_wallet_file.substr(0, 8) == "wallets/" || resolved_wallet_file.substr(0, 8) == "wallets\\")) {
+            resolved_wallet_file = resolved_wallet_file.substr(8);
+        }
+        const fs::path path = fsbridge::AbsPathJoin(wallet_dir, fs::PathFromString(resolved_wallet_file));
 
         if (!wallet_paths.insert(path).second) {
-            chain.initWarning(strprintf(_("Ignoring duplicate -wallet %s."), wallet_file));
+            // Only warn about duplicates if the name wasn't resolved from a
+            // stale prefix; silently skip resolved duplicates.
+            if (resolved_wallet_file == wallet_file) {
+                chain.initWarning(strprintf(_("Ignoring duplicate -wallet %s."), resolved_wallet_file));
+            }
             continue;
         }
 
@@ -96,7 +109,7 @@ bool VerifyWallets(WalletContext& context)
         options.require_existing = true;
         options.verify = true;
         bilingual_str error_string;
-        if (!MakeWalletDatabase(wallet_file, options, status, error_string)) {
+        if (!MakeWalletDatabase(resolved_wallet_file, options, status, error_string)) {
             if (status == DatabaseStatus::FAILED_NOT_FOUND) {
                 chain.initWarning(Untranslated(strprintf("Skipping -wallet path that doesn't exist. %s", error_string.original)));
             } else if (status == DatabaseStatus::FAILED_LEGACY_DISABLED) {
@@ -125,7 +138,15 @@ bool LoadWallets(WalletContext& context)
                 return false;
             }
             const auto& name = wallet.get_str();
-            if (!wallet_paths.insert(fs::PathFromString(name)).second) {
+            // Strip redundant "wallets/" prefix if GetWalletDir() already points
+            // to the wallets subdirectory (see VerifyWallets for details).
+            std::string resolved_name = name;
+            fs::path wallet_dir = GetWalletDir();
+            if (wallet_dir.filename() == "wallets" &&
+                (resolved_name.substr(0, 8) == "wallets/" || resolved_name.substr(0, 8) == "wallets\\")) {
+                resolved_name = resolved_name.substr(8);
+            }
+            if (!wallet_paths.insert(fs::PathFromString(resolved_name)).second) {
                 continue;
             }
             DatabaseOptions options;
@@ -135,7 +156,7 @@ bool LoadWallets(WalletContext& context)
             options.verify = false; // No need to verify, assuming verified earlier in VerifyWallets()
             bilingual_str error;
             std::vector<bilingual_str> warnings;
-            std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(name, options, status, error);
+            std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(resolved_name, options, status, error);
             if (!database) {
                 if (status == DatabaseStatus::FAILED_NOT_FOUND) continue;
                 if (status == DatabaseStatus::FAILED_LEGACY_DISABLED) {
@@ -145,7 +166,7 @@ bool LoadWallets(WalletContext& context)
                 }
             }
             chain.initMessage(_("Loading wallet…"));
-            std::shared_ptr<CWallet> pwallet = database ? CWallet::Create(context, name, std::move(database), options.create_flags, error, warnings) : nullptr;
+            std::shared_ptr<CWallet> pwallet = database ? CWallet::Create(context, resolved_name, std::move(database), options.create_flags, error, warnings) : nullptr;
             if (!warnings.empty()) chain.initWarning(Join(warnings, Untranslated("\n")));
             if (!pwallet) {
                 chain.initError(error);

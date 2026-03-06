@@ -570,6 +570,7 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
             "(default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, >=%u = automatically prune block files to stay under the specified target size in MiB)", MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-reindex", "If enabled, wipe chain state and block index, and rebuild them from blk*.dat files on disk. Also wipe and rebuild other optional indexes that are active. If an assumeutxo snapshot was loaded, its chainstate will be wiped as well. The snapshot can then be reloaded via RPC.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-reindex-chainstate", "If enabled, wipe chain state, and rebuild it from blk*.dat files on disk. If an assumeutxo snapshot was loaded, its chainstate will be wiped as well. The snapshot can then be reloaded via RPC.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-reindexassets", "If enabled, wipe and rebuild the asset database by scanning existing blocks. Much faster than a full -reindex.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-settings=<file>", strprintf("Specify path to dynamic settings data file. Can be disabled with -nosettings. File is written at runtime and not meant to be edited by users (use %s instead for custom settings). Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME, BITCOIN_SETTINGS_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #if HAVE_SYSTEM
     argsman.AddArg("-startupnotify=<cmd>", "Execute command on startup.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
@@ -1807,6 +1808,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     bool do_reindex{args.GetBoolArg("-reindex", false)};
     const bool do_reindex_chainstate{args.GetBoolArg("-reindex-chainstate", false)};
+    const bool do_reindex_assets{args.GetBoolArg("-reindexassets", false)};
 
     // Chainstate initialization and loading may be retried once with reindexing by GUI users
     auto [status, error] = InitAndLoadChainstate(
@@ -1872,7 +1874,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         delete pSnapshotRequestDb; delete pAssetSnapshotDb; delete pDistributeSnapshotDb;
 
         // Core asset databases
-        passetsdb = new CAssetsDB(args.GetDataDirNet(), nAssetDBCache, false, do_reindex);
+        passetsdb = new CAssetsDB(args.GetDataDirNet(), nAssetDBCache, false, do_reindex || do_reindex_assets);
         passets = new CAssetsCache();
         passetsCache = new CLRUCache<std::string, CDatabasedAssetData>(MAX_CACHE_ASSETS_SIZE);
 
@@ -1887,7 +1889,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         pmyrestricteddb = new CMyRestrictedDB(args.GetDataDirNet(), nAssetDBCache, false, false);
 
         // Restricted asset caches
-        prestricteddb = new CRestrictedDB(args.GetDataDirNet(), nAssetDBCache, false, do_reindex);
+        prestricteddb = new CRestrictedDB(args.GetDataDirNet(), nAssetDBCache, false, do_reindex || do_reindex_assets);
         passetsVerifierCache = new CLRUCache<std::string, CNullAssetTxVerifierString>(MAX_CACHE_ASSETS_SIZE);
         passetsQualifierCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
         passetsRestrictionCache = new CLRUCache<std::string, int8_t>(MAX_CACHE_ASSETS_SIZE);
@@ -2049,6 +2051,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 LogError("Failed to send shutdown signal after finishing block import\n");
             }
             return;
+        }
+
+        // Rebuild asset database if requested
+        if (do_reindex_assets) {
+            uiInterface.InitMessage(_("Rebuilding asset database..."));
+            if (!ReindexAssets(chainman)) {
+                LogError("Failed to reindex assets\n");
+            }
         }
 
         // Start indexes initial sync

@@ -18,15 +18,23 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/walletmodel.h>
 
+#include <assets/assets.h>
+#include <assets/assettypes.h>
+#include <assets/ans.h>
+#include <validation.h>
+
 #include <QAbstractItemDelegate>
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPainter>
 #include <QStatusTipEvent>
 #include <QTimer>
+#include <QUrl>
 
 #include <algorithm>
 #include <map>
@@ -174,16 +182,25 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     assetIssueSubAction = new QAction(tr("Issue Sub Asset"), this);
     assetIssueUniqueAction = new QAction(tr("Issue Unique Asset"), this);
     assetReissueAction = new QAction(tr("Reissue Asset"), this);
-    assetCopyNameAction = new QAction(tr("Copy Asset Name"), this);
+    assetCopyNameAction = new QAction(tr("Copy Name"), this);
+    assetCopyAmountAction = new QAction(tr("Copy Amount"), this);
+    assetCopyHashAction = new QAction(tr("Copy Hash"), this);
+    assetOpenIPFSAction = new QAction(tr("Open IPFS in Browser"), this);
+    assetViewANSAction = new QAction(tr("View ANS info"), this);
 
     assetContextMenu = new QMenu(this);
     assetContextMenu->addAction(assetSendAction);
-    assetContextMenu->addSeparator();
-    assetContextMenu->addAction(assetCopyNameAction);
-    assetContextMenu->addSeparator();
     assetContextMenu->addAction(assetIssueSubAction);
     assetContextMenu->addAction(assetIssueUniqueAction);
     assetContextMenu->addAction(assetReissueAction);
+    assetContextMenu->addSeparator();
+    assetContextMenu->addAction(assetOpenIPFSAction);
+    assetContextMenu->addAction(assetCopyHashAction);
+    assetContextMenu->addSeparator();
+    assetContextMenu->addAction(assetViewANSAction);
+    assetContextMenu->addSeparator();
+    assetContextMenu->addAction(assetCopyNameAction);
+    assetContextMenu->addAction(assetCopyAmountAction);
 
     connect(ui->listAssets, &QListView::customContextMenuRequested, [this](const QPoint& pos) {
         QModelIndex index = ui->listAssets->indexAt(pos);
@@ -278,6 +295,13 @@ void OverviewPage::setWalletModel(WalletModel *model)
         connect(filter.get(), &TransactionFilterProxy::rowsRemoved, this, &OverviewPage::LimitTransactionRows);
         connect(filter.get(), &TransactionFilterProxy::rowsMoved, this, &OverviewPage::LimitTransactionRows);
         LimitTransactionRows();
+
+        // Set up asset list
+        assetFilter.reset(new AssetFilterProxy());
+        assetFilter->setSourceModel(model->getAssetTableModel());
+        assetFilter->sort(AssetTableModel::AssetNameRole, Qt::DescendingOrder);
+        ui->listAssets->setModel(assetFilter.get());
+
         // Keep up to date with wallet
         setBalance(model->getCachedBalance());
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
@@ -362,38 +386,107 @@ void OverviewPage::assetSearchChanged()
 
 void OverviewPage::handleAssetRightClicked(const QModelIndex& index)
 {
-    if (!index.isValid()) return;
+    if (!index.isValid() || !assetFilter) return;
 
     QString assetName = index.data(AssetTableModel::AssetNameRole).toString();
+    QString ipfshash = index.data(AssetTableModel::AssetIPFSHashRole).toString();
+    QString ansid = index.data(AssetTableModel::AssetANSRole).toString();
+    QString ipfsbrowser = "https://cloudflare-ipfs.com/ipfs/%s";
+
+    // Disable send for owner tokens
+    if (IsAssetNameAnOwner(assetName.toStdString())) {
+        assetName = assetName.left(assetName.size() - 1);
+        assetSendAction->setDisabled(true);
+    } else {
+        assetSendAction->setDisabled(false);
+    }
+
+    // Enable/disable IPFS action based on hash availability
+    assetOpenIPFSAction->setDisabled(!(ipfshash.size() > 0 && ipfshash.indexOf("Qm") == 0 && ipfsbrowser.indexOf("http") == 0));
+
+    // Enable/disable Copy Hash based on hash availability
+    assetCopyHashAction->setDisabled(ipfshash.isEmpty());
+
+    // Enable/disable ANS based on ANS ID availability
+    assetViewANSAction->setDisabled(ansid.isEmpty());
+
+    // Enable/disable admin actions based on ownership
+    if (!index.data(AssetTableModel::AdministratorRole).toBool()) {
+        assetIssueSubAction->setDisabled(true);
+        assetIssueUniqueAction->setDisabled(true);
+        assetReissueAction->setDisabled(true);
+    } else {
+        assetIssueSubAction->setDisabled(false);
+        assetIssueUniqueAction->setDisabled(false);
+        assetReissueAction->setDisabled(true);
+        CNewAsset asset;
+        auto currentActiveAssetCache = GetCurrentAssetCache();
+        if (currentActiveAssetCache && currentActiveAssetCache->GetAssetMetaDataIfExists(assetName.toStdString(), asset)) {
+            if (asset.nReissuable)
+                assetReissueAction->setDisabled(false);
+        }
+    }
 
     // Copy name action
     disconnect(assetCopyNameAction, &QAction::triggered, nullptr, nullptr);
-    connect(assetCopyNameAction, &QAction::triggered, [assetName]() {
-        QApplication::clipboard()->setText(assetName);
+    connect(assetCopyNameAction, &QAction::triggered, [index]() {
+        GUIUtil::setClipboard(index.data(AssetTableModel::AssetNameRole).toString());
+    });
+
+    // Copy amount action
+    disconnect(assetCopyAmountAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetCopyAmountAction, &QAction::triggered, [index]() {
+        GUIUtil::setClipboard(index.data(AssetTableModel::FormattedAmountRole).toString());
+    });
+
+    // Copy hash action
+    disconnect(assetCopyHashAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetCopyHashAction, &QAction::triggered, [ipfshash]() {
+        GUIUtil::setClipboard(ipfshash);
+    });
+
+    // Open IPFS action
+    disconnect(assetOpenIPFSAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetOpenIPFSAction, &QAction::triggered, [ipfshash, ipfsbrowser]() {
+        QString url = ipfsbrowser;
+        QDesktopServices::openUrl(QUrl::fromUserInput(url.replace("%s", ipfshash)));
+    });
+
+    // View ANS action
+    disconnect(assetViewANSAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetViewANSAction, &QAction::triggered, [this, index, ansid]() {
+        if (!ansid.isEmpty()) {
+            QString assetname = index.data(AssetTableModel::AssetNameRole).toString();
+            CAvianNameSystemID ans(ansid.toStdString());
+            QString ansData;
+            if (ans.type() == CAvianNameSystemID::ADDR) ansData = "Address: " + QString::fromStdString(ans.addr());
+            if (ans.type() == CAvianNameSystemID::IP) ansData = "IPv4: " + QString::fromStdString(ans.ip());
+            QMessageBox::information(this, "ANS Info", assetname + " links to:\n" + ansData);
+        }
     });
 
     // Send action
     disconnect(assetSendAction, &QAction::triggered, nullptr, nullptr);
     connect(assetSendAction, &QAction::triggered, [this, index]() {
-        Q_EMIT assetSendClicked(index);
+        Q_EMIT assetSendClicked(assetFilter->mapToSource(index));
     });
 
     // Issue sub action
     disconnect(assetIssueSubAction, &QAction::triggered, nullptr, nullptr);
     connect(assetIssueSubAction, &QAction::triggered, [this, index]() {
-        Q_EMIT assetIssueSubClicked(index);
+        Q_EMIT assetIssueSubClicked(assetFilter->mapToSource(index));
     });
 
     // Issue unique action
     disconnect(assetIssueUniqueAction, &QAction::triggered, nullptr, nullptr);
     connect(assetIssueUniqueAction, &QAction::triggered, [this, index]() {
-        Q_EMIT assetIssueUniqueClicked(index);
+        Q_EMIT assetIssueUniqueClicked(assetFilter->mapToSource(index));
     });
 
     // Reissue action
     disconnect(assetReissueAction, &QAction::triggered, nullptr, nullptr);
     connect(assetReissueAction, &QAction::triggered, [this, index]() {
-        Q_EMIT assetReissueClicked(index);
+        Q_EMIT assetReissueClicked(assetFilter->mapToSource(index));
     });
 
     assetContextMenu->exec(QCursor::pos());

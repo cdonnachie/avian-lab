@@ -20,6 +20,7 @@
 enum class OutputType;
 
 class AddressTableModel;
+class AssetTableModel;
 class ClientModel;
 class OptionsModel;
 class PlatformStyle;
@@ -77,6 +78,7 @@ public:
     AddressTableModel* getAddressTableModel() const;
     TransactionTableModel* getTransactionTableModel() const;
     RecentRequestsTableModel* getRecentRequestsTableModel() const;
+    AssetTableModel* getAssetTableModel() const;
 
     EncryptionStatus getEncryptionStatus() const;
 
@@ -176,6 +178,7 @@ private:
     AddressTableModel* addressTableModel{nullptr};
     TransactionTableModel* transactionTableModel{nullptr};
     RecentRequestsTableModel* recentRequestsTableModel{nullptr};
+    AssetTableModel* assetTableModel{nullptr};
 
     // Cache some values to be able to detect changes
     interfaces::WalletBalances m_cached_balances;

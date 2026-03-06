@@ -1004,7 +1004,12 @@ void ShowModalDialogAsynchronously(QDialog* dialog)
 
 QString WalletDisplayName(const QString& name)
 {
-    return name.isEmpty() ? "[" + QObject::tr("default wallet") + "]" : name;
+    if (name.isEmpty()) return "[" + QObject::tr("default wallet") + "]";
+    // For absolute paths (legacy wallets in data dir root), show just the filename
+    if (QFileInfo(name).isAbsolute()) {
+        return QFileInfo(name).fileName() + " (" + QObject::tr("legacy") + ")";
+    }
+    return name;
 }
 
 QString WalletDisplayName(const std::string& name)

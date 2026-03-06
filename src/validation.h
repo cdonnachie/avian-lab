@@ -1376,4 +1376,7 @@ bool IsBIP30Unspendable(const uint256& block_hash, int block_height);
 class CAssetsCache;
 CAssetsCache* GetCurrentAssetCache();
 
+/** AVN: Rebuild asset database by scanning existing blocks (for -reindexassets) */
+bool ReindexAssets(ChainstateManager& chainman);
+
 #endif // BITCOIN_VALIDATION_H
