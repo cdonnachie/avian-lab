@@ -341,3 +341,119 @@ void BitcoinAmountField::setSingleStep(const CAmount& step)
 {
     amount->setSingleStep(step);
 }
+
+// --- AssetAmountField implementation ---
+
+AssetAmountField::AssetAmountField(QWidget *parent)
+    : QWidget(parent)
+{
+    amount = new AmountSpinBox(this);
+    amount->setLocale(QLocale::c());
+    amount->installEventFilter(this);
+    amount->setMaximumWidth(240);
+    amount->setSingleStep(CAmount(1));
+
+    QHBoxLayout *layout = new QHBoxLayout(this);
+    layout->addWidget(amount);
+    layout->addStretch(1);
+    layout->setContentsMargins(0,0,0,0);
+
+    setLayout(layout);
+
+    setFocusPolicy(Qt::TabFocus);
+    setFocusProxy(amount);
+
+    // Use BTC display unit (8 decimal places) as a base
+    amount->setDisplayUnit(BitcoinUnit::BTC);
+
+    connect(amount, &AmountSpinBox::valueChanged, this, &AssetAmountField::valueChanged);
+}
+
+CAmount AssetAmountField::value(bool *valid_out) const
+{
+    return amount->value(valid_out);
+}
+
+void AssetAmountField::setValue(const CAmount& value)
+{
+    amount->setValue(value);
+}
+
+void AssetAmountField::setUnit(int unit)
+{
+    assetUnit = unit;
+    // Adjust the display precision by using the BTC unit which gives 8 decimal places
+    // The asset system uses COIN-based amounts regardless of the asset's unit setting
+    amount->setDisplayUnit(BitcoinUnit::BTC);
+}
+
+void AssetAmountField::setMaxAmount(CAmount maxAmount)
+{
+    amount->SetMaxValue(maxAmount);
+}
+
+void AssetAmountField::SetAllowEmpty(bool allow)
+{
+    amount->SetAllowEmpty(allow);
+}
+
+void AssetAmountField::SetMinValue(const CAmount& value)
+{
+    amount->SetMinValue(value);
+}
+
+void AssetAmountField::SetMaxValue(const CAmount& value)
+{
+    amount->SetMaxValue(value);
+}
+
+void AssetAmountField::setSingleStep(const CAmount& step)
+{
+    amount->setSingleStep(step);
+}
+
+void AssetAmountField::setReadOnly(bool fReadOnly)
+{
+    amount->setReadOnly(fReadOnly);
+}
+
+void AssetAmountField::setValid(bool valid)
+{
+    if (valid)
+        amount->setStyleSheet("");
+    else
+        amount->setStyleSheet(STYLE_INVALID);
+}
+
+bool AssetAmountField::validate()
+{
+    bool valid = false;
+    value(&valid);
+    setValid(valid);
+    return valid;
+}
+
+void AssetAmountField::clear()
+{
+    amount->clear();
+}
+
+void AssetAmountField::setEnabled(bool fEnabled)
+{
+    amount->setEnabled(fEnabled);
+}
+
+bool AssetAmountField::eventFilter(QObject *object, QEvent *event)
+{
+    if (event->type() == QEvent::FocusIn)
+    {
+        setValid(true);
+    }
+    return QWidget::eventFilter(object, event);
+}
+
+QWidget *AssetAmountField::setupTabChain(QWidget *prev)
+{
+    QWidget::setTabOrder(prev, amount);
+    return amount;
+}

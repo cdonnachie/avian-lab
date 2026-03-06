@@ -79,7 +79,7 @@ private:
 
     // CoinControl
     //  Update the passed in CCoinControl with state from the GUI
-    void updateCoinControlState(CCoinControl& ctrl);
+    void updateCoinControlState(wallet::CCoinControl& ctrl);
 
     // Fee
     void updateFeeMinimizedLabel();
@@ -136,7 +136,7 @@ private Q_SLOTS:
     void updateSmartFeeLabel();
     void feeControlFeatureChanged(bool);
 
-    void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance, const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+    void setBalance(const interfaces::WalletBalances& balances);
     void updateDisplayUnit();
 
     void focusReissueAsset(const QModelIndex& index);

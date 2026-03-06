@@ -7,6 +7,7 @@
 #define AVIAN_QT_SENDASSETSENTRY_H
 
 #include <qt/walletmodel.h>
+#include <qt/sendcoinsrecipient.h>
 
 #include <QStackedWidget>
 

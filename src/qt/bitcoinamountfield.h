@@ -82,4 +82,63 @@ private Q_SLOTS:
 
 };
 
+/** Widget for entering asset amounts (variable decimal places).
+  */
+class AssetAmountField: public QWidget
+{
+    Q_OBJECT
+
+    Q_PROPERTY(qint64 value READ value WRITE setValue NOTIFY valueChanged USER true)
+
+public:
+    explicit AssetAmountField(QWidget *parent = nullptr);
+
+    CAmount value(bool *value=nullptr) const;
+    void setValue(const CAmount& value);
+
+    /** Set asset unit (number of decimal places, 0-8) */
+    void setUnit(int unit);
+
+    /** Set maximum allowed amount */
+    void setMaxAmount(CAmount maxAmount);
+
+    /** If allow empty is set to false the field will be set to the minimum allowed value if left empty. **/
+    void SetAllowEmpty(bool allow);
+
+    /** Set the minimum value in satoshis **/
+    void SetMinValue(const CAmount& value);
+
+    /** Set the maximum value in satoshis **/
+    void SetMaxValue(const CAmount& value);
+
+    /** Set single step in satoshis **/
+    void setSingleStep(const CAmount& step);
+
+    /** Make read-only **/
+    void setReadOnly(bool fReadOnly);
+
+    /** Mark current value as invalid in UI. */
+    void setValid(bool valid);
+    /** Perform input validation, mark field as invalid if entered value is not valid. */
+    bool validate();
+
+    /** Make field empty and ready for new input. */
+    void clear();
+
+    /** Enable/Disable. */
+    void setEnabled(bool fEnabled);
+
+    QWidget *setupTabChain(QWidget *prev);
+
+Q_SIGNALS:
+    void valueChanged();
+
+protected:
+    bool eventFilter(QObject *object, QEvent *event) override;
+
+private:
+    AmountSpinBox* amount{nullptr};
+    int assetUnit{0};  // number of decimal places for this asset
+};
+
 #endif // BITCOIN_QT_BITCOINAMOUNTFIELD_H

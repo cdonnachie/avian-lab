@@ -50,6 +50,7 @@ class QPoint;
 class QProgressDialog;
 class QUrl;
 class QWidget;
+class QGraphicsDropShadowEffect;
 QT_END_NAMESPACE
 
 /** Utility functions used by the Bitcoin Qt UI.
@@ -416,6 +417,18 @@ namespace GUIUtil
 
     QString WalletDisplayName(const std::string& name);
     QString WalletDisplayName(const QString& name);
+
+    /** Create a shadow effect for UI frames */
+    QGraphicsDropShadowEffect *getShadowEffect();
+
+    /** Dialog to confirm sending during initial sync */
+    class SyncWarningMessage : public QMessageBox
+    {
+        Q_OBJECT
+    public:
+        explicit SyncWarningMessage(QWidget *parent = nullptr);
+        bool showTransactionSyncWarningMessage();
+    };
 
 } // namespace GUIUtil
 

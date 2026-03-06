@@ -18,14 +18,14 @@
 #include <qt/walletmodel.h>
 #include <qt/assettablemodel.h>
 
+#include <assets/assets.h>
+#include <core_io.h>
 #include <key_io.h>
 #include <kernel/chainparams.h>
 #include <wallet/coincontrol.h>
-#include <validation.h> // mempool and minRelayTxFee
+#include <wallet/wallet.h>
+#include <validation.h>
 #include <node/interface_ui.h>
-#include <txmempool.h>
-#include <policy/fees.h>
-#include <wallet/fees.h>
 #include <qt/createassetdialog.h>
 #include <qt/reissueassetdialog.h>
 #include <qt/guiconstants.h>
@@ -37,13 +37,20 @@
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
-#include <policy/policy.h>
-#include <core_io.h>
-#include <rpc/mining.h>
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 11, 0)
-#define QTversionPreFiveEleven
-#endif
+// Local conf target helpers (rule 12)
+static const int confTargets[] = {2, 4, 6, 12, 24, 48};
+static int getConfTargetForIndex(int index) {
+    if (index+1 > static_cast<int>(sizeof(confTargets)/sizeof(confTargets[0])))
+        return confTargets[sizeof(confTargets)/sizeof(confTargets[0]) - 1];
+    if (index < 0) return confTargets[0];
+    return confTargets[index];
+}
+static int getIndexForConfTarget(int target) {
+    for (unsigned int i = 0; i < sizeof(confTargets)/sizeof(confTargets[0]); i++)
+        if (confTargets[i] >= target) return i;
+    return sizeof(confTargets)/sizeof(confTargets[0]) - 1;
+}
 
 AssetsDialog::AssetsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
         QDialog(parent),
@@ -61,9 +68,9 @@ AssetsDialog::AssetsDialog(const PlatformStyle *_platformStyle, QWidget *parent)
         ui->clearButton->setIcon(QIcon());
         ui->sendButton->setIcon(QIcon());
     } else {
-        ui->addButton->setIcon(_platformStyle->SingleColorIcon(":/icons/add", COLOR_AVIAN_18A7B7));
-        ui->clearButton->setIcon(_platformStyle->SingleColorIcon(":/icons/remove", COLOR_AVIAN_18A7B7));
-        ui->sendButton->setIcon(_platformStyle->SingleColorIcon(":/icons/send", COLOR_WHITE));
+        ui->addButton->setIcon(_platformStyle->SingleColorIcon(":/icons/add"));
+        ui->clearButton->setIcon(_platformStyle->SingleColorIcon(":/icons/remove"));
+        ui->sendButton->setIcon(_platformStyle->SingleColorIcon(":/icons/send"));
     }
 
     GUIUtil::setupAddressWidget(ui->lineEditAssetControlChange, this);
@@ -112,7 +119,7 @@ AssetsDialog::AssetsDialog(const PlatformStyle *_platformStyle, QWidget *parent)
     if (!settings.contains("nSmartFeeSliderPosition"))
         settings.setValue("nSmartFeeSliderPosition", 0);
     if (!settings.contains("nTransactionFee"))
-        settings.setValue("nTransactionFee", (qint64)DEFAULT_TRANSACTION_FEE);
+        settings.setValue("nTransactionFee", (qint64)wallet::DEFAULT_PAY_TX_FEE);
     if (!settings.contains("fPayOnlyMinFee"))
         settings.setValue("fPayOnlyMinFee", false);
     ui->groupFee->setId(ui->radioSmartFee, 0);
@@ -153,9 +160,10 @@ void AssetsDialog::setModel(WalletModel *_model)
             }
         }
 
-        setBalance(_model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
-                   _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance());
-        connect(_model, SIGNAL(balanceChanged(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)), this, SLOT(setBalance(CAmount,CAmount,CAmount,CAmount,CAmount,CAmount)));
+        // Rule 8: use getCachedBalance() instead of individual getBalance()/etc.
+        setBalance(_model->getCachedBalance());
+        // Rule 7: new-style connect for balanceChanged
+        connect(_model, &WalletModel::balanceChanged, this, &AssetsDialog::setBalance);
         connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
         updateDisplayUnit();
 
@@ -169,7 +177,7 @@ void AssetsDialog::setModel(WalletModel *_model)
 
         ui->frameAssetControl->setVisible(false);
         ui->frameAssetControl->setVisible(_model->getOptionsModel()->getCoinControlFeatures());
-        ui->frameFee->setVisible(_model->getOptionsModel()->getCustomFeeFeatures());
+        ui->frameFee->setVisible(true);
         assetControlUpdateLabels();
 
         // fee section
@@ -178,24 +186,19 @@ void AssetsDialog::setModel(WalletModel *_model)
         }
         connect(ui->confTargetSelector, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSmartFeeLabel()));
         connect(ui->confTargetSelector, SIGNAL(currentIndexChanged(int)), this, SLOT(assetControlUpdateLabels()));
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+        // Rule 25: always use Qt5/6 code path
         connect(ui->groupFee, &QButtonGroup::idClicked, this, &AssetsDialog::updateFeeSectionControls);
-#else
-        connect(ui->groupFee, SIGNAL(buttonClicked(int)), this, SLOT(updateFeeSectionControls()));
-#endif
         connect(ui->customFee, SIGNAL(valueChanged()), this, SLOT(assetControlUpdateLabels()));
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(setMinimumFee()));
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(updateFeeSectionControls()));
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(assetControlUpdateLabels()));
-//        connect(ui->optInRBF, SIGNAL(stateChanged(int)), this, SLOT(updateSmartFeeLabel()));
-//        connect(ui->optInRBF, SIGNAL(stateChanged(int)), this, SLOT(assetControlUpdateLabels()));
-        ui->customFee->setSingleStep(GetRequiredFee(1000));
+        // Rule 9: GetRequiredFee -> CAmount(1000) stub
+        ui->customFee->setSingleStep(CAmount(1000));
         updateFeeSectionControls();
         updateMinFeeLabel();
         updateSmartFeeLabel();
 
         // set default rbf checkbox state
-//        ui->optInRBF->setCheckState(model->getDefaultWalletRbf() ? Qt::Checked : Qt::Unchecked);
         ui->optInRBF->hide();
 
         // set the smartfee-sliders default value (wallets default conf.target or last stored value)
@@ -207,8 +210,9 @@ void AssetsDialog::setModel(WalletModel *_model)
             settings.setValue("nConfTarget", nConfirmTarget);
             settings.remove("nSmartFeeSliderPosition");
         }
+        // Rule 24: model->getDefaultConfirmTarget() does not exist, use 6
         if (settings.value("nConfTarget").toInt() == 0)
-            ui->confTargetSelector->setCurrentIndex(getIndexForConfTarget(model->getDefaultConfirmTarget()));
+            ui->confTargetSelector->setCurrentIndex(getIndexForConfTarget(6));
         else
             ui->confTargetSelector->setCurrentIndex(getIndexForConfTarget(settings.value("nConfTarget").toInt()));
     }
@@ -235,19 +239,16 @@ void AssetsDialog::setupAssetControlFrame(const PlatformStyle *platformStyle)
 void AssetsDialog::setupScrollView(const PlatformStyle *platformStyle)
 {
     /** Update the scrollview*/
-    //ui->scrollArea->setStyleSheet(QString(".QScrollArea{background-color: %1; border: none}").arg(platformStyle->WidgetBackGroundColor().name()));
     ui->scrollArea->setGraphicsEffect(GUIUtil::getShadowEffect());
 
     // Add some spacing so we can see the whole card
     ui->entries->setContentsMargins(10,10,20,0);
-    //ui->scrollAreaWidgetContents->setStyleSheet(QString(".QWidget{ background-color: %1;}").arg(platformStyle->WidgetBackGroundColor().name()));
 }
 
 void AssetsDialog::setupFeeControl(const PlatformStyle *platformStyle)
 {
     /** Create the shadow effects on the frames */
     ui->frameFee->setStyleSheet(QString(".QFrame#frameFee { border-top: 2px solid %1;padding-top: 20px;}").arg(platformStyle->Avian_2B737F().name()));
-    //ui->frameFee->setGraphicsEffect(GUIUtil::getShadowEffect());
 }
 
 void AssetsDialog::on_sendButton_clicked()
@@ -295,30 +296,33 @@ void AssetsDialog::on_sendButton_clicked()
     }
 
     // Always use a CCoinControl instance, use the AssetControlDialog instance if CoinControl has been enabled
-    CCoinControl ctrl;
+    // Rule 2: wallet::CCoinControl
+    wallet::CCoinControl ctrl;
     if (model->getOptionsModel()->getCoinControlFeatures())
         ctrl = *AssetControlDialog::assetControl;
 
     updateAssetControlState(ctrl);
 
-    CWalletTx tx;
-    CReserveKey reservekey(model->getWallet());
-    std::pair<int, std::string> error;
-    CAmount nFeeRequired;
-
-    if (IsInitialBlockDownload()) {
+    // Rule 17: IsInitialBlockDownload() -> false stub
+    if (false) {
         GUIUtil::SyncWarningMessage syncWarning(this);
         bool sendTransaction = syncWarning.showTransactionSyncWarningMessage();
         if (!sendTransaction)
             return;
     }
 
-    if (!CreateTransferAssetTransaction(model->getWallet(), ctrl, vTransfers, "", error, tx, reservekey, nFeeRequired)) {
+    // TODO: Asset transfer transaction creation needs to be ported to the wallet interface.
+    // Rule 15: CreateTransferAssetTransaction stubbed
+    {
         QMessageBox msgBox;
-        msgBox.setText(QString::fromStdString(error.second));
+        msgBox.setText(tr("Asset transfer transaction creation is not yet available in this build."));
         msgBox.exec();
+        fNewRecipientAllowed = true;
         return;
     }
+
+    // The code below is unreachable but kept as reference for future porting.
+    CAmount nFeeRequired = 0;
 
     // Format confirmation message
     QStringList formatted;
@@ -368,19 +372,13 @@ void AssetsDialog::on_sendButton_clicked()
         questionString.append("</span> ");
         questionString.append(tr("added as transaction fee"));
 
-        // append transaction size
-        questionString.append(" (" + QString::number((double)GetVirtualTransactionSize(tx) / 1000) + " kB)");
+        // Rule 16: GetVirtualTransactionSize -> 0 stub
+        questionString.append(" (" + QString::number(0.0) + " kB)");
     }
 
-//    if (ui->optInRBF->isChecked())
-//    {
-//        questionString.append("<hr /><span>");
-//        questionString.append(tr("This transaction signals replaceability (optin-RBF)."));
-//        questionString.append("</span>");
-//    }
-
+    // Rule 20: SendConfirmationDialog constructor with all params
     SendConfirmationDialog confirmationDialog(tr("Confirm send assets"),
-                                              questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
+                                              questionString.arg(formatted.join("<br />")), "", "", SEND_CONFIRM_DELAY, true, true, this);
     confirmationDialog.exec();
     QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
 
@@ -390,17 +388,14 @@ void AssetsDialog::on_sendButton_clicked()
         return;
     }
 
-    // now send the prepared transaction
-    WalletModel::SendCoinsReturn sendStatus = model->sendAssets(tx, recipients, reservekey);
-    // process sendStatus and on error generate message shown to user
-    processSendCoinsReturn(sendStatus);
-
-    if (sendStatus.status == WalletModel::OK)
+    // TODO: model->sendAssets() is not available in this build. (Rule 23)
+    // Stub: show error for now.
     {
-        AssetControlDialog::assetControl->UnSelectAll();
-        assetControlUpdateLabels();
-        accept();
+        QMessageBox msgBox;
+        msgBox.setText(tr("Asset sending is not yet available in this build."));
+        msgBox.exec();
     }
+
     fNewRecipientAllowed = true;
 }
 
@@ -428,10 +423,8 @@ void AssetsDialog::accept()
 
 SendAssetsEntry *AssetsDialog::addEntry()
 {
-    LOCK(cs_main);
+    // TODO: GetAllMyAssets requires wallet pointer not available via model interface (rule 3)
     std::vector<std::string> assets;
-    if (model)
-        GetAllMyAssets(model->getWallet(), assets, 0);
 
     QStringList list;
     bool fIsOwner = false;
@@ -560,24 +553,19 @@ bool AssetsDialog::handlePaymentRequest(const SendAssetsRecipient &rv)
     return true;
 }
 
-void AssetsDialog::setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                                 const CAmount& watchBalance, const CAmount& watchUnconfirmedBalance, const CAmount& watchImmatureBalance)
+// Rule 6: setBalance signature changed to interfaces::WalletBalances
+void AssetsDialog::setBalance(const interfaces::WalletBalances& balances)
 {
-    Q_UNUSED(unconfirmedBalance);
-    Q_UNUSED(immatureBalance);
-    Q_UNUSED(watchBalance);
-    Q_UNUSED(watchUnconfirmedBalance);
-    Q_UNUSED(watchImmatureBalance);
-
     if(model && model->getOptionsModel())
     {
-        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), balance));
+        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), balances.balance));
     }
 }
 
 void AssetsDialog::updateDisplayUnit()
 {
-    setBalance(model->getBalance(), 0, 0, 0, 0, 0);
+    // Rule 8: use getCachedBalance()
+    setBalance(model->getCachedBalance());
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
     updateSmartFeeLabel();
@@ -613,16 +601,9 @@ void AssetsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn &se
             msgParams.first = tr("Transaction creation failed!");
             msgParams.second = CClientUIInterface::MSG_ERROR;
             break;
-        case WalletModel::TransactionCommitFailed:
-            msgParams.first = tr("The transaction was rejected with the following reason: %1").arg(sendCoinsReturn.reasonCommitFailed);
-            msgParams.second = CClientUIInterface::MSG_ERROR;
-            break;
         case WalletModel::AbsurdFee:
-            msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), maxTxFee));
-            break;
-        case WalletModel::PaymentRequestExpired:
-            msgParams.first = tr("Payment request expired.");
-            msgParams.second = CClientUIInterface::MSG_ERROR;
+            // Rule 11: maxTxFee -> CAmount(10000000)
+            msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CAmount(10000000)));
             break;
             // included to prevent a compiler warning.
         case WalletModel::OK:
@@ -656,7 +637,8 @@ void AssetsDialog::on_buttonMinimizeFee_clicked()
 
 void AssetsDialog::setMinimumFee()
 {
-    ui->customFee->setValue(GetRequiredFee(1000));
+    // Rule 9: GetRequiredFee -> CAmount(1000) stub
+    ui->customFee->setValue(CAmount(1000));
 }
 
 void AssetsDialog::updateFeeSectionControls()
@@ -687,12 +669,14 @@ void AssetsDialog::updateFeeMinimizedLabel()
 void AssetsDialog::updateMinFeeLabel()
 {
     if (model && model->getOptionsModel())
+        // Rule 9: GetRequiredFee -> CAmount(1000) stub
         ui->checkBoxMinimumFee->setText(tr("Pay only the required fee of %1").arg(
-                BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), GetRequiredFee(1000)) + "/kB")
+                BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CAmount(1000)) + "/kB")
         );
 }
 
-void AssetsDialog::updateAssetControlState(CCoinControl& ctrl)
+// Rule 21: signature matches header: wallet::CCoinControl&
+void AssetsDialog::updateAssetControlState(wallet::CCoinControl& ctrl)
 {
     if (ui->radioCustomFee->isChecked()) {
         ctrl.m_feerate = CFeeRate(ui->customFee->value());
@@ -702,40 +686,32 @@ void AssetsDialog::updateAssetControlState(CCoinControl& ctrl)
     // Avoid using global defaults when sending money from the GUI
     // Either custom fee will be used or if not selected, the confirmation target from dropdown box
     ctrl.m_confirm_target = getConfTargetForIndex(ui->confTargetSelector->currentIndex());
-//    ctrl.signalRbf = ui->optInRBF->isChecked();
 }
 
 void AssetsDialog::updateSmartFeeLabel()
 {
     if(!model || !model->getOptionsModel())
         return;
-    CCoinControl coin_control;
+    // Rule 2: wallet::CCoinControl
+    wallet::CCoinControl coin_control;
     updateAssetControlState(coin_control);
     coin_control.m_feerate.reset(); // Explicitly use only fee estimation rate for smart fee labels
-    FeeCalculation feeCalc;
-    CFeeRate feeRate = CFeeRate(GetMinimumFee(1000, coin_control, ::mempool, ::feeEstimator, &feeCalc));
+
+    // Rule 9: GetMinimumFee -> CAmount(1000) stub
+    // Rule 10: ::mempool, ::feeEstimator removed
+    CFeeRate feeRate = CFeeRate(CAmount(1000));
 
     ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK()) + "/kB");
 
-    if (feeCalc.reason == FeeReason::FALLBACK) {
-        ui->labelSmartFee2->show(); // (Smart fee not initialized yet. This usually takes a few blocks...)
-        ui->labelFeeEstimation->setText("");
-        ui->fallbackFeeWarningLabel->setVisible(true);
-        int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
-        QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
-        ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
-        #ifndef QTversionPreFiveEleven
-			ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).horizontalAdvance("x"));
-		#else
-			ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).width("x"));
-		#endif
-    }
-    else
-    {
-        ui->labelSmartFee2->hide();
-        ui->labelFeeEstimation->setText(tr("Estimated to begin confirmation within %n block(s).", "", feeCalc.returnedTarget));
-        ui->fallbackFeeWarningLabel->setVisible(false);
-    }
+    // Without fee estimation, always show fallback warning
+    ui->labelSmartFee2->show();
+    ui->labelFeeEstimation->setText("");
+    ui->fallbackFeeWarningLabel->setVisible(true);
+    int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
+    QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
+    ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
+    // Rule 25: always use Qt5/6 code path
+    ui->fallbackFeeWarningLabel->setIndent(GUIUtil::TextWidth(QFontMetrics(ui->fallbackFeeWarningLabel->font()), "x"));
 
     updateFeeMinimizedLabel();
 }
@@ -788,7 +764,7 @@ void AssetsDialog::assetControlFeatureChanged(bool checked)
     ui->frameAssetControl->setVisible(checked);
 
     if (!checked && model) // coin control features disabled
-        AssetControlDialog::assetControl->SetNull();
+        *AssetControlDialog::assetControl = wallet::CCoinControl();
 
     assetControlUpdateLabels();
 }
@@ -844,7 +820,8 @@ void AssetsDialog::assetControlChangeEdited(const QString& text)
         }
         else // Valid address
         {
-            if (!model->IsSpendable(dest)) {
+            // Rule 3: model->IsSpendable() does not exist, use wallet interface
+            if (!model->wallet().isSpendable(dest)) {
                 ui->labelAssetControlChangeLabel->setText(tr("Warning: Unknown change address"));
 
                 // confirmation dialog
@@ -896,8 +873,6 @@ void AssetsDialog::assetControlUpdateLabels()
         {
             SendAssetsRecipient rcp = entry->getValue();
             AssetControlDialog::payAmounts.append(rcp.amount);
-//            if (rcp.fSubtractFeeFromAmount)
-//                AssetControlDialog::fSubtractFeeFromAmount = true;
         }
     }
 

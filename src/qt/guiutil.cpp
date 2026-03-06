@@ -45,6 +45,7 @@
 #include <QFont>
 #include <QFontDatabase>
 #include <QFontMetrics>
+#include <QGraphicsDropShadowEffect>
 #include <QGuiApplication>
 #include <QJsonObject>
 #include <QKeyEvent>
@@ -996,4 +997,28 @@ QString WalletDisplayName(const std::string& name)
 {
     return WalletDisplayName(QString::fromStdString(name));
 }
+
+QGraphicsDropShadowEffect *getShadowEffect()
+{
+    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect;
+    shadow->setBlurRadius(15);
+    shadow->setColor(QColor(0, 0, 0, 40));
+    shadow->setOffset(0, 3);
+    return shadow;
+}
+
+SyncWarningMessage::SyncWarningMessage(QWidget *parent)
+    : QMessageBox(parent)
+{
+}
+
+bool SyncWarningMessage::showTransactionSyncWarningMessage()
+{
+    setText(QObject::tr("Warning: The blockchain is not fully synced. Sending transactions during initial sync may cause issues."));
+    setInformativeText(QObject::tr("Are you sure you want to proceed?"));
+    setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    setDefaultButton(QMessageBox::No);
+    return exec() == QMessageBox::Yes;
+}
+
 } // namespace GUIUtil

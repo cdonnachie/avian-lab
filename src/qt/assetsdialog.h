@@ -7,6 +7,7 @@
 #define AVIAN_QT_ASSETSDIALOG_H
 
 #include <qt/walletmodel.h>
+#include <qt/sendcoinsrecipient.h>
 
 #include <QDialog>
 #include <QMessageBox>
@@ -60,8 +61,7 @@ public Q_SLOTS:
     void accept();
     SendAssetsEntry *addEntry();
     void updateTabsAndLabels();
-    void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
-                    const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+    void setBalance(const interfaces::WalletBalances& balances);
     void focusAssetListBox();
 
 private:
@@ -79,7 +79,7 @@ private:
     void minimizeFeeSection(bool fMinimize);
     void updateFeeMinimizedLabel();
     // Update the passed in CCoinControl with state from the GUI
-    void updateAssetControlState(CCoinControl& ctrl);
+    void updateAssetControlState(wallet::CCoinControl& ctrl);
 
 
 

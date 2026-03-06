@@ -27,6 +27,9 @@ static const bool DEFAULT_SPLASHSCREEN = true;
 /* Invalid field background style */
 #define STYLE_INVALID "border: 3px solid #FF8080"
 
+/* Valid field background style */
+#define STYLE_VALID "border: 1px solid #18acbe"
+
 /* Transaction list -- unconfirmed transaction */
 #define COLOR_UNCONFIRMED QColor(128, 128, 128)
 /* Transaction list -- negative amount */

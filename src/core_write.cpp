@@ -22,6 +22,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <cmath>
 
 UniValue ValueFromAmount(const CAmount amount)
 {
@@ -34,6 +35,29 @@ UniValue ValueFromAmount(const CAmount amount)
     }
     return UniValue(UniValue::VNUM,
             strprintf("%s%d.%08d", amount < 0 ? "-" : "", quotient, remainder));
+}
+
+std::string ValueFromAmountString(const CAmount& amount, const int8_t units)
+{
+    bool sign = amount < 0;
+    int64_t n_abs = (sign ? -amount : amount);
+    int64_t quotient = n_abs / COIN;
+    int64_t remainder = n_abs % COIN;
+    remainder = remainder / (int64_t)pow(10, 8 - units);
+
+    std::string result;
+    if (sign) result += "-";
+    result += std::to_string(quotient);
+
+    if (units > 0) {
+        std::string frac = std::to_string(remainder);
+        // Zero-pad to required width
+        while ((int)frac.size() < units)
+            frac = "0" + frac;
+        result += "." + frac;
+    }
+
+    return result;
 }
 
 std::string FormatScript(const CScript& script)

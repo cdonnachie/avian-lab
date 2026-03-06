@@ -4,8 +4,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include <qt/sendassetsentry.h>
 #include "ui_sendassetsentry.h"
-//#include "sendcoinsentry.h"
-//#include "ui_sendcoinsentry.h"
 
 #include <qt/addressbookpage.h>
 #include <qt/addresstablemodel.h>
@@ -44,11 +42,7 @@ SendAssetsEntry::SendAssetsEntry(const PlatformStyle *_platformStyle, const QStr
 
     setCurrentWidget(ui->SendCoins);
 
-    if (platformStyle->getUseExtraSpacing())
-        ui->payToLayout->setSpacing(4);
-#if QT_VERSION >= 0x040700
     ui->addAsLabel->setPlaceholderText(tr("Enter a label for this address to add it to your address book"));
-#endif
 
     // normal avian address field
     GUIUtil::setupAddressWidget(ui->payTo, this);
@@ -135,10 +129,6 @@ void SendAssetsEntry::on_payTo_textChanged(const QString &address)
 void SendAssetsEntry::setModel(WalletModel *_model)
 {
     this->model = _model;
-
-//    if (_model && _model->getOptionsModel())
-//        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
-
     clear();
 }
 
@@ -213,7 +203,6 @@ bool SendAssetsEntry::validate()
 
         if (size != 46) {
             if (!AreMessagesDeployed()) {
-
                 ui->memoBox->setStyleSheet(STYLE_INVALID);
                 retval = false;
             } else {
@@ -229,8 +218,8 @@ bool SendAssetsEntry::validate()
             ui->memoBox->setStyleSheet(STYLE_INVALID);
             retval = false;
         }
-
     }
+
     std::string assetName = ui->assetSelectionBox->currentText().toStdString();
     if (IsAssetNameAnRestricted(assetName)) {
         if (passets) {
@@ -254,8 +243,6 @@ bool SendAssetsEntry::validate()
             }
         }
     }
-
-    // TODO check to make sure the payAmount value is within the constraints of how much you own
 
     return retval;
 }
@@ -339,11 +326,8 @@ void SendAssetsEntry::onAssetSelected(int index)
 {
     ui->assetSelectionBox->lineEdit()->setStyleSheet("background: transparent;border:none;");
     QString name = ui->assetSelectionBox->currentText();
-    // If the name
     if (index == 0) {
         ui->assetAmountLabel->clear();
-//        if(!ui->administratorCheckbox->isChecked())
-//            ui->payAssetAmount->setDisabled(false);
         ui->payAssetAmount->clear();
         ui->payAssetAmount->setDisabled(true);
         return;
@@ -356,7 +340,7 @@ void SendAssetsEntry::onAssetSelected(int index)
         name = name.split("!").first();
     }
 
-    // Check to see if the asset selected is an messenger asset
+    // Check to see if the asset selected is a messenger asset
     bool fIsMessengerAsset = false;
     if (IsAssetNameAnMsgChannel(name.toStdString())) {
         fIsMessengerAsset = true;
@@ -366,9 +350,8 @@ void SendAssetsEntry::onAssetSelected(int index)
     auto currentActiveAssetCache = GetCurrentAssetCache();
     CNewAsset asset;
 
-    // Get the asset metadata if it exists. This isn't called on the administrator token because that doesn't have metadata
+    // Get the asset metadata if it exists
     if (!currentActiveAssetCache->GetAssetMetaDataIfExists(name.toStdString(), asset)) {
-        // This should only happen if the user, selected an asset that was issued from assetcontrol and tries to transfer it before it is mined.
         clear();
         ui->messageLabel->show();
         ui->messageTextLabel->show();
@@ -377,42 +360,10 @@ void SendAssetsEntry::onAssetSelected(int index)
         return;
     }
 
-    CAmount amount = 0;
-
-    if(!model || !model->getWallet())
-        return;
-
-    std::map<std::string, std::vector<COutput> > mapAssets;
-    model->getWallet()->AvailableAssets(mapAssets, true, AssetControlDialog::assetControl);
-
-    // Add back the OWNER_TAG (!) that was removed above
-    if (fIsOwnerAsset)
-        name = name + OWNER_TAG;
-
-
-    if (!mapAssets.count(name.toStdString())) {
-        clear();
-        ui->messageLabel->show();
-        ui->messageTextLabel->show();
-        ui->messageTextLabel->setText(tr("Failed to get asset outpoints from database"));
-        return;
-    }
-
-    auto vec = mapAssets.at(name.toStdString());
-
-    // Go through all of the mapAssets to get the total count of assets
-    for (auto txout : vec) {
-        CAssetOutputEntry data;
-        if (GetAssetData(txout.tx->tx->vout[txout.i].scriptPubKey, data))
-            amount += data.nAmount;
-    }
-
+    // TODO: Port wallet asset balance query through interfaces::Wallet
+    // For now, show metadata but not balance
     int units = fIsOwnerAsset ? OWNER_UNITS : asset.units;
-
-    QString displayBalance = AssetControlDialog::assetControl->HasAssetSelected() ? tr("Selected Balance") : tr("Wallet Balance");
-
-    ui->assetAmountLabel->setText(
-            displayBalance + ": <b>" + QString::fromStdString(ValueFromAmountString(amount, units)) + "</b> " + name);
+    ui->assetAmountLabel->setText(tr("Wallet Balance") + ": <b>" + tr("(loading...)") + "</b> " + name);
 
     ui->messageLabel->hide();
     ui->messageTextLabel->hide();
@@ -424,7 +375,7 @@ void SendAssetsEntry::onAssetSelected(int index)
         ui->payAssetAmount->setDisabled(false);
         ui->payAssetAmount->setValue(0);
     }
-    // If it is messanger channel set amount to 1 and keep locked.
+    // If it is messenger channel set amount to 1 and keep locked.
     if (fIsMessengerAsset) {
         ui->payAssetAmount->setUnit(asset.units);
         ui->payAssetAmount->setDisabled(true);
@@ -476,27 +427,21 @@ void SendAssetsEntry::switchAdministratorList(bool fSwitchStatus)
 
     if (fShowAdministratorList) {
         ui->administratorCheckbox->setChecked(true);
-        if (!AssetControlDialog::assetControl->HasAssetSelected()) {
-            std::vector<std::string> names;
-            GetAllAdministrativeAssets(model->getWallet(), names, 0);
-
+        // TODO: Port wallet asset list query through interfaces::Wallet
+        // For now, the asset list will be empty until wallet integration is complete
+        if (!AssetControlDialog::assetControl || !AssetControlDialog::assetControl->HasAssetSelected()) {
             QStringList list;
             list << "";
-            for (auto name: names)
-                list << QString::fromStdString(name);
-
             stringModel->setStringList(list);
-
             ui->assetSelectionBox->lineEdit()->setPlaceholderText(tr("Select an administrator asset to transfer"));
             ui->assetSelectionBox->setFocus();
         } else {
             ui->payTo->setFocus();
         }
 
-        ui->payAssetAmount->setUnit(MIN_UNIT); // Min unit because this is an administrator asset
-        ui->payAssetAmount->setValue(1); // When using AssetAmountField, you must use 1 instead of 1 * COIN, because of the way that AssetAmountField uses the unit and value to display the amount
+        ui->payAssetAmount->setUnit(MIN_UNIT);
+        ui->payAssetAmount->setValue(1);
         ui->payAssetAmount->setDisabled(true);
-
 
         ui->assetAmountLabel->clear();
 
@@ -505,20 +450,12 @@ void SendAssetsEntry::switchAdministratorList(bool fSwitchStatus)
         ui->ownershipWarningMessage->show();
     } else {
         ui->administratorCheckbox->setChecked(false);
-        if (!AssetControlDialog::assetControl->HasAssetSelected()) {
-            std::vector<std::string> names;
-            GetAllMyAssets(model->getWallet(), names, 0);
+        // TODO: Port wallet asset list query through interfaces::Wallet
+        if (!AssetControlDialog::assetControl || !AssetControlDialog::assetControl->HasAssetSelected()) {
             QStringList list;
             list << "";
-            for (auto name : names) {
-                if (!IsAssetNameAnOwner(name))
-                    list << QString::fromStdString(name);
-            }
-
             stringModel->setStringList(list);
             ui->assetSelectionBox->lineEdit()->setPlaceholderText(tr("Select an asset to transfer"));
-//            ui->payAssetAmount->clear();
-//            ui->payAssetAmount->setUnit(MAX_UNIT);
             ui->assetAmountLabel->clear();
             ui->assetSelectionBox->setFocus();
         } else {

@@ -21,7 +21,9 @@
 class PlatformStyle;
 class WalletModel;
 
+namespace wallet {
 class CCoinControl;
+} // namespace wallet
 
 class QStringListModel;
 class QSortFilterProxyModel;
@@ -60,7 +62,7 @@ public:
     void updateAssetList(bool fSetOnStart = false);
 
     static QList<CAmount> payAmounts;
-    static CCoinControl *assetControl;
+    static wallet::CCoinControl *assetControl;
     static bool fSubtractFeeFromAmount;
     bool fOnStartUp;
 
