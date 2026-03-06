@@ -177,12 +177,12 @@ void CreateAssetDialog::setModel(WalletModel *_model)
     {
         setBalance(_model->getCachedBalance());
         connect(_model, &WalletModel::balanceChanged, this, &CreateAssetDialog::setBalance);
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &CreateAssetDialog::updateDisplayUnit);
         updateDisplayUnit();
 
         // Coin Control
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(coinControlUpdateLabels()));
-        connect(_model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this, SLOT(coinControlFeatureChanged(bool)));
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &CreateAssetDialog::coinControlUpdateLabels);
+        connect(_model->getOptionsModel(), &OptionsModel::coinControlFeaturesChanged, this, &CreateAssetDialog::coinControlFeatureChanged);
         bool fCoinControlEnabled = _model->getOptionsModel()->getCoinControlFeatures();
         ui->frameCoinControl->setVisible(fCoinControlEnabled);
         ui->addressText->setVisible(fCoinControlEnabled);
@@ -191,7 +191,6 @@ void CreateAssetDialog::setModel(WalletModel *_model)
 
         // Custom Fee Control
         ui->frameFee->setVisible(true);
-        connect(_model->getOptionsModel(), SIGNAL(customFeeFeaturesChanged(bool)), this, SLOT(feeControlFeatureChanged(bool)));
 
         // fee section
         for (const int &n : confTargets) {

@@ -165,15 +165,15 @@ void AssetsDialog::setModel(WalletModel *_model)
         setBalance(_model->getCachedBalance());
         // Rule 7: new-style connect for balanceChanged
         connect(_model, &WalletModel::balanceChanged, this, &AssetsDialog::setBalance);
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &AssetsDialog::updateDisplayUnit);
         updateDisplayUnit();
 
         // Coin Control
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(assetControlUpdateLabels()));
-        connect(_model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this, SLOT(assetControlFeatureChanged(bool)));
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &AssetsDialog::assetControlUpdateLabels);
+        connect(_model->getOptionsModel(), &OptionsModel::coinControlFeaturesChanged, this, &AssetsDialog::assetControlFeatureChanged);
 
-        // Custom Fee Control
-        connect(_model->getOptionsModel(), SIGNAL(customFeeFeaturesChanged(bool)), this, SLOT(customFeeFeatureChanged(bool)));
+        // Note: customFeeFeaturesChanged signal was removed; fee frame visibility is
+        // unconditionally enabled below, so no connection is needed here.
 
 
         ui->frameAssetControl->setVisible(false);

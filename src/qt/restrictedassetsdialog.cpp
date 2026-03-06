@@ -62,7 +62,7 @@ void RestrictedAssetsDialog::setModel(WalletModel *_model)
     if(_model && _model->getOptionsModel()) {
         setBalance(_model->getCachedBalance());
         connect(_model, &WalletModel::balanceChanged, this, &RestrictedAssetsDialog::setBalance);
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &RestrictedAssetsDialog::updateDisplayUnit);
         updateDisplayUnit();
 
         assetFilterProxy = new AssetFilterProxy(this);

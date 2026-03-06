@@ -184,12 +184,12 @@ void ReissueAssetDialog::setModel(WalletModel* _model)
     if (_model && _model->getOptionsModel()) {
         setBalance(_model->getCachedBalance());
         connect(_model, &WalletModel::balanceChanged, this, &ReissueAssetDialog::setBalance);
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &ReissueAssetDialog::updateDisplayUnit);
         updateDisplayUnit();
 
         // Coin Control
-        connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(coinControlUpdateLabels()));
-        connect(_model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this, SLOT(coinControlFeatureChanged(bool)));
+        connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &ReissueAssetDialog::coinControlUpdateLabels);
+        connect(_model->getOptionsModel(), &OptionsModel::coinControlFeaturesChanged, this, &ReissueAssetDialog::coinControlFeatureChanged);
         bool fCoinControlEnabled = _model->getOptionsModel()->getCoinControlFeatures();
         ui->frameCoinControl->setVisible(fCoinControlEnabled);
         ui->addressText->setVisible(fCoinControlEnabled);
@@ -198,7 +198,6 @@ void ReissueAssetDialog::setModel(WalletModel* _model)
 
         // Custom Fee Control
         ui->frameFee->setVisible(true); // custom fee features always enabled
-        connect(_model->getOptionsModel(), SIGNAL(customFeeFeaturesChanged(bool)), this, SLOT(feeControlFeatureChanged(bool)));
 
         // fee section
         for (const int& n : confTargets) {
