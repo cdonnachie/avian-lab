@@ -1372,4 +1372,8 @@ bool IsBIP30Repeat(const CBlockIndex& block_index);
 /** Identifies blocks which coinbase output was subsequently overwritten in the UTXO set (see BIP30) */
 bool IsBIP30Unspendable(const uint256& block_hash, int block_height);
 
+/** AVN: Return the current global asset cache */
+class CAssetsCache;
+CAssetsCache* GetCurrentAssetCache();
+
 #endif // BITCOIN_VALIDATION_H

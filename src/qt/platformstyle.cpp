@@ -9,6 +9,9 @@
 #include <QImage>
 #include <QPalette>
 
+/** AVN: Dark mode state */
+bool darkModeEnabled = false;
+
 static const struct {
     const char *platformId;
     /** Show images on push buttons */
@@ -119,6 +122,21 @@ QIcon PlatformStyle::SingleColorIcon(const QIcon& icon) const
 QIcon PlatformStyle::TextColorIcon(const QIcon& icon) const
 {
     return ColorizeIcon(icon, TextColor());
+}
+
+QIcon PlatformStyle::SingleColorIcon(const QString& filename, const QColor& colorbase) const
+{
+    return ColorizeIcon(filename, colorbase);
+}
+
+QColor PlatformStyle::WidgetBackGroundColor() const
+{
+    return QApplication::palette().color(QPalette::Window);
+}
+
+QColor PlatformStyle::Avian_2B737F() const
+{
+    return QColor(0x2B, 0x73, 0x7F);
 }
 
 const PlatformStyle *PlatformStyle::instantiate(const QString &platformId)

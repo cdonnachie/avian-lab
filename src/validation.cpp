@@ -6822,6 +6822,11 @@ bool IsBIP30Unspendable(const uint256& block_hash, int block_height)
            (block_height==91812 && block_hash == uint256{"00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"});
 }
 
+CAssetsCache* GetCurrentAssetCache()
+{
+    return passets;
+}
+
 static fs::path GetSnapshotCoinsDBPath(Chainstate& cs) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);

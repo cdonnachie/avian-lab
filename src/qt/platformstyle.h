@@ -9,6 +9,9 @@
 #include <QPixmap>
 #include <QString>
 
+/** AVN: Global dark mode flag */
+extern bool darkModeEnabled;
+
 /* Coin network-specific GUI style information */
 class PlatformStyle
 {
@@ -30,11 +33,18 @@ public:
     /** Colorize an icon (given filename) with the icon color */
     QIcon SingleColorIcon(const QString& filename) const;
 
+    /** Colorize an icon (given filename) with a specific color */
+    QIcon SingleColorIcon(const QString& filename, const QColor& colorbase) const;
+
     /** Colorize an icon (given object) with the icon color */
     QIcon SingleColorIcon(const QIcon& icon) const;
 
     /** Colorize an icon (given object) with the text color */
     QIcon TextColorIcon(const QIcon& icon) const;
+
+    /** AVN: Color accessors for theming */
+    QColor WidgetBackGroundColor() const;
+    QColor Avian_2B737F() const;
 
 private:
     PlatformStyle(const QString &name, bool imagesOnButtons, bool colorizeIcons, bool useExtraSpacing);
