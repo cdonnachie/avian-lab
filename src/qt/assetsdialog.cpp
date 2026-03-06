@@ -25,6 +25,7 @@
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h>
 #include <wallet/spend.h>
+#include <wallet/asset_tx.h>
 #include <validation.h>
 #include <node/interface_ui.h>
 #include <qt/createassetdialog.h>
@@ -312,18 +313,32 @@ void AssetsDialog::on_sendButton_clicked()
             return;
     }
 
-    // TODO: Asset transfer transaction creation needs to be ported to the wallet interface.
-    // Rule 15: CreateTransferAssetTransaction stubbed
-    {
-        QMessageBox msgBox;
-        msgBox.setText(tr("Asset transfer transaction creation is not yet available in this build."));
-        msgBox.exec();
+    // Create the asset transfer transaction via the wallet
+    CTransactionRef txRef;
+    CAmount nFeeRequired = 0;
+    std::pair<int, std::string> error;
+
+    wallet::CWallet* pwallet = model->wallet().wallet();
+    if (!pwallet) {
+        QMessageBox::critical(this, tr("Error"), tr("Wallet not available."));
         fNewRecipientAllowed = true;
         return;
     }
 
-    // The code below is unreachable but kept as reference for future porting.
-    CAmount nFeeRequired = 0;
+    std::string changeAddress = "";
+    if (ctrl.HasSelected() && ctrl.destChange.index() != 0) {
+        changeAddress = EncodeDestination(ctrl.destChange);
+    }
+
+    {
+        LOCK(pwallet->cs_wallet);
+        if (!wallet::CreateTransferAssetTransaction(*pwallet, ctrl, vTransfers, changeAddress, error, txRef, nFeeRequired)) {
+            QMessageBox::critical(this, tr("Error Creating Transaction"),
+                tr("Error: ") + QString::fromStdString(error.second));
+            fNewRecipientAllowed = true;
+            return;
+        }
+    }
 
     // Format confirmation message
     QStringList formatted;
@@ -372,12 +387,8 @@ void AssetsDialog::on_sendButton_clicked()
         questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), nFeeRequired));
         questionString.append("</span> ");
         questionString.append(tr("added as transaction fee"));
-
-        // Rule 16: GetVirtualTransactionSize -> 0 stub
-        questionString.append(" (" + QString::number(0.0) + " kB)");
     }
 
-    // Rule 20: SendConfirmationDialog constructor with all params
     SendConfirmationDialog confirmationDialog(tr("Confirm send assets"),
                                               questionString.arg(formatted.join("<br />")), "", "", SEND_CONFIRM_DELAY, true, true, this);
     confirmationDialog.exec();
@@ -389,12 +400,18 @@ void AssetsDialog::on_sendButton_clicked()
         return;
     }
 
-    // TODO: model->sendAssets() is not available in this build. (Rule 23)
-    // Stub: show error for now.
+    // Send the transaction
     {
-        QMessageBox msgBox;
-        msgBox.setText(tr("Asset sending is not yet available in this build."));
-        msgBox.exec();
+        LOCK(pwallet->cs_wallet);
+        std::string txid;
+        if (!wallet::SendAssetTransaction(*pwallet, txRef, error, txid)) {
+            QMessageBox::critical(this, tr("Error Sending Transaction"),
+                tr("Error: ") + QString::fromStdString(error.second));
+        } else {
+            Q_EMIT message(tr("Send Confirmed"), tr("Asset transaction sent successfully. TXID: %1").arg(QString::fromStdString(txid)),
+                CClientUIInterface::MSG_INFORMATION);
+            clear();
+        }
     }
 
     fNewRecipientAllowed = true;

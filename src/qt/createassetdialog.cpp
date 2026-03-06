@@ -18,6 +18,7 @@
 #include <qt/guiconstants.h>
 
 #include <wallet/coincontrol.h>
+#include <wallet/asset_tx.h>
 
 #include <addresstype.h>
 #include <key_io.h>
@@ -807,11 +808,133 @@ void CreateAssetDialog::onCreateAssetClicked()
             verifierStripped = "true";
     }
 
-    // TODO: Port asset creation transaction through interfaces::Wallet
-    QMessageBox msgBox;
-    msgBox.setText(tr("Asset creation is not yet available in this version. Wallet integration is in progress."));
-    msgBox.exec();
-    return;
+    CTransactionRef txRef;
+    std::pair<int, std::string> error;
+    CAmount nFeeRequired;
+
+    // Always use a CCoinControl instance, use the CoinControlDialog instance if CoinControl has been enabled
+    wallet::CCoinControl ctrl;
+    if (model->getOptionsModel()->getCoinControlFeatures())
+        ctrl = s_coinControl;
+
+    updateCoinControlState(ctrl);
+
+    QString address;
+    if (ui->addressText->text().isEmpty()) {
+        address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, "", "");
+    } else {
+        address = ui->addressText->text();
+    }
+
+    wallet::CWallet* pwallet = model->wallet().wallet();
+    if (!pwallet) {
+        showMessage(tr("Wallet not available."));
+        return;
+    }
+
+    // Create the transaction
+    {
+        LOCK(pwallet->cs_wallet);
+        if (!wallet::CreateAssetTransaction(*pwallet, ctrl, asset, address.toStdString(), error, txRef, nFeeRequired, fRestrictedAssetCreation ? &verifierStripped : nullptr)) {
+            showMessage("Invalid: " + QString::fromStdString(error.second));
+            return;
+        }
+    }
+
+    // Format confirmation message
+    QStringList formatted;
+
+    // generate bold burn amount string
+    QString burnAmount = "<b>" + QString::fromStdString(ValueFromAmountString(GetBurnAmount(type), 8)) + " AVN";
+    burnAmount.append("</b>");
+    // generate monospace burn address string
+    QString addressburn = "<span style='font-family: monospace;'>" + QString::fromStdString(GetBurnAddress(type));
+    addressburn.append("</span>");
+
+    QString recipientElement1;
+    recipientElement1 = tr("%1 to %2").arg(burnAmount, addressburn);
+    formatted.append(recipientElement1);
+
+    // generate the bold asset amount
+    QString assetAmount = "<b>" + QString::fromStdString(ValueFromAmountString(asset.nAmount, asset.units)) + " " + QString::fromStdString(asset.strName);
+    assetAmount.append("</b>");
+
+    // generate the monospace address string
+    QString assetAddress = "<span style='font-family: monospace;'>" + address;
+    assetAddress.append("</span>");
+
+    QString recipientElement2;
+    recipientElement2 = tr("%1 to %2").arg(assetAmount, assetAddress);
+    formatted.append(recipientElement2);
+
+    QString questionString = tr("Are you sure you want to send?");
+    questionString.append("<br /><br />%1");
+
+    if(nFeeRequired > 0)
+    {
+        // append fee string if a fee is required
+        questionString.append("<hr /><span style='color:#aa0000;'>");
+        questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), nFeeRequired));
+        questionString.append("</span> ");
+        questionString.append(tr("added as transaction fee"));
+    }
+
+    // add total amount in all subdivision units
+    questionString.append("<hr />");
+    CAmount totalAmount = GetBurnAmount(type) + nFeeRequired;
+    QStringList alternativeUnits;
+    for (const BitcoinUnit& u : BitcoinUnits::availableUnits())
+    {
+        if(u != model->getOptionsModel()->getDisplayUnit())
+            alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
+    }
+    questionString.append(tr("Total Amount %1")
+                                .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
+    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
+                                .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
+
+    SendConfirmationDialog confirmationDialog(tr("Confirm send assets"),
+                                              questionString.arg(formatted.join("<br />")), "", "", SEND_CONFIRM_DELAY, true, true, this);
+    confirmationDialog.exec();
+    QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
+
+    if(retval != QMessageBox::Yes)
+    {
+        return;
+    }
+
+    // Create the transaction and broadcast it
+    std::string txid;
+    {
+        LOCK(pwallet->cs_wallet);
+        if (!wallet::SendAssetTransaction(*pwallet, txRef, error, txid)) {
+            showMessage(tr("Invalid: ") + QString::fromStdString(error.second));
+        } else {
+            QMessageBox msgBox;
+            QPushButton *copyButton = msgBox.addButton(tr("Copy"), QMessageBox::ActionRole);
+            copyButton->disconnect();
+            connect(copyButton, &QPushButton::clicked, this, [=](){
+                QClipboard *p_Clipboard = QApplication::clipboard();
+                p_Clipboard->setText(QString::fromStdString(txid), QClipboard::Mode::Clipboard);
+
+                QMessageBox copiedBox;
+                copiedBox.setText(tr("Transaction ID Copied"));
+                copiedBox.exec();
+            });
+
+            QPushButton *okayButton = msgBox.addButton(QMessageBox::Ok);
+            msgBox.setText(tr("Asset transaction sent to network:"));
+            msgBox.setInformativeText(QString::fromStdString(txid));
+            msgBox.exec();
+
+            if (msgBox.clickedButton() == okayButton) {
+                clear();
+
+                CoinControlDialog::coinControl->UnSelectAll();
+                coinControlUpdateLabels();
+            }
+        }
+    }
 }
 
 void CreateAssetDialog::onUnitChanged(int value)
