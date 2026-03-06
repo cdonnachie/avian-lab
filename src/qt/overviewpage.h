@@ -8,8 +8,10 @@
 #include <interfaces/wallet.h>
 
 #include <QWidget>
+#include <QMenu>
 #include <memory>
 
+class AssetFilterProxy;
 class ClientModel;
 class TransactionFilterProxy;
 class TxViewDelegate;
@@ -37,6 +39,10 @@ public:
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
 
+    /** AVN START */
+    void showAssets();
+    /** AVN END */
+
 public Q_SLOTS:
     void setBalance(const interfaces::WalletBalances& balances);
     void setPrivacy(bool privacy);
@@ -44,6 +50,13 @@ public Q_SLOTS:
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void outOfSyncWarningClicked();
+
+    /** AVN START */
+    void assetSendClicked(const QModelIndex& index);
+    void assetIssueSubClicked(const QModelIndex& index);
+    void assetIssueUniqueClicked(const QModelIndex& index);
+    void assetReissueClicked(const QModelIndex& index);
+    /** AVN END */
 
 protected:
     void changeEvent(QEvent* e) override;
@@ -59,12 +72,27 @@ private:
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
 
+    /** AVN START */
+    std::unique_ptr<AssetFilterProxy> assetFilter;
+    QMenu* assetContextMenu{nullptr};
+    QAction* assetSendAction{nullptr};
+    QAction* assetIssueSubAction{nullptr};
+    QAction* assetIssueUniqueAction{nullptr};
+    QAction* assetReissueAction{nullptr};
+    QAction* assetCopyNameAction{nullptr};
+    /** AVN END */
+
 private Q_SLOTS:
     void LimitTransactionRows();
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);
     void setMonospacedFont(const QFont&);
+
+    /** AVN START */
+    void assetSearchChanged();
+    void handleAssetRightClicked(const QModelIndex& index);
+    /** AVN END */
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

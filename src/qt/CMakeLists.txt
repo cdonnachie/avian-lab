@@ -224,6 +224,8 @@ if(ENABLE_WALLET)
       assettablemodel.h
       createassetdialog.cpp
       createassetdialog.h
+      duster.cpp
+      duster.h
       myrestrictedassetrecord.cpp
       myrestrictedassetrecord.h
       myrestrictedassettablemodel.cpp

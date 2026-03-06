@@ -277,6 +277,36 @@ void BitcoinGUI::createActions()
     historyAction->setShortcut(QKeySequence(QStringLiteral("Alt+4")));
     tabGroup->addAction(historyAction);
 
+    /** AVN START */
+    transferAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_transfer"), tr("&Transfer Assets"), this);
+    transferAssetAction->setStatusTip(tr("Transfer assets to Avian addresses"));
+    transferAssetAction->setToolTip(transferAssetAction->statusTip());
+    transferAssetAction->setCheckable(true);
+    transferAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+5")));
+    tabGroup->addAction(transferAssetAction);
+
+    createAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_create"), tr("&Create Assets"), this);
+    createAssetAction->setStatusTip(tr("Create new assets"));
+    createAssetAction->setToolTip(createAssetAction->statusTip());
+    createAssetAction->setCheckable(true);
+    createAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+6")));
+    tabGroup->addAction(createAssetAction);
+
+    manageAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_manage"), tr("&Manage Assets"), this);
+    manageAssetAction->setStatusTip(tr("Manage existing assets"));
+    manageAssetAction->setToolTip(manageAssetAction->statusTip());
+    manageAssetAction->setCheckable(true);
+    manageAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+7")));
+    tabGroup->addAction(manageAssetAction);
+
+    restrictedAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_manage"), tr("&Restricted Assets"), this);
+    restrictedAssetAction->setStatusTip(tr("Manage restricted assets"));
+    restrictedAssetAction->setToolTip(restrictedAssetAction->statusTip());
+    restrictedAssetAction->setCheckable(true);
+    restrictedAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+8")));
+    tabGroup->addAction(restrictedAssetAction);
+    /** AVN END */
+
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
@@ -288,6 +318,17 @@ void BitcoinGUI::createActions()
     connect(receiveCoinsAction, &QAction::triggered, this, &BitcoinGUI::gotoReceiveCoinsPage);
     connect(historyAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
+
+    /** AVN START */
+    connect(transferAssetAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(transferAssetAction, &QAction::triggered, this, &BitcoinGUI::gotoAssetsPage);
+    connect(createAssetAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(createAssetAction, &QAction::triggered, this, &BitcoinGUI::gotoCreateAssetsPage);
+    connect(manageAssetAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(manageAssetAction, &QAction::triggered, this, &BitcoinGUI::gotoManageAssetsPage);
+    connect(restrictedAssetAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(restrictedAssetAction, &QAction::triggered, this, &BitcoinGUI::gotoRestrictedAssetsPage);
+    /** AVN END */
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(tr("E&xit"), this);
@@ -366,6 +407,11 @@ void BitcoinGUI::createActions()
     showHelpMessageAction->setMenuRole(QAction::NoRole);
     showHelpMessageAction->setStatusTip(tr("Show the %1 help message to get a list with possible Avian command-line options").arg(CLIENT_NAME));
 
+    /** AVN START */
+    m_consolidate_utxos_action = new QAction(tr("Consolidate UTXOs…"), this);
+    m_consolidate_utxos_action->setStatusTip(tr("Consolidate small UTXOs into fewer, larger ones"));
+    /** AVN END */
+
     m_mask_values_action = new QAction(tr("&Mask values"), this);
     m_mask_values_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
     m_mask_values_action->setStatusTip(tr("Mask the values in the Overview tab"));
@@ -386,6 +432,9 @@ void BitcoinGUI::createActions()
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
+        /** AVN START */
+        connect(m_consolidate_utxos_action, &QAction::triggered, walletFrame, &WalletFrame::dustWallet);
+        /** AVN END */
         connect(signMessageAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(m_load_psbt_action, &QAction::triggered, [this]{ gotoLoadPSBT(); });
@@ -529,6 +578,10 @@ void BitcoinGUI::createMenuBar()
         settings->addSeparator();
         settings->addAction(m_mask_values_action);
         settings->addSeparator();
+        /** AVN START */
+        settings->addAction(m_consolidate_utxos_action);
+        settings->addSeparator();
+        /** AVN END */
     }
     settings->addAction(optionsAction);
 
@@ -601,6 +654,12 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
+        /** AVN START */
+        toolbar->addAction(createAssetAction);
+        toolbar->addAction(transferAssetAction);
+        toolbar->addAction(manageAssetAction);
+        toolbar->addAction(restrictedAssetAction);
+        /** AVN END */
         overviewAction->setChecked(true);
 
 #ifdef ENABLE_WALLET
@@ -759,6 +818,7 @@ void BitcoinGUI::addWallet(WalletModel* walletModel)
     });
     connect(wallet_view, &WalletView::encryptionStatusChanged, this, &BitcoinGUI::updateWalletStatus);
     connect(wallet_view, &WalletView::incomingTransaction, this, &BitcoinGUI::incomingTransaction);
+    connect(wallet_view, &WalletView::checkAssets, this, &BitcoinGUI::checkAssets);
     connect(this, &BitcoinGUI::setPrivacy, wallet_view, &WalletView::setPrivacy);
     const bool privacy = isPrivacyModeActivated();
     wallet_view->setPrivacy(privacy);
@@ -832,6 +892,13 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     openAction->setEnabled(enabled);
     m_close_wallet_action->setEnabled(enabled);
     m_close_all_wallets_action->setEnabled(enabled);
+
+    /** AVN START - asset actions start disabled, enabled by checkAssets() */
+    transferAssetAction->setEnabled(false);
+    createAssetAction->setEnabled(false);
+    manageAssetAction->setEnabled(false);
+    restrictedAssetAction->setEnabled(false);
+    /** AVN END */
 }
 
 void BitcoinGUI::createTrayIcon()
@@ -1008,6 +1075,42 @@ void BitcoinGUI::gotoLoadPSBT(bool from_clipboard)
 {
     if (walletFrame) walletFrame->gotoLoadPSBT(from_clipboard);
 }
+
+/** AVN START */
+void BitcoinGUI::gotoAssetsPage()
+{
+    transferAssetAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoAssetsPage();
+}
+
+void BitcoinGUI::gotoCreateAssetsPage()
+{
+    createAssetAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoCreateAssetsPage();
+}
+
+void BitcoinGUI::gotoManageAssetsPage()
+{
+    manageAssetAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoManageAssetsPage();
+}
+
+void BitcoinGUI::gotoRestrictedAssetsPage()
+{
+    restrictedAssetAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoRestrictedAssetsPage();
+}
+
+void BitcoinGUI::checkAssets()
+{
+    // TODO: When AreAssetsDeployed() is available, gate these on deployment status
+    // For now, always enable since they compile
+    transferAssetAction->setEnabled(true);
+    createAssetAction->setEnabled(true);
+    manageAssetAction->setEnabled(true);
+    restrictedAssetAction->setEnabled(true);
+}
+/** AVN END */
 #endif // ENABLE_WALLET
 
 void BitcoinGUI::updateNetworkState()

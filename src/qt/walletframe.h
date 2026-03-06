@@ -81,6 +81,14 @@ public Q_SLOTS:
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
 
+    /** AVN START */
+    /** Switch to assets page */
+    void gotoAssetsPage();
+    void gotoCreateAssetsPage();
+    void gotoManageAssetsPage();
+    void gotoRestrictedAssetsPage();
+    /** AVN END */
+
     /** Load Partially Signed Bitcoin Transaction */
     void gotoLoadPSBT(bool from_clipboard = false);
 
@@ -97,6 +105,9 @@ public Q_SLOTS:
     void usedSendingAddresses();
     /** Show used receiving addresses */
     void usedReceivingAddresses();
+
+    /** AVN: Consolidate wallet UTXOs */
+    void dustWallet();
 };
 
 #endif // BITCOIN_QT_WALLETFRAME_H

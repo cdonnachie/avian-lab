@@ -5,6 +5,8 @@
 #include <qt/overviewpage.h>
 #include <qt/forms/ui_overviewpage.h>
 
+#include <qt/assetfilterproxy.h>
+#include <qt/assettablemodel.h>
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
@@ -17,10 +19,14 @@
 #include <qt/walletmodel.h>
 
 #include <QAbstractItemDelegate>
+#include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QDateTime>
+#include <QMenu>
 #include <QPainter>
 #include <QStatusTipEvent>
+#include <QTimer>
 
 #include <algorithm>
 #include <map>
@@ -149,6 +155,46 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     connect(ui->listTransactions, &TransactionOverviewWidget::clicked, this, &OverviewPage::handleTransactionClicked);
+
+    /** AVN START - asset list setup */
+    ui->listAssets->setIconSize(QSize(42, 42));
+    ui->listAssets->setMinimumHeight(5 * (42 + 2));
+    ui->listAssets->viewport()->setAutoFillBackground(false);
+
+    // Asset search typing delay
+    static const int input_filter_delay = 200; // ms
+    QTimer* asset_typing_delay = new QTimer(this);
+    asset_typing_delay->setSingleShot(true);
+    asset_typing_delay->setInterval(input_filter_delay);
+    connect(ui->assetSearch, &QLineEdit::textChanged, asset_typing_delay, qOverload<>(&QTimer::start));
+    connect(asset_typing_delay, &QTimer::timeout, this, &OverviewPage::assetSearchChanged);
+
+    // Asset context menu
+    assetSendAction = new QAction(tr("Send Asset"), this);
+    assetIssueSubAction = new QAction(tr("Issue Sub Asset"), this);
+    assetIssueUniqueAction = new QAction(tr("Issue Unique Asset"), this);
+    assetReissueAction = new QAction(tr("Reissue Asset"), this);
+    assetCopyNameAction = new QAction(tr("Copy Asset Name"), this);
+
+    assetContextMenu = new QMenu(this);
+    assetContextMenu->addAction(assetSendAction);
+    assetContextMenu->addSeparator();
+    assetContextMenu->addAction(assetCopyNameAction);
+    assetContextMenu->addSeparator();
+    assetContextMenu->addAction(assetIssueSubAction);
+    assetContextMenu->addAction(assetIssueUniqueAction);
+    assetContextMenu->addAction(assetReissueAction);
+
+    connect(ui->listAssets, &QListView::customContextMenuRequested, [this](const QPoint& pos) {
+        QModelIndex index = ui->listAssets->indexAt(pos);
+        if (index.isValid()) {
+            handleAssetRightClicked(index);
+        }
+    });
+    ui->listAssets->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    showAssets();
+    /** AVN END */
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
@@ -298,3 +344,58 @@ void OverviewPage::setMonospacedFont(const QFont& f)
     ui->labelImmature->setFont(f);
     ui->labelTotal->setFont(f);
 }
+
+/** AVN START */
+void OverviewPage::showAssets()
+{
+    // TODO: Gate on AreAssetsDeployed() once consensus is wired
+    bool fShowAssets = true;
+    ui->assetFrame->setVisible(fShowAssets);
+}
+
+void OverviewPage::assetSearchChanged()
+{
+    if (assetFilter) {
+        assetFilter->setAssetNamePrefix(ui->assetSearch->text());
+    }
+}
+
+void OverviewPage::handleAssetRightClicked(const QModelIndex& index)
+{
+    if (!index.isValid()) return;
+
+    QString assetName = index.data(AssetTableModel::AssetNameRole).toString();
+
+    // Copy name action
+    disconnect(assetCopyNameAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetCopyNameAction, &QAction::triggered, [assetName]() {
+        QApplication::clipboard()->setText(assetName);
+    });
+
+    // Send action
+    disconnect(assetSendAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetSendAction, &QAction::triggered, [this, index]() {
+        Q_EMIT assetSendClicked(index);
+    });
+
+    // Issue sub action
+    disconnect(assetIssueSubAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetIssueSubAction, &QAction::triggered, [this, index]() {
+        Q_EMIT assetIssueSubClicked(index);
+    });
+
+    // Issue unique action
+    disconnect(assetIssueUniqueAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetIssueUniqueAction, &QAction::triggered, [this, index]() {
+        Q_EMIT assetIssueUniqueClicked(index);
+    });
+
+    // Reissue action
+    disconnect(assetReissueAction, &QAction::triggered, nullptr, nullptr);
+    connect(assetReissueAction, &QAction::triggered, [this, index]() {
+        Q_EMIT assetReissueClicked(index);
+    });
+
+    assetContextMenu->exec(QCursor::pos());
+}
+/** AVN END */

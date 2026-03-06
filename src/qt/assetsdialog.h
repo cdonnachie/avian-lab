@@ -110,8 +110,10 @@ private Q_SLOTS:
 
     /** AVN START */
     void assetControlUpdateSendCoinsDialog();
-    void focusAsset(const QModelIndex& index);
     /** AVN END */
+
+public Q_SLOTS:
+    void focusAsset(const QModelIndex& index);
 
     Q_SIGNALS:
             // Fired when a message should be reported to the user

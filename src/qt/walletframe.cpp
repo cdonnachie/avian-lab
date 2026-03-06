@@ -287,3 +287,40 @@ WalletModel* WalletFrame::currentWalletModel() const
     WalletView* wallet_view = currentWalletView();
     return wallet_view ? wallet_view->getWalletModel() : nullptr;
 }
+
+/** AVN START */
+void WalletFrame::gotoAssetsPage()
+{
+    QMap<WalletModel*, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoAssetsPage();
+}
+
+void WalletFrame::gotoCreateAssetsPage()
+{
+    QMap<WalletModel*, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoCreateAssetsPage();
+}
+
+void WalletFrame::gotoManageAssetsPage()
+{
+    QMap<WalletModel*, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoManageAssetsPage();
+}
+
+void WalletFrame::gotoRestrictedAssetsPage()
+{
+    QMap<WalletModel*, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoRestrictedAssetsPage();
+}
+/** AVN END */
+
+void WalletFrame::dustWallet()
+{
+    WalletView *walletView = currentWalletView();
+    if (walletView)
+        walletView->dustWallet();
+}

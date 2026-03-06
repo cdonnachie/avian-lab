@@ -164,6 +164,14 @@ private:
     QAction* m_migrate_wallet_action{nullptr};
     QMenu* m_migrate_wallet_menu{nullptr};
 
+    /** AVN START */
+    QAction* transferAssetAction = nullptr;
+    QAction* createAssetAction = nullptr;
+    QAction* manageAssetAction = nullptr;
+    QAction* restrictedAssetAction = nullptr;
+    QAction* m_consolidate_utxos_action = nullptr;
+    /** AVN END */
+
     QLabel *m_wallet_selector_label = nullptr;
     QComboBox* m_wallet_selector = nullptr;
 
@@ -266,6 +274,9 @@ public Q_SLOTS:
 
     /** Show incoming transaction notification for new transactions. */
     void incomingTransaction(const QString& date, BitcoinUnit unit, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& walletName);
+
+    /** AVN: Check if assets are deployed and enable/disable asset UI */
+    void checkAssets();
 #endif // ENABLE_WALLET
 
 private:
@@ -288,6 +299,15 @@ public Q_SLOTS:
     void gotoSignMessageTab(QString addr = "");
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
+
+    /** AVN START */
+    /** Switch to assets page */
+    void gotoAssetsPage();
+    void gotoCreateAssetsPage();
+    void gotoManageAssetsPage();
+    void gotoRestrictedAssetsPage();
+    /** AVN END */
+
     /** Load Partially Signed Bitcoin Transaction from file or clipboard */
     void gotoLoadPSBT(bool from_clipboard = false);
     /** Enable history action when privacy is changed */

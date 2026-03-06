@@ -371,6 +371,74 @@
      </item>
     </layout>
    </item>
+   <item>
+    <widget class="QFrame" name="assetFrame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QVBoxLayout" name="assetFrameLayout">
+      <item>
+       <layout class="QHBoxLayout" name="assetHeaderLayout">
+        <item>
+         <widget class="QLabel" name="assetBalanceLabel">
+          <property name="font">
+           <font>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Asset Balances</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="assetHeaderSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="assetSearch">
+        <property name="placeholderText">
+         <string>Search asset name...</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QListView" name="listAssets">
+        <property name="styleSheet">
+         <string notr="true">QListView { background: transparent; }</string>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::NoFrame</enum>
+        </property>
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAsNeeded</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SingleSelection</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
   </layout>
  </widget>
  <customwidgets>

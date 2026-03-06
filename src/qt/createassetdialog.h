@@ -143,7 +143,7 @@ private Q_SLOTS:
     void setBalance(const interfaces::WalletBalances& balances);
     void updateDisplayUnit();
 
-
+public Q_SLOTS:
     void focusSubAsset(const QModelIndex& index);
     void focusUniqueAsset(const QModelIndex& index);
 

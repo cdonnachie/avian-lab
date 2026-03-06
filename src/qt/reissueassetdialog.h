@@ -139,6 +139,7 @@ private Q_SLOTS:
     void setBalance(const interfaces::WalletBalances& balances);
     void updateDisplayUnit();
 
+public Q_SLOTS:
     void focusReissueAsset(const QModelIndex& index);
 
 Q_SIGNALS:

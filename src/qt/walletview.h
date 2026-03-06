@@ -10,10 +10,14 @@
 
 #include <QStackedWidget>
 
+class AssetsDialog;
 class ClientModel;
+class CreateAssetDialog;
 class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
+class ReissueAssetDialog;
+class RestrictedAssetsDialog;
 class SendCoinsDialog;
 class SendCoinsRecipient;
 class TransactionView;
@@ -67,6 +71,13 @@ private:
 
     TransactionView *transactionView;
 
+    /** AVN START */
+    AssetsDialog* assetsPage;
+    CreateAssetDialog* createAssetsPage;
+    ReissueAssetDialog* manageAssetsPage;
+    RestrictedAssetsDialog* restrictedAssetsPage;
+    /** AVN END */
+
     QProgressDialog* progressDialog{nullptr};
     const PlatformStyle *platformStyle;
 
@@ -84,6 +95,17 @@ public Q_SLOTS:
     void gotoSignMessageTab(QString addr = "");
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
+
+    /** AVN START */
+    /** Switch to assets page */
+    void gotoAssetsPage();
+    void gotoCreateAssetsPage();
+    void gotoManageAssetsPage();
+    void gotoRestrictedAssetsPage();
+
+    /** Consolidate wallet UTXOs */
+    void dustWallet();
+    /** AVN END */
 
     /** Show incoming transaction notification for new transactions.
 
@@ -122,6 +144,8 @@ Q_SIGNALS:
     void incomingTransaction(const QString& date, BitcoinUnit unit, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& walletName);
     /** Notify that the out of sync warning icon has been pressed */
     void outOfSyncWarningClicked();
+    /** AVN: Check if assets are deployed and enable/disable UI */
+    void checkAssets();
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H
