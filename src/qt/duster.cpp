@@ -115,7 +115,7 @@ void DusterDialog::updateBlockList()
     // than old Avian's model->listCoins(mapCoins)
     //
     // For now, show a placeholder message
-    infoLabel->setText(tr("UTXO listing not yet implemented for BTC 30.2 wallet interface. Coming soon."));
+    infoLabel->setText(tr("UTXO listing not yet implemented for the new wallet interface. Coming soon."));
     blocksTable->setEnabled(true);
 }
 
@@ -162,7 +162,7 @@ void DusterDialog::compactBlocks()
     // BTC 30.2 wallet interface is significantly different and needs adaptation
 
     QMessageBox::information(this, tr("UTXO Consolidation"),
-        tr("UTXO consolidation transaction creation is not yet implemented for BTC 30.2 wallet interface. Coming soon."),
+        tr("UTXO consolidation transaction creation is not yet implemented for the new wallet interface. Coming soon."),
         QMessageBox::Ok, QMessageBox::Ok);
 }
 

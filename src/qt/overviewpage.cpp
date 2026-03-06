@@ -285,7 +285,7 @@ void OverviewPage::setWalletModel(WalletModel *model)
         connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &OverviewPage::updateDisplayUnit);
     }
 
-    // update the display unit, to not use the default ("BTC")
+    // update the display unit, to not use the default ("AVN")
     updateDisplayUnit();
 }
 

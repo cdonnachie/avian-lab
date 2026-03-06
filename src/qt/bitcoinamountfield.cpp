@@ -363,7 +363,7 @@ AssetAmountField::AssetAmountField(QWidget *parent)
     setFocusPolicy(Qt::TabFocus);
     setFocusProxy(amount);
 
-    // Use BTC display unit (8 decimal places) as a base
+    // Use AVN display unit (8 decimal places) as a base
     amount->setDisplayUnit(BitcoinUnit::BTC);
 
     connect(amount, &AmountSpinBox::valueChanged, this, &AssetAmountField::valueChanged);
@@ -382,7 +382,7 @@ void AssetAmountField::setValue(const CAmount& value)
 void AssetAmountField::setUnit(int unit)
 {
     assetUnit = unit;
-    // Adjust the display precision by using the BTC unit which gives 8 decimal places
+    // Adjust the display precision by using the AVN unit which gives 8 decimal places
     // The asset system uses COIN-based amounts regardless of the asset's unit setting
     amount->setDisplayUnit(BitcoinUnit::BTC);
 }

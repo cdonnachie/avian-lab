@@ -15,16 +15,16 @@
 #include <string>
 #include <type_traits>
 
-const std::string CURRENCY_UNIT = "BTC"; // One formatted unit
-const std::string CURRENCY_ATOM = "sat"; // One indivisible minimum value unit
+const std::string CURRENCY_UNIT = "AVN"; // One formatted unit
+const std::string CURRENCY_ATOM = "avn"; // One indivisible minimum value unit
 
 /* Used to determine type of fee estimation requested */
 enum class FeeEstimateMode {
     UNSET,        //!< Use default settings based on other criteria
     ECONOMICAL,   //!< Force estimateSmartFee to use non-conservative estimates
     CONSERVATIVE, //!< Force estimateSmartFee to use conservative estimates
-    BTC_KVB,      //!< Use BTC/kvB fee rate unit
-    SAT_VB,       //!< Use sat/vB fee rate unit
+    BTC_KVB,      //!< Use AVN/kvB fee rate unit
+    SAT_VB,       //!< Use avn/vB fee rate unit
 };
 
 /**
