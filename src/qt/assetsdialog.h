@@ -57,8 +57,8 @@ public:
 
 public Q_SLOTS:
     void clear();
-    void reject();
-    void accept();
+    void reject() override;
+    void accept() override;
     SendAssetsEntry *addEntry();
     void updateTabsAndLabels();
     void setBalance(const interfaces::WalletBalances& balances);

@@ -14,10 +14,10 @@ class AssetControlTreeWidget : public QTreeWidget
     Q_OBJECT
 
 public:
-    explicit AssetControlTreeWidget(QWidget *parent = 0);
+    explicit AssetControlTreeWidget(QWidget *parent = nullptr);
 
 protected:
-    virtual void keyPressEvent(QKeyEvent *event);
+    void keyPressEvent(QKeyEvent *event) override;
 };
 
 #endif // AVIAN_QT_ASSETCONTROLTREEWIDGET_H
