@@ -62,6 +62,7 @@
         <file alias="tx_asset_output">res/icons/tx_asset_output.png</file>
         <file alias="ext_add">res/icons/ext_add.png</file>
         <file alias="ext_add_light">res/icons/ext_add_light.png</file>
+        <file alias="paper_wallet">res/icons/paper_wallet.png</file>
     </qresource>
     <qresource prefix="/css">
         <file alias="Dark">res/css/Dark.css</file>

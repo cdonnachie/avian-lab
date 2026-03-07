@@ -324,3 +324,10 @@ void WalletFrame::dustWallet()
     if (walletView)
         walletView->dustWallet();
 }
+
+void WalletFrame::printPaperWallets()
+{
+    WalletView *walletView = currentWalletView();
+    if (walletView)
+        walletView->printPaperWallets();
+}

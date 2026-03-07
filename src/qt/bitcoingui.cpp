@@ -413,6 +413,8 @@ void BitcoinGUI::createActions()
     /** AVN START */
     m_consolidate_utxos_action = new QAction(tr("Consolidate UTXOs…"), this);
     m_consolidate_utxos_action->setStatusTip(tr("Consolidate small UTXOs into fewer, larger ones"));
+    m_paper_wallet_action = new QAction(tr("&Print paper wallets…"), this);
+    m_paper_wallet_action->setStatusTip(tr("Print paper wallets"));
     /** AVN END */
 
     m_mask_values_action = new QAction(tr("&Mask values"), this);
@@ -437,6 +439,7 @@ void BitcoinGUI::createActions()
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
         /** AVN START */
         connect(m_consolidate_utxos_action, &QAction::triggered, walletFrame, &WalletFrame::dustWallet);
+        connect(m_paper_wallet_action, &QAction::triggered, walletFrame, &WalletFrame::printPaperWallets);
         /** AVN END */
         connect(signMessageAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
@@ -567,6 +570,7 @@ void BitcoinGUI::createMenuBar()
         file->addAction(openAction);
         file->addAction(signMessageAction);
         file->addAction(verifyMessageAction);
+        file->addAction(m_paper_wallet_action);
         file->addAction(m_load_psbt_action);
         file->addAction(m_load_psbt_clipboard_action);
         file->addSeparator();
@@ -890,6 +894,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     changePassphraseAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
     verifyMessageAction->setEnabled(enabled);
+    m_paper_wallet_action->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
@@ -1102,6 +1107,11 @@ void BitcoinGUI::gotoRestrictedAssetsPage()
 {
     restrictedAssetAction->setChecked(true);
     if (walletFrame) walletFrame->gotoRestrictedAssetsPage();
+}
+
+void BitcoinGUI::gotoPaperWallet()
+{
+    if (walletFrame) walletFrame->printPaperWallets();
 }
 
 void BitcoinGUI::checkAssets()

@@ -13,6 +13,7 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/overviewpage.h>
+#include <qt/paperwalletdialog.h>
 #include <qt/platformstyle.h>
 #include <qt/receivecoinsdialog.h>
 #include <qt/reissueassetdialog.h>
@@ -362,6 +363,15 @@ void WalletView::gotoRestrictedAssetsPage()
 void WalletView::dustWallet()
 {
     DusterDialog dlg(platformStyle, this);
+    dlg.setModel(walletModel);
+    dlg.exec();
+}
+
+void WalletView::printPaperWallets()
+{
+    if (!walletModel)
+        return;
+    PaperWalletDialog dlg(this);
     dlg.setModel(walletModel);
     dlg.exec();
 }

@@ -240,11 +240,16 @@ if(ENABLE_WALLET)
       restrictedfreezeaddress.h
       sendassetsentry.cpp
       sendassetsentry.h
+      paperwalletdialog.cpp
+      paperwalletdialog.h
+      verticallabel.cpp
+      verticallabel.h
   )
   target_link_libraries(bitcoinqt
     PRIVATE
       bitcoin_wallet
       Qt6::Network
+      Qt6::PrintSupport
   )
 endif()
 

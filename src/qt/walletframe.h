@@ -108,6 +108,8 @@ public Q_SLOTS:
 
     /** AVN: Consolidate wallet UTXOs */
     void dustWallet();
+    /** AVN: Print paper wallets */
+    void printPaperWallets();
 };
 
 #endif // BITCOIN_QT_WALLETFRAME_H

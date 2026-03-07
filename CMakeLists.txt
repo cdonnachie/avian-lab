@@ -154,7 +154,7 @@ cmake_dependent_option(BUILD_GUI_TESTS "Build test_avian-qt executable." ON "BUI
 if(BUILD_GUI)
   set(qt_components Core Gui Widgets LinguistTools)
   if(ENABLE_WALLET)
-    list(APPEND qt_components Network)
+    list(APPEND qt_components Network PrintSupport)
   endif()
   if(WITH_DBUS)
     list(APPEND qt_components DBus)

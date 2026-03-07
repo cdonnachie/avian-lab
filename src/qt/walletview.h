@@ -105,6 +105,8 @@ public Q_SLOTS:
 
     /** Consolidate wallet UTXOs */
     void dustWallet();
+    /** Print paper wallets */
+    void printPaperWallets();
     /** AVN END */
 
     /** Show incoming transaction notification for new transactions.
