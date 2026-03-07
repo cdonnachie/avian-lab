@@ -3,12 +3,12 @@
 #ifndef RING_CRYPTO_POW_PBKDF2_H
 #define RING_CRYPTO_POW_PBKDF2_H
 
-#include <openssl/sha.h>
+#include <crypto/sha256.h>
 #include <stdint.h>
 
 typedef struct HMAC_SHA256Context {
-    SHA256_CTX ictx;
-    SHA256_CTX octx;
+    CSHA256 ictx;
+    CSHA256 octx;
 } HMAC_SHA256_CTX;
 
 void

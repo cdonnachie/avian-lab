@@ -14,8 +14,6 @@
 #include "../sph_simd.h"
 #include "../sph_echo.h"
 
-#include <openssl/sha.h>
-#include <openssl/ripemd.h>
 #include <vector>
 
 #ifndef QT_NO_DEBUG

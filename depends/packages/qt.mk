@@ -96,7 +96,6 @@ $(package)_config_opts += -no-feature-lcdnumber
 $(package)_config_opts += -no-feature-libresolv
 $(package)_config_opts += -no-feature-networkdiskcache
 $(package)_config_opts += -no-feature-networkproxy
-$(package)_config_opts += -no-feature-printsupport
 $(package)_config_opts += -no-feature-sessionmanager
 $(package)_config_opts += -no-feature-socks5
 $(package)_config_opts += -no-feature-sql
@@ -133,7 +132,6 @@ $(package)_config_opts += -no-feature-qtplugininfo
 endif
 
 $(package)_config_opts_darwin := -no-dbus
-$(package)_config_opts_darwin += -no-feature-printsupport
 $(package)_config_opts_darwin += -no-freetype
 $(package)_config_opts_darwin += -no-pkg-config
 

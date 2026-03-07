@@ -10,8 +10,7 @@
 #include <serialize.h>
 #include "../sph_skein.h"
 
-#include <openssl/sha.h>
-#include <openssl/ripemd.h>
+#include <crypto/sha256.h>
 #include <vector>
 
 
@@ -29,7 +28,7 @@ inline uint256 HashSkein(const T1 pbegin, const T1 pend)
     sph_skein512(&ctx_skein, (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0])), (pend - pbegin) * sizeof(pbegin[0]));
     sph_skein512_close(&ctx_skein, static_cast<void*>(&hash1));
     
-    SHA256((unsigned char*)&hash1, 64, (unsigned char*)&hash2);
+    CSHA256().Write((unsigned char*)&hash1, 64).Finalize((unsigned char*)&hash2);
     
     return hash2;
 }

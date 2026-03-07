@@ -45,7 +45,7 @@
 #include <QSortFilterProxyModel>
 #include <QStringListModel>
 #include <QUrl>
-#include <QtConcurrent/QtConcurrentRun>
+#include <thread>
 
 static const int confTargets[] = {2, 4, 6, 12, 24, 48};
 static int getConfTargetForIndex(int index) {
@@ -1363,7 +1363,7 @@ void ReissueAssetDialog::updateAssetsListAsync()
     ui->comboBox->setCurrentIndex(0);
 
     // Run asset loading in background thread to avoid blocking UI
-    (void)QtConcurrent::run([this]() {
+    std::thread([this]() {
         try {
             QStringList list;
             list << "";
@@ -1392,7 +1392,7 @@ void ReissueAssetDialog::updateAssetsListAsync()
             emptyList << "";
             QMetaObject::invokeMethod(this, [this, emptyList]() { onAssetsListLoaded(emptyList); }, Qt::QueuedConnection);
         }
-    });
+    }).detach();
 }
 
 void ReissueAssetDialog::onAssetsListLoaded(QStringList assetsList)

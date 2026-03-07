@@ -166,6 +166,11 @@ if(BUILD_GUI)
   find_package(Qt 6.2 MODULE REQUIRED
     COMPONENTS ${qt_components}
   )
+  # Avian: Qt6Config.cmake may not enumerate PrintSupport as a known component
+  # in static depends builds. Find it explicitly.
+  if(ENABLE_WALLET AND NOT TARGET Qt6::PrintSupport)
+    find_package(Qt6PrintSupport REQUIRED)
+  endif()
   unset(qt_components)
 endif()
 
