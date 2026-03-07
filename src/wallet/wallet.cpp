@@ -3285,6 +3285,11 @@ const CAddressBookData* CWallet::FindAddressBookEntry(const CTxDestination& dest
 
 void CWallet::postInitProcess()
 {
+    // AVN: Skip mempool operations during IBD to avoid blocking on cs_main
+    // contention with block processing. MaybeResendWalletTxs() will handle
+    // resubmission once IBD completes.
+    if (!chain().isReadyToBroadcast()) return;
+
     // Add wallet transactions that aren't already in a block to mempool
     // Do this here as mempool requires genesis block to be loaded
     ResubmitWalletTransactions(/*relay=*/false, /*force=*/true);

@@ -624,27 +624,36 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
                 }
 
                 // Extract the index and internal from the path
-                // Path string is m/0'/k'/i'
-                // Path vector is [0', k', i'] (but as ints OR'd with the hardened bit
-                // k == 0 for external, 1 for internal. i is the index
-                if (path.size() != 3) {
+                // Bitcoin Core legacy format: m/0'/k'/i' (3 hardened elements)
+                //   k == 0 for external, 1 for internal. i is the index
+                // Avian BIP44 format: m/44'/coin_type'/account'/change/index (5 elements)
+                //   change == 0 for external, 1 for internal
+                if (path.size() == 5 && path[0] == (44 | 0x80000000)) {
+                    // Avian BIP44 path: m/44'/coin_type'/account'/change/index
+                    // path[0] = 44' (purpose), path[1] = coin_type', path[2] = account'
+                    // path[3] = change (0 or 1, unhardened), path[4] = index (unhardened)
+                    internal = (path[3] == 1);
+                    index = path[4];
+                } else if (path.size() == 3) {
+                    // Bitcoin Core legacy path: m/0'/k'/i'
+                    if (path[0] != 0x80000000) {
+                        strErr = strprintf("Unexpected path index of 0x%08x (expected 0x80000000) for the element at index 0", path[0]);
+                        return DBErrors::NONCRITICAL_ERROR;
+                    }
+                    if (path[1] != 0x80000000 && path[1] != (1 | 0x80000000)) {
+                        strErr = strprintf("Unexpected path index of 0x%08x (expected 0x80000000 or 0x80000001) for the element at index 1", path[1]);
+                        return DBErrors::NONCRITICAL_ERROR;
+                    }
+                    if ((path[2] & 0x80000000) == 0) {
+                        strErr = strprintf("Unexpected path index of 0x%08x (expected to be greater than or equal to 0x80000000)", path[2]);
+                        return DBErrors::NONCRITICAL_ERROR;
+                    }
+                    internal = path[1] == (1 | 0x80000000);
+                    index = path[2] & ~0x80000000;
+                } else {
                     strErr = "Error reading wallet database: keymeta found with unexpected path";
                     return DBErrors::NONCRITICAL_ERROR;
                 }
-                if (path[0] != 0x80000000) {
-                    strErr = strprintf("Unexpected path index of 0x%08x (expected 0x80000000) for the element at index 0", path[0]);
-                    return DBErrors::NONCRITICAL_ERROR;
-                }
-                if (path[1] != 0x80000000 && path[1] != (1 | 0x80000000)) {
-                    strErr = strprintf("Unexpected path index of 0x%08x (expected 0x80000000 or 0x80000001) for the element at index 1", path[1]);
-                    return DBErrors::NONCRITICAL_ERROR;
-                }
-                if ((path[2] & 0x80000000) == 0) {
-                    strErr = strprintf("Unexpected path index of 0x%08x (expected to be greater than or equal to 0x80000000)", path[2]);
-                    return DBErrors::NONCRITICAL_ERROR;
-                }
-                internal = path[1] == (1 | 0x80000000);
-                index = path[2] & ~0x80000000;
             }
 
             // Insert a new CHDChain, or get the one that already exists
