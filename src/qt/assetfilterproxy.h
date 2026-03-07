@@ -12,12 +12,12 @@ class AssetFilterProxy : public QSortFilterProxyModel
     Q_OBJECT
 
 public:
-    explicit AssetFilterProxy(QObject *parent = 0);
+    explicit AssetFilterProxy(QObject *parent = nullptr);
 
     void setAssetNamePrefix(const QString &assetNamePrefix);
 
 protected:
-    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
+    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const override;
 
 private:
     QString assetNamePrefix;

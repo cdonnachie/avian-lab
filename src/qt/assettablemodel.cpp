@@ -188,7 +188,6 @@ int AssetTableModel::columnCount(const QModelIndex &parent) const
 
 QVariant AssetTableModel::data(const QModelIndex &index, int role) const
 {
-    Q_UNUSED(role);
     if(!index.isValid())
         return QVariant();
     AssetRecord *rec = static_cast<AssetRecord*>(index.internalPointer());
@@ -262,6 +261,7 @@ QVariant AssetTableModel::data(const QModelIndex &index, int role) const
                 return QString::fromStdString(rec->name);
             else if (index.column() == Quantity)
                 return QString::fromStdString(rec->formattedQuantity());
+            return QVariant();
         }
         case Qt::ToolTipRole:
             return formatTooltip(rec);
@@ -270,6 +270,7 @@ QVariant AssetTableModel::data(const QModelIndex &index, int role) const
             if (index.column() == Quantity) {
                 return QVariant(int(Qt::AlignRight | Qt::AlignVCenter));
             }
+            return QVariant();
         }
         default:
             return QVariant();

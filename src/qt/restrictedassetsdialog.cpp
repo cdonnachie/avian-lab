@@ -113,7 +113,6 @@ void RestrictedAssetsDialog::setModel(WalletModel *_model)
 
 RestrictedAssetsDialog::~RestrictedAssetsDialog()
 {
-    QSettings settings;
     delete ui;
 }
 

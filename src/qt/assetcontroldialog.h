@@ -42,7 +42,7 @@ public:
     explicit CAssetControlWidgetItem(int type = Type) : QTreeWidgetItem(type) {}
     explicit CAssetControlWidgetItem(QTreeWidgetItem *parent, int type = Type) : QTreeWidgetItem(parent, type) {}
 
-    bool operator<(const QTreeWidgetItem &other) const;
+    bool operator<(const QTreeWidgetItem &other) const override;
 };
 
 class AssetControlDialog : public QDialog
@@ -50,7 +50,7 @@ class AssetControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit AssetControlDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    explicit AssetControlDialog(const PlatformStyle *platformStyle, QWidget *parent = nullptr);
     ~AssetControlDialog();
 
     void setModel(WalletModel *model);

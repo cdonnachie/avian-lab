@@ -1363,7 +1363,7 @@ void ReissueAssetDialog::updateAssetsListAsync()
     ui->comboBox->setCurrentIndex(0);
 
     // Run asset loading in background thread to avoid blocking UI
-    QtConcurrent::run([this]() {
+    (void)QtConcurrent::run([this]() {
         try {
             QStringList list;
             list << "";

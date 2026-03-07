@@ -1,3 +1,6 @@
+#ifndef BITCOIN_QT_MYRESTRICTEDASSETTABLEMODEL_H
+#define BITCOIN_QT_MYRESTRICTEDASSETTABLEMODEL_H
+
 #include <qt/bitcoinunits.h>
 
 #include <QAbstractTableModel>
@@ -17,7 +20,7 @@ class MyRestrictedAssetsTableModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    explicit MyRestrictedAssetsTableModel(const PlatformStyle* platformStyle, wallet::CWallet* wallet, WalletModel* parent = 0);
+    explicit MyRestrictedAssetsTableModel(const PlatformStyle* platformStyle, wallet::CWallet* wallet, WalletModel* parent = nullptr);
     ~MyRestrictedAssetsTableModel();
 
     enum ColumnIndex {
@@ -57,11 +60,11 @@ public:
         AssetNameRole,
     };
 
-    int rowCount(const QModelIndex& parent) const;
-    int columnCount(const QModelIndex& parent) const;
-    QVariant data(const QModelIndex& index, int role) const;
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const;
+    int rowCount(const QModelIndex& parent) const override;
+    int columnCount(const QModelIndex& parent) const override;
+    QVariant data(const QModelIndex& index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
     bool processingQueuedTransactions() const { return fProcessingQueuedTransactions; }
 
 private:
@@ -96,3 +99,5 @@ public Q_SLOTS:
 
     friend class MyRestrictedAssetsTablePriv;
 };
+
+#endif // BITCOIN_QT_MYRESTRICTEDASSETTABLEMODEL_H

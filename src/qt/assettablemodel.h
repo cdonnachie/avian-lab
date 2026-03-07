@@ -25,7 +25,7 @@ class AssetTableModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    explicit AssetTableModel(WalletModel *parent = 0);
+    explicit AssetTableModel(WalletModel *parent = nullptr);
     ~AssetTableModel();
 
     enum ColumnIndex {
@@ -55,11 +55,11 @@ public:
             AssetANSDecorationRole = 107
     };
 
-    int rowCount(const QModelIndex &parent) const;
-    int columnCount(const QModelIndex &parent) const;
-    QVariant data(const QModelIndex &index, int role) const;
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    QModelIndex index(int row, int column, const QModelIndex & parent = QModelIndex()) const;
+    int rowCount(const QModelIndex &parent) const override;
+    int columnCount(const QModelIndex &parent) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    QModelIndex index(int row, int column, const QModelIndex & parent = QModelIndex()) const override;
     QString formatTooltip(const AssetRecord *rec) const;
     QString formatAssetData(const AssetRecord *wtx) const;
     QString formatAssetName(const AssetRecord *wtx) const;

@@ -33,7 +33,7 @@ class ReissueAssetDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit ReissueAssetDialog(const PlatformStyle* platformStyle, QWidget* parent = 0);
+    explicit ReissueAssetDialog(const PlatformStyle* platformStyle, QWidget* parent = nullptr);
     ~ReissueAssetDialog();
 
     void setClientModel(ClientModel* clientModel);
@@ -95,7 +95,7 @@ private:
     void hideInvalidVerifierStringMessage();
 
 protected:
-    bool eventFilter(QObject* sender, QEvent* event);
+    bool eventFilter(QObject* sender, QEvent* event) override;
 
 private Q_SLOTS:
     void onAssetSelected(int index);

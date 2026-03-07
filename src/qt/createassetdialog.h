@@ -31,7 +31,7 @@ class CreateAssetDialog : public QDialog
 Q_OBJECT
 
 public:
-    explicit CreateAssetDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    explicit CreateAssetDialog(const PlatformStyle *platformStyle, QWidget *parent = nullptr);
     ~CreateAssetDialog();
 
     void setClientModel(ClientModel *clientModel);
@@ -148,7 +148,7 @@ public Q_SLOTS:
     void focusUniqueAsset(const QModelIndex& index);
 
 protected:
-    bool eventFilter( QObject* sender, QEvent* event);
+    bool eventFilter( QObject* sender, QEvent* event) override;
 
 
 Q_SIGNALS:

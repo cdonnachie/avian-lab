@@ -31,7 +31,7 @@ class SendAssetsEntry : public QStackedWidget
     Q_OBJECT
 
 public:
-    explicit SendAssetsEntry(const PlatformStyle *platformStyle, const QStringList myAssetsNames, QWidget *parent = 0);
+    explicit SendAssetsEntry(const PlatformStyle *platformStyle, const QStringList myAssetsNames, QWidget *parent = nullptr);
     ~SendAssetsEntry();
 
     void setModel(WalletModel *model);
@@ -65,7 +65,7 @@ public:
     QSortFilterProxyModel* proxy;
     QCompleter* completer;
 
-    bool eventFilter(QObject *object, QEvent *event);
+    bool eventFilter(QObject *object, QEvent *event) override;
 
 
 public Q_SLOTS:

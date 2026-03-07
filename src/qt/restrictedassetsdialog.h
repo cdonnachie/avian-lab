@@ -37,7 +37,7 @@ class RestrictedAssetsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit RestrictedAssetsDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    explicit RestrictedAssetsDialog(const PlatformStyle *platformStyle, QWidget *parent = nullptr);
     ~RestrictedAssetsDialog();
 
     void setClientModel(ClientModel *clientModel);

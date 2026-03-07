@@ -364,7 +364,6 @@ void SendAssetsEntry::onAssetSelected(int index)
 
     // TODO: Port wallet asset balance query through interfaces::Wallet
     // For now, show metadata but not balance
-    int units = fIsOwnerAsset ? OWNER_UNITS : asset.units;
     ui->assetAmountLabel->setText(tr("Wallet Balance") + ": <b>" + tr("(loading...)") + "</b> " + name);
 
     ui->messageLabel->hide();
