@@ -97,6 +97,10 @@ public:
     bool ReadBlockUndoAssetData(const uint256& blockhash, std::vector<std::pair<std::string, CBlockAssetUndo> >& assetUndoData);
     bool ReadReissuedMempoolState(std::map<std::string, uint256>& mapReissuedAssets, std::map<uint256, std::string>& mapReissuedTx);
 
+    // Best block tracking for asset DB consistency
+    bool WriteBestBlock(const uint256& blockHash);
+    bool ReadBestBlock(uint256& blockHash);
+
     // Erase from database functions
     bool EraseAssetData(const std::string& assetName);
     bool EraseMyAssetData(const std::string& assetName);

@@ -14,6 +14,7 @@ static const uint8_t ADDRESS_ASSET_QUANTITY_FLAG = 'C';
 static const uint8_t MY_ASSET_FLAG = 'M';
 static const uint8_t BLOCK_ASSET_UNDO_DATA = 'U';
 static const uint8_t MEMPOOL_REISSUED_TX = 'Z';
+static const uint8_t ASSET_BEST_BLOCK_FLAG = 'T'; // Tip tracking
 
 [[maybe_unused]] static size_t MAX_DATABASE_RESULTS = 50000;
 
@@ -58,6 +59,16 @@ bool CAssetsDB::ReadAssetData(const std::string& strName, CNewAsset& asset, int&
 bool CAssetsDB::ReadAssetAddressQuantity(const std::string& assetName, const std::string& address, CAmount& quantity)
 {
     return Read(std::make_pair(ASSET_ADDRESS_QUANTITY_FLAG, std::make_pair(assetName, address)), quantity);
+}
+
+bool CAssetsDB::WriteBestBlock(const uint256& blockHash)
+{
+    return Write(ASSET_BEST_BLOCK_FLAG, blockHash);
+}
+
+bool CAssetsDB::ReadBestBlock(uint256& blockHash)
+{
+    return Read(ASSET_BEST_BLOCK_FLAG, blockHash);
 }
 
 bool CAssetsDB::ReadAddressAssetQuantity(const std::string &address, const std::string &assetName, CAmount& quantity) {

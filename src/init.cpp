@@ -1808,7 +1808,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     bool do_reindex{args.GetBoolArg("-reindex", false)};
     const bool do_reindex_chainstate{args.GetBoolArg("-reindex-chainstate", false)};
-    const bool do_reindex_assets{args.GetBoolArg("-reindexassets", false)};
+    bool do_reindex_assets{args.GetBoolArg("-reindexassets", false)};
 
     // Chainstate initialization and loading may be retried once with reindexing by GUI users
     auto [status, error] = InitAndLoadChainstate(
@@ -1911,6 +1911,51 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
 
         LogPrintf("Successfully loaded assets from database. Cache size: %d\n", passetsCache->Size());
+
+        // Check asset DB consistency with chain tip
+        {
+            uint256 assetBestBlock;
+            uint256 coinsBestBlock = chainman.ActiveChainstate().CoinsTip().GetBestBlock();
+            bool hasAssetBestBlock = passetsdb->ReadBestBlock(assetBestBlock);
+
+            if (!coinsBestBlock.IsNull() && hasAssetBestBlock && assetBestBlock != coinsBestBlock) {
+                LogPrintf("Asset DB best block (%s) differs from UTXO tip (%s). Triggering automatic asset reindex.\n",
+                          assetBestBlock.ToString(), coinsBestBlock.ToString());
+                // Wipe and recreate asset DB and restricted DB
+                delete passets;
+                delete passetsdb;
+                delete prestricteddb;
+                passetsCache->Clear();
+                passetsVerifierCache->Clear();
+                passetsQualifierCache->Clear();
+                passetsRestrictionCache->Clear();
+                passetsGlobalRestrictionCache->Clear();
+                passetsdb = new CAssetsDB(args.GetDataDirNet(), nAssetDBCache, false, true /* wipe */);
+                prestricteddb = new CRestrictedDB(args.GetDataDirNet(), nAssetDBCache, false, true /* wipe */);
+                passets = new CAssetsCache();
+                do_reindex_assets = true;
+            } else if (!coinsBestBlock.IsNull() && !hasAssetBestBlock && !passetsdb->IsEmpty()) {
+                // Asset DB exists but has no best block marker — this is a DB
+                // created before best-block tracking was added. Trigger a rebuild
+                // to ensure consistency.
+                LogPrintf("Asset DB has no best block marker and is non-empty. Triggering automatic asset reindex for consistency.\n");
+                delete passets;
+                delete passetsdb;
+                delete prestricteddb;
+                passetsCache->Clear();
+                passetsVerifierCache->Clear();
+                passetsQualifierCache->Clear();
+                passetsRestrictionCache->Clear();
+                passetsGlobalRestrictionCache->Clear();
+                passetsdb = new CAssetsDB(args.GetDataDirNet(), nAssetDBCache, false, true /* wipe */);
+                prestricteddb = new CRestrictedDB(args.GetDataDirNet(), nAssetDBCache, false, true /* wipe */);
+                passets = new CAssetsCache();
+                do_reindex_assets = true;
+            } else if (!coinsBestBlock.IsNull() && !hasAssetBestBlock) {
+                // Empty DB with no marker (fresh start) — record tip
+                passetsdb->WriteBestBlock(coinsBestBlock);
+            }
+        }
 
         // Configure messaging
         if (!AreMessagesDeployed()) {

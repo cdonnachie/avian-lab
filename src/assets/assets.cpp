@@ -3574,7 +3574,10 @@ bool CAssetsCache::GetAssetMetaDataIfExists(const std::string &name, CNewAsset &
         }
     }
 
-    LogPrintf("%s : Didn't find asset meta data anywhere. Returning False\n", __func__);
+    LogPrintf("%s : Didn't find asset '%s' anywhere (local dirty, global dirty, LRU cache%s, LevelDB%s). Returning False\n",
+              __func__, name,
+              passetsCache ? "" : " [NULL]",
+              passetsdb ? "" : " [NULL]");
     return false;
 }
 

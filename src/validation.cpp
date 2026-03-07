@@ -3342,6 +3342,10 @@ bool Chainstate::FlushStateToDisk(
                         if (!currentActiveAssetCache->DumpCacheToDatabase())
                             return FatalError(m_chainman.GetNotifications(), state, _("Failed to write to asset database."));
                     }
+                    // Record the current tip so we can detect desync on startup
+                    if (passetsdb) {
+                        passetsdb->WriteBestBlock(CoinsTip().GetBestBlock());
+                    }
                 }
                 if (passetsdb)
                     passetsdb->WriteReissuedMempoolState(mapReissuedAssets);
@@ -7016,13 +7020,28 @@ bool ReindexAssets(ChainstateManager& chainman)
         if (blocks_processed % log_interval == 0) {
             LogPrintf("ReindexAssets: Processed %d/%d blocks (%.1f%%)\n",
                       height, tip_height, 100.0 * height / tip_height);
+
+            // Periodically flush the global cache to LevelDB to avoid
+            // accumulating millions of dirty-set entries in memory
+            if (!passets->DumpCacheToDatabase()) {
+                LogError("ReindexAssets: Failed to flush asset cache to database at height %d\n", height);
+                return false;
+            }
         }
     }
 
-    // Flush the global cache to LevelDB
+    // Final flush of remaining data to LevelDB
     if (!passets->DumpCacheToDatabase()) {
         LogError("ReindexAssets: Failed to write asset cache to database\n");
         return false;
+    }
+
+    // Record best block so startup consistency check passes
+    if (passetsdb) {
+        const CBlockIndex* pTip = active_chain.Tip();
+        if (pTip) {
+            passetsdb->WriteBestBlock(pTip->GetBlockHash());
+        }
     }
 
     LogPrintf("ReindexAssets: Successfully rebuilt asset database from %d blocks.\n", blocks_processed);
