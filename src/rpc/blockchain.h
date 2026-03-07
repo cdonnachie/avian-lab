@@ -7,6 +7,7 @@
 
 #include <consensus/amount.h>
 #include <core_io.h>
+#include <primitives/block.h>
 #include <streams.h>
 #include <sync.h>
 #include <util/fs.h>
@@ -34,6 +35,12 @@ static constexpr int NUM_GETBLOCKSTATS_PERCENTILES = 5;
  * difficulty (4295032833 hashes).
  */
 double GetDifficulty(const CBlockIndex& blockindex);
+
+/** Avian: Get last block index of the given PoW algorithm type. */
+const CBlockIndex* GetLastBlockIndex4Algo(const CBlockIndex* pindex, POW_TYPE powType);
+
+/** Avian: Get difficulty for a specific PoW algorithm by walking the chain. */
+double GetDifficulty(POW_TYPE powType, const CChain& active_chain);
 
 /** Block description to JSON */
 UniValue blockToJSON(node::BlockManager& blockman, const CBlock& block, const CBlockIndex& tip, const CBlockIndex& blockindex, TxVerbosity verbosity, const uint256 pow_limit) LOCKS_EXCLUDED(cs_main);

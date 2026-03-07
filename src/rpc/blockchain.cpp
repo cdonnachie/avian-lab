@@ -32,6 +32,7 @@
 #include <node/transaction.h>
 #include <node/utxo_snapshot.h>
 #include <node/warnings.h>
+#include <pow.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
@@ -108,6 +109,22 @@ double GetDifficulty(const CBlockIndex& blockindex)
     }
 
     return dDiff;
+}
+
+// Avian: Walk the chain backward to find the last block of the given PoW algorithm type
+const CBlockIndex* GetLastBlockIndex4Algo(const CBlockIndex* pindex, POW_TYPE powType)
+{
+    while (pindex && pindex->pprev && pindex->GetBlockHeader().GetPoWType() != powType)
+        pindex = pindex->pprev;
+    return pindex;
+}
+
+// Avian: Get difficulty for a specific PoW algorithm
+double GetDifficulty(POW_TYPE powType, const CChain& active_chain)
+{
+    const CBlockIndex* pindex = GetLastBlockIndex4Algo(active_chain.Tip(), powType);
+    if (!pindex) return 1.0;
+    return GetDifficulty(*pindex);
 }
 
 static int ComputeNextBlockAndDepth(const CBlockIndex& tip, const CBlockIndex& blockindex, const CBlockIndex*& next)
@@ -470,18 +487,43 @@ static RPCHelpMan getdifficulty()
     return RPCHelpMan{
         "getdifficulty",
         "Returns the proof-of-work difficulty as a multiple of the minimum difficulty.\n",
-                {},
+                {
+                    {"powalgo", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The pow algorithm: \"x16rt\" or \"minotaurx\". Uses -powalgo config value if omitted."},
+                },
                 RPCResult{
                     RPCResult::Type::NUM, "", "the proof-of-work difficulty as a multiple of the minimum difficulty."},
                 RPCExamples{
                     HelpExampleCli("getdifficulty", "")
+            + HelpExampleCli("getdifficulty", "\"minotaurx\"")
             + HelpExampleRpc("getdifficulty", "")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
     LOCK(cs_main);
-    return GetDifficulty(*CHECK_NONFATAL(chainman.ActiveChain().Tip()));
+    const CChain& active_chain = chainman.ActiveChain();
+    const CBlockIndex* tip = active_chain.Tip();
+
+    std::string strAlgo = gArgs.GetArg("-powalgo", DEFAULT_POW_TYPE);
+    if (!request.params[0].isNull())
+        strAlgo = request.params[0].get_str();
+
+    POW_TYPE powType = POW_TYPE_X16RT;
+    bool algoFound = false;
+    for (unsigned int i = 0; i < NUM_BLOCK_TYPES; i++) {
+        if (strAlgo == POW_TYPE_NAMES[i]) {
+            powType = (POW_TYPE)i;
+            algoFound = true;
+            break;
+        }
+    }
+    if (!algoFound)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid pow algorithm requested");
+
+    if (tip && !IsDualAlgoEnabled(tip, chainman.GetConsensus()) && powType != POW_TYPE_X16RT)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Non x16rt algo requested but Dual Algo not enabled");
+
+    return GetDifficulty(powType, active_chain);
 },
     };
 }
@@ -1348,6 +1390,9 @@ RPCHelpMan getblockchaininfo()
                 {RPCResult::Type::STR_HEX, "bits", "nBits: compact representation of the block difficulty target"},
                 {RPCResult::Type::STR_HEX, "target", "The difficulty target"},
                 {RPCResult::Type::NUM, "difficulty", "the current difficulty"},
+                {RPCResult::Type::NUM, "difficulty_minotaurx", /*optional=*/true, "the current MinotaurX difficulty (only present after dual-algo activation)"},
+                {RPCResult::Type::NUM, "difficulty_x16rt", /*optional=*/true, "the current X16RT difficulty (only present after dual-algo activation)"},
+                {RPCResult::Type::STR, "difficulty_algorithm", /*optional=*/true, "the difficulty adjustment algorithm in use"},
                 {RPCResult::Type::NUM_TIME, "time", "The block time expressed in " + UNIX_EPOCH_TIME},
                 {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
                 {RPCResult::Type::NUM, "verificationprogress", "estimate of verification progress [0..1]"},
@@ -1388,6 +1433,13 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("bits", strprintf("%08x", tip.nBits));
     obj.pushKV("target", GetTarget(tip, chainman.GetConsensus().powLimit).GetHex());
     obj.pushKV("difficulty", GetDifficulty(tip));
+    if (IsDualAlgoEnabled(&tip, chainman.GetConsensus())) {
+        obj.pushKV("difficulty_minotaurx", GetDifficulty(POW_TYPE_MINOTAURX, active_chainstate.m_chain));
+        obj.pushKV("difficulty_x16rt", GetDifficulty(POW_TYPE_X16RT, active_chainstate.m_chain));
+        obj.pushKV("difficulty_algorithm", "LWMA-3");
+    } else {
+        obj.pushKV("difficulty_algorithm", "DGW-180");
+    }
     obj.pushKV("time", tip.GetBlockTime());
     obj.pushKV("mediantime", tip.GetMedianTimePast());
     obj.pushKV("verificationprogress", chainman.GuessVerificationProgress(&tip));

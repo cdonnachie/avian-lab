@@ -350,6 +350,8 @@ protected:
 };
 
 arith_uint256 GetBlockProof(const CBlockIndex& block);
+/** Avian: Per-algorithm block proof — returns 0 for blocks not matching powType. */
+arith_uint256 GetBlockProof(const CBlockIndex& block, POW_TYPE powType);
 /** Return the time it would take to redo the work difference between from and to, assuming the current hashrate corresponds to the difficulty at tip, in seconds. */
 int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& from, const CBlockIndex& tip, const Consensus::Params&);
 /** Find the forking point between two chain tips. */

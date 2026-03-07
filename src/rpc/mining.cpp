@@ -111,6 +111,84 @@ static UniValue GetNetworkHashPS(int lookup, int height, const CChain& active_ch
     return workDiff.getdouble() / timeDiff;
 }
 
+/**
+ * Avian: Return average network hashes per second for a specific PoW algorithm.
+ * Only counts blocks mined with the given algorithm type.
+ */
+static UniValue GetNetworkHashPS(int lookup, int height, const CChain& active_chain, POW_TYPE powType) {
+    if (lookup < -1 || lookup == 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid nblocks. Must be a positive number or -1.");
+    }
+
+    if (height < -1 || height > active_chain.Height()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Block does not exist at specified height");
+    }
+
+    const CBlockIndex* pb = active_chain.Tip();
+
+    if (height >= 0) {
+        pb = active_chain[height];
+    }
+
+    if (pb == nullptr || !pb->nHeight)
+        return 0;
+
+    // Walk back to find a block of the correct algo type
+    while (pb && pb->pprev && pb->GetBlockHeader().GetPoWType() != powType)
+        pb = pb->pprev;
+
+    if (pb == nullptr || !pb->nHeight)
+        return 0;
+
+    // No MinotaurX hashes before dual algo activation
+    if (!IsDualAlgoEnabled(pb, Params().GetConsensus()) && powType == POW_TYPE_MINOTAURX)
+        return 0;
+
+    // If lookup is -1, use a reasonable default of 120 blocks of this algo
+    if (lookup == -1)
+        lookup = 120;
+
+    // If lookup is larger than chain, then set it to chain length
+    if (lookup > pb->nHeight)
+        lookup = pb->nHeight;
+
+    const CBlockIndex* pb0 = pb;
+    int64_t minTime = pb0->GetBlockTime();
+    int64_t maxTime = minTime;
+    arith_uint256 workDiff = 0;
+    int blocksFound = 0;
+
+    for (int i = 0; i < lookup && pb0->pprev; ) {
+        pb0 = pb0->pprev;
+        // Only count blocks of matching algo type
+        if (IsDualAlgoEnabled(pb0, Params().GetConsensus()) && pb0->GetBlockHeader().GetPoWType() != powType)
+            continue;
+        if (!IsDualAlgoEnabled(pb0, Params().GetConsensus()) && powType == POW_TYPE_MINOTAURX)
+            break;
+
+        int64_t time = pb0->GetBlockTime();
+        minTime = std::min(time, minTime);
+        maxTime = std::max(time, maxTime);
+        blocksFound++;
+        i++;
+    }
+
+    if (minTime == maxTime || blocksFound == 0)
+        return 0;
+
+    // Calculate work between pb and pb0 for this algo only
+    // Walk from pb0 to pb accumulating per-algo proof
+    workDiff = 0;
+    const CBlockIndex* pWalk = pb;
+    while (pWalk && pWalk != pb0) {
+        workDiff += GetBlockProof(*pWalk, powType);
+        pWalk = pWalk->pprev;
+    }
+
+    int64_t timeDiff = maxTime - minTime;
+    return workDiff.getdouble() / timeDiff;
+}
+
 static RPCHelpMan getnetworkhashps()
 {
     return RPCHelpMan{
@@ -121,18 +199,38 @@ static RPCHelpMan getnetworkhashps()
                 {
                     {"nblocks", RPCArg::Type::NUM, RPCArg::Default{120}, "The number of previous blocks to calculate estimate from, or -1 for blocks since last difficulty change."},
                     {"height", RPCArg::Type::NUM, RPCArg::Default{-1}, "To estimate at the time of the given height."},
+                    {"powalgo", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The pow algorithm: \"x16rt\" or \"minotaurx\". Uses -powalgo config value if omitted."},
                 },
                 RPCResult{
                     RPCResult::Type::NUM, "", "Hashes per second estimated"},
                 RPCExamples{
                     HelpExampleCli("getnetworkhashps", "")
+            + HelpExampleCli("getnetworkhashps", "120 -1 \"minotaurx\"")
             + HelpExampleRpc("getnetworkhashps", "")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
     LOCK(cs_main);
-    return GetNetworkHashPS(self.Arg<int>("nblocks"), self.Arg<int>("height"), chainman.ActiveChain());
+    const CChain& active_chain = chainman.ActiveChain();
+
+    if (!request.params[2].isNull()) {
+        std::string strAlgo = request.params[2].get_str();
+        POW_TYPE powType = POW_TYPE_X16RT;
+        bool algoFound = false;
+        for (unsigned int i = 0; i < NUM_BLOCK_TYPES; i++) {
+            if (strAlgo == POW_TYPE_NAMES[i]) {
+                powType = (POW_TYPE)i;
+                algoFound = true;
+                break;
+            }
+        }
+        if (!algoFound)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid pow algorithm requested");
+        return GetNetworkHashPS(self.Arg<int>("nblocks"), self.Arg<int>("height"), active_chain, powType);
+    }
+
+    return GetNetworkHashPS(self.Arg<int>("nblocks"), self.Arg<int>("height"), active_chain);
 },
     };
 }
@@ -430,8 +528,12 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "currentblocktx", /*optional=*/true, "The number of block transactions (excluding coinbase) of the last assembled block (only present if a block was ever assembled)"},
                         {RPCResult::Type::STR_HEX, "bits", "The current nBits, compact representation of the block difficulty target"},
                         {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
+                        {RPCResult::Type::NUM, "difficulty_minotaurx", /*optional=*/true, "The current MinotaurX difficulty (only after dual-algo activation)"},
+                        {RPCResult::Type::NUM, "difficulty_x16rt", /*optional=*/true, "The current X16RT difficulty (only after dual-algo activation)"},
                         {RPCResult::Type::STR_HEX, "target", "The current target"},
                         {RPCResult::Type::NUM, "networkhashps", "The network hashes per second"},
+                        {RPCResult::Type::NUM, "networkhashps_minotaurx", /*optional=*/true, "MinotaurX network hashes per second (only after dual-algo activation)"},
+                        {RPCResult::Type::NUM, "networkhashps_x16rt", /*optional=*/true, "X16RT network hashes per second (only after dual-algo activation)"},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
                         {RPCResult::Type::STR_AMOUNT, "blockmintxfee", "Minimum feerate of packages selected for block inclusion in " + CURRENCY_UNIT + "/kvB"},
                         {RPCResult::Type::STR, "chain", "current network name (" LIST_CHAIN_NAMES ")"},
@@ -471,8 +573,16 @@ static RPCHelpMan getmininginfo()
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
     obj.pushKV("bits", strprintf("%08x", tip.nBits));
     obj.pushKV("difficulty", GetDifficulty(tip));
+    if (IsDualAlgoEnabled(&tip, chainman.GetConsensus())) {
+        obj.pushKV("difficulty_minotaurx", GetDifficulty(POW_TYPE_MINOTAURX, active_chain));
+        obj.pushKV("difficulty_x16rt", GetDifficulty(POW_TYPE_X16RT, active_chain));
+    }
     obj.pushKV("target", GetTarget(tip, chainman.GetConsensus().powLimit).GetHex());
     obj.pushKV("networkhashps",    getnetworkhashps().HandleRequest(request));
+    if (IsDualAlgoEnabled(&tip, chainman.GetConsensus())) {
+        obj.pushKV("networkhashps_minotaurx", GetNetworkHashPS(120, -1, active_chain, POW_TYPE_MINOTAURX));
+        obj.pushKV("networkhashps_x16rt", GetNetworkHashPS(120, -1, active_chain, POW_TYPE_X16RT));
+    }
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     BlockAssembler::Options assembler_options;
     ApplyArgsManOptions(*node.args, assembler_options);
