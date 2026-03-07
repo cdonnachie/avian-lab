@@ -523,18 +523,24 @@ static void MutateTxDelOutput(CMutableTransaction& tx, const std::string& strOut
     tx.vout.erase(tx.vout.begin() + *idx);
 }
 
-static const unsigned int N_SIGHASH_OPTS = 7;
+static const unsigned int N_SIGHASH_OPTS = 13;
 static const struct {
     const char *flagStr;
     int flags;
 } sighashOptions[N_SIGHASH_OPTS] = {
-    {"DEFAULT", SIGHASH_DEFAULT},
     {"ALL", SIGHASH_ALL},
     {"NONE", SIGHASH_NONE},
     {"SINGLE", SIGHASH_SINGLE},
     {"ALL|ANYONECANPAY", SIGHASH_ALL|SIGHASH_ANYONECANPAY},
     {"NONE|ANYONECANPAY", SIGHASH_NONE|SIGHASH_ANYONECANPAY},
     {"SINGLE|ANYONECANPAY", SIGHASH_SINGLE|SIGHASH_ANYONECANPAY},
+    {"ALL|FORKID", SIGHASH_ALL|SIGHASH_FORKID},
+    {"NONE|FORKID", SIGHASH_NONE|SIGHASH_FORKID},
+    {"SINGLE|FORKID", SIGHASH_SINGLE|SIGHASH_FORKID},
+    {"ALL|FORKID|ANYONECANPAY", SIGHASH_ALL|SIGHASH_FORKID|SIGHASH_ANYONECANPAY},
+    {"NONE|FORKID|ANYONECANPAY", SIGHASH_NONE|SIGHASH_FORKID|SIGHASH_ANYONECANPAY},
+    {"SINGLE|FORKID|ANYONECANPAY", SIGHASH_SINGLE|SIGHASH_FORKID|SIGHASH_ANYONECANPAY},
+    {"DEFAULT", SIGHASH_DEFAULT},
 };
 
 static bool findSighashFlags(int& flags, const std::string& flagStr)
@@ -575,7 +581,8 @@ static std::vector<unsigned char> ParseHexUV(const UniValue& v, const std::strin
 
 static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
 {
-    int nHashType = SIGHASH_ALL;
+    // Avian: Default to ALL|FORKID since UAHF is permanently active
+    int nHashType = SIGHASH_ALL | SIGHASH_FORKID;
 
     if (flagStr.size() > 0)
         if (!findSighashFlags(nHashType, flagStr))
@@ -666,7 +673,7 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
 
     const FillableSigningProvider& keystore = tempKeystore;
 
-    bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
+    bool fHashSingle = ((nHashType & ~(SIGHASH_ANYONECANPAY | SIGHASH_FORKID)) == SIGHASH_SINGLE);
 
     // Sign what we can:
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {

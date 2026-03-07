@@ -99,6 +99,9 @@ extern bool fAddressIndex;
 extern bool fSpentIndex;
 extern bool fTimestampIndex;
 
+/** Check if FORKID UAHF has activated based on median time past. */
+bool IsForkIDUAHFenabled(const CBlockIndex* pindexPrev);
+
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 bool FatalError(kernel::Notifications& notifications, BlockValidationState& state, const bilingual_str& message);

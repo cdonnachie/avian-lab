@@ -312,7 +312,8 @@ void SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
 {
     std::optional<int> nHashType = ParseSighashString(hashType);
     if (!nHashType) {
-        nHashType = SIGHASH_DEFAULT;
+        // Avian: Default to ALL|FORKID since UAHF is permanently active
+        nHashType = SIGHASH_ALL | SIGHASH_FORKID;
     }
 
     // Script verification errors

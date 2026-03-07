@@ -190,11 +190,18 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
     }
-    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY));
+    unsigned char nHashType = vchSig[vchSig.size() - 1] & (~(SIGHASH_ANYONECANPAY | SIGHASH_FORKID));
     if (nHashType < SIGHASH_ALL || nHashType > SIGHASH_SINGLE)
         return false;
 
     return true;
+}
+
+static uint32_t GetHashType(const valtype &vchSig) {
+    if (vchSig.size() == 0) {
+        return 0;
+    }
+    return vchSig[vchSig.size() - 1];
 }
 
 bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror) {
@@ -211,6 +218,17 @@ bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned i
     } else if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsDefinedHashtypeSignature(vchSig)) {
         return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
     }
+
+    // Avian: Enforce SIGHASH_FORKID replay protection
+    bool usesForkId = GetHashType(vchSig) & SIGHASH_FORKID;
+    bool forkIdEnabled = flags & SCRIPT_ENABLE_SIGHASH_FORKID;
+    if (!forkIdEnabled && usesForkId) {
+        return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
+    }
+    if (forkIdEnabled && !usesForkId) {
+        return set_error(serror, SCRIPT_ERR_MUST_USE_FORKID);
+    }
+
     return true;
 }
 
@@ -2004,6 +2022,11 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
     static const CScriptWitness emptyWitness;
     if (witness == nullptr) {
         witness = &emptyWitness;
+    }
+
+    // Avian: If FORKID is enabled, we also ensure strict encoding.
+    if (flags & SCRIPT_ENABLE_SIGHASH_FORKID) {
+        flags |= SCRIPT_VERIFY_STRICTENC;
     }
     bool hadWitness = false;
 

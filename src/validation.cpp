@@ -119,6 +119,20 @@ const std::vector<std::string> CHECKLEVEL_DOC {
 bool fAddressIndex = false;
 bool fSpentIndex = false;
 bool fTimestampIndex = false;
+
+/** FORKID UAHF (replay protection from RVN) */
+static bool IsForkIDUAHFenabled(int64_t nMedianTimePast)
+{
+    return nMedianTimePast >= (int64_t)DEFAULT_FORKID_UAHF_START_TIME;
+}
+
+bool IsForkIDUAHFenabled(const CBlockIndex* pindexPrev)
+{
+    if (pindexPrev == nullptr) {
+        return false;
+    }
+    return IsForkIDUAHFenabled(pindexPrev->GetMedianTimePast());
+}
 /** The number of blocks to keep below the deepest prune lock.
  *  There is nothing special about this number. It is higher than what we
  *  expect to see in regular mainnet reorgs, but not so high that it would
@@ -1264,7 +1278,12 @@ bool MemPoolAccept::PolicyScriptChecks(const ATMPArgs& args, Workspace& ws)
     const CTransaction& tx = *ws.m_ptx;
     TxValidationState& state = ws.m_state;
 
-    constexpr unsigned int scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
+    unsigned int scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
+
+    // Avian: Add SIGHASH_FORKID enforcement if UAHF is active
+    if (IsForkIDUAHFenabled(m_active_chainstate.m_chain.Tip())) {
+        scriptVerifyFlags |= SCRIPT_ENABLE_SIGHASH_FORKID;
+    }
 
     // Check input scripts and signatures.
     // This is done last to help prevent CPU exhaustion denial-of-service attacks.
@@ -2567,6 +2586,12 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex& block_index, const Ch
     // Enforce BIP147 NULLDUMMY (activated simultaneously with segwit)
     if (DeploymentActiveAt(block_index, chainman, Consensus::DEPLOYMENT_SEGWIT)) {
         flags |= SCRIPT_VERIFY_NULLDUMMY;
+    }
+
+    // Avian: Enforce SIGHASH_FORKID replay protection after UAHF activation
+    if (IsForkIDUAHFenabled(&block_index)) {
+        flags |= SCRIPT_VERIFY_STRICTENC;
+        flags |= SCRIPT_ENABLE_SIGHASH_FORKID;
     }
 
     return flags;
