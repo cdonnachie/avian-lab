@@ -25,6 +25,7 @@
 #include <string>
 #include <validation.h> // mempool and minRelayTxFee
 #include <wallet/wallet.h>
+#include <wallet/spend.h>
 #include <core_io.h>
 #include <policy/policy.h>
 #include <assets/assets.h>
@@ -821,7 +822,7 @@ void CreateAssetDialog::onCreateAssetClicked()
 
     QString address;
     if (ui->addressText->text().isEmpty()) {
-        address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, "", "");
+        address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, "", "", OutputType::LEGACY);
     } else {
         address = ui->addressText->text();
     }
@@ -930,7 +931,7 @@ void CreateAssetDialog::onCreateAssetClicked()
             if (msgBox.clickedButton() == okayButton) {
                 clear();
 
-                CoinControlDialog::coinControl->UnSelectAll();
+                s_coinControl.UnSelectAll();
                 coinControlUpdateLabels();
             }
         }
@@ -1403,9 +1404,20 @@ void CreateAssetDialog::updateAssetList()
     QStringList list;
     list << "";
 
-    // TODO: Need wallet bridge to query administrative assets
-    // std::vector<std::string> names;
-    // GetAllAdministrativeAssets(wallet, names, 0);
+    wallet::CWallet* pwallet = model ? model->wallet().wallet() : nullptr;
+    if (pwallet) {
+        LOCK(pwallet->cs_wallet);
+        wallet::CoinFilterParams params;
+        params.min_amount = 0;
+        wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+        for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+            if (IsAssetNameAnOwner(assetName)) {
+                std::string baseName = assetName;
+                baseName.pop_back(); // Remove '!' suffix
+                list << QString::fromStdString(baseName);
+            }
+        }
+    }
 
     stringModel->setStringList(list);
 }
@@ -1415,9 +1427,20 @@ void CreateAssetDialog::updateAssetListForRestrictedIssuance()
     QStringList list;
     list << "";
 
-    // TODO: Need wallet bridge to query administrative assets
-    // std::vector<std::string> names;
-    // GetAllAdministrativeAssets(wallet, names, 0);
+    wallet::CWallet* pwallet = model ? model->wallet().wallet() : nullptr;
+    if (pwallet) {
+        LOCK(pwallet->cs_wallet);
+        wallet::CoinFilterParams params;
+        params.min_amount = 0;
+        wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+        for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+            if (IsAssetNameAnOwner(assetName)) {
+                std::string baseName = assetName;
+                baseName.pop_back(); // Remove '!' suffix
+                list << QString::fromStdString(baseName);
+            }
+        }
+    }
 
     stringModel->setStringList(list);
 }
@@ -1427,9 +1450,19 @@ void CreateAssetDialog::updateAssetListForSubQualifierIssuance()
     QStringList list;
     list << "";
 
-    // TODO: Need wallet bridge to query qualifier assets
-    // std::vector<std::string> names;
-    // GetAllMyAssets(wallet, names, 0, false, false);
+    wallet::CWallet* pwallet = model ? model->wallet().wallet() : nullptr;
+    if (pwallet) {
+        LOCK(pwallet->cs_wallet);
+        wallet::CoinFilterParams params;
+        params.min_amount = 0;
+        wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+        for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+            // For sub-qualifier issuance, show qualifier assets (starting with '#')
+            if (!IsAssetNameAnOwner(assetName) && assetName.size() > 0 && assetName[0] == '#') {
+                list << QString::fromStdString(assetName);
+            }
+        }
+    }
 
     stringModel->setStringList(list);
 }

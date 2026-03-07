@@ -33,7 +33,10 @@ static const int SHORT_IDS_BLOCKS_VERSION = 70014;
 static const int INVALID_CB_NO_BAN_VERSION = 70015;
 
 //! "wtxidrelay" command for wtxid-based relay starts with this version
-static const int WTXID_RELAY_VERSION = 70016;
+//! Set above current PROTOCOL_VERSION (70034) because no existing Avian peer
+//! supports BIP339/BIP155/BIP330 pre-VERACK messages, and old Avian nodes
+//! penalize unknown messages received before VERACK.
+static const int WTXID_RELAY_VERSION = 70035;
 
 //! assetdata network request is allowed for this version
 static const int ASSETDATA_VERSION = 70017;

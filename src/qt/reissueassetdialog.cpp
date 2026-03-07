@@ -29,8 +29,10 @@
 #include <outputtype.h>
 #include <validation.h>
 #include <wallet/wallet.h>
+#include <wallet/spend.h>
 
 #include <wallet/coincontrol.h>
+#include <wallet/asset_tx.h>
 
 #include <QClipboard>
 #include <QCompleter>
@@ -938,15 +940,129 @@ void ReissueAssetDialog::onReissueAssetClicked()
 
     CReissueAsset reissueAsset(name.toStdString(), quantity, unit, reissuable ? 1 : 0, ipfsDecoded, ansDecoded);
 
-    // TODO: Asset reissue transaction creation requires wallet bridge
-    // The following functions need wallet access that isn't available via the Qt interfaces layer:
-    // - CreateReissueAssetTransaction()
-    // - SendAssetTransaction()
-    // - ContextualCheckReissueAsset()
-    QMessageBox::warning(this, tr("Not Available"),
-        tr("Asset reissue transactions are not yet available in this version. "
-           "The wallet bridge for asset transactions needs to be implemented."));
-    return;
+    CTransactionRef txRef;
+    std::pair<int, std::string> error;
+    CAmount nFeeRequired;
+
+    std::string verifier_string = "";
+    if (IsAssetNameAnRestricted(name.toStdString())) {
+        verifier_string = ui->lineEditVerifierString->text().toStdString();
+        std::string stripped = GetStrippedVerifierString(verifier_string);
+        verifier_string = stripped;
+    }
+
+    wallet::CWallet* pwallet = model->wallet().wallet();
+    if (!pwallet) {
+        showMessage(tr("Wallet not available."));
+        return;
+    }
+
+    // Create the transaction
+    {
+        LOCK(pwallet->cs_wallet);
+        if (!wallet::CreateReissueAssetTransaction(*pwallet, ctrl, reissueAsset, address.toStdString(), error, txRef, nFeeRequired, verifier_string.empty() ? nullptr : &verifier_string)) {
+            showMessage("Invalid: " + QString::fromStdString(error.second));
+            return;
+        }
+    }
+
+    std::string strError = "";
+    if (!ContextualCheckReissueAsset(passets, reissueAsset, strError, *txRef)) {
+        showMessage("Invalid: " + QString::fromStdString(strError));
+        return;
+    }
+
+    // Format confirmation message
+    QStringList formatted;
+
+    // generate bold amount string
+    QString burnAmt = "<b>" + QString::fromStdString(ValueFromAmountString(GetReissueAssetBurnAmount(), 8)) + " AVN";
+    burnAmt.append("</b>");
+    // generate monospace address string
+    QString addressburn = "<span style='font-family: monospace;'>" + QString::fromStdString(GetBurnAddress(AssetType::REISSUE));
+    addressburn.append("</span>");
+
+    QString recipientElement1;
+    recipientElement1 = tr("%1 to %2").arg(burnAmt, addressburn);
+    formatted.append(recipientElement1);
+
+    // generate the bold asset amount
+    QString assetAmount = "<b>" + QString::fromStdString(ValueFromAmountString(reissueAsset.nAmount, 8)) + " " + QString::fromStdString(reissueAsset.strName);
+    assetAmount.append("</b>");
+
+    // generate the monospace address string
+    QString assetAddress = "<span style='font-family: monospace;'>" + address;
+    assetAddress.append("</span>");
+
+    QString recipientElement2;
+    recipientElement2 = tr("%1 to %2").arg(assetAmount, assetAddress);
+    formatted.append(recipientElement2);
+
+    QString questionString = tr("Are you sure you want to send?");
+    questionString.append("<br /><br />%1");
+
+    if (nFeeRequired > 0) {
+        // append fee string if a fee is required
+        questionString.append("<hr /><span style='color:#aa0000;'>");
+        questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), nFeeRequired));
+        questionString.append("</span> ");
+        questionString.append(tr("added as transaction fee"));
+    }
+
+    // add total amount in all subdivision units
+    questionString.append("<hr />");
+    CAmount totalAmount = GetReissueAssetBurnAmount() + nFeeRequired;
+    QStringList alternativeUnits;
+    for (const BitcoinUnit& u : BitcoinUnits::availableUnits()) {
+        if (u != model->getOptionsModel()->getDisplayUnit())
+            alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
+    }
+    questionString.append(tr("Total Amount %1")
+            .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
+    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
+            .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
+
+    SendConfirmationDialog confirmationDialog(tr("Confirm reissue assets"),
+        questionString.arg(formatted.join("<br />")), "", "", SEND_CONFIRM_DELAY, true, true, this);
+    confirmationDialog.exec();
+    QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
+
+    if (retval != QMessageBox::Yes) {
+        return;
+    }
+
+    // Create the transaction and broadcast it
+    std::string txid;
+    {
+        LOCK(pwallet->cs_wallet);
+        if (!wallet::SendAssetTransaction(*pwallet, txRef, error, txid)) {
+            showMessage("Invalid: " + QString::fromStdString(error.second));
+        } else {
+            QMessageBox msgBox;
+            QPushButton* copyButton = msgBox.addButton(tr("Copy"), QMessageBox::ActionRole);
+            copyButton->disconnect();
+            connect(copyButton, &QPushButton::clicked, this, [=]() {
+                QClipboard* p_Clipboard = QApplication::clipboard();
+                p_Clipboard->setText(QString::fromStdString(txid), QClipboard::Mode::Clipboard);
+
+                QMessageBox copiedBox;
+                copiedBox.setText(tr("Transaction ID Copied"));
+                copiedBox.exec();
+            });
+
+            QPushButton* okayButton = msgBox.addButton(QMessageBox::Ok);
+            msgBox.setText(tr("Asset transaction sent to network:"));
+            msgBox.setInformativeText(QString::fromStdString(txid));
+            msgBox.exec();
+
+            if (msgBox.clickedButton() == okayButton) {
+                clear();
+
+                s_coinControl.UnSelectAll();
+                coinControlUpdateLabels();
+            }
+        }
+    }
 }
 
 void ReissueAssetDialog::onReissueBoxChanged()
@@ -1247,18 +1363,26 @@ void ReissueAssetDialog::updateAssetsListAsync()
     ui->comboBox->setCurrentIndex(0);
 
     // Run asset loading in background thread to avoid blocking UI
-    // TODO: Need wallet bridge to query administrative assets
     QtConcurrent::run([this]() {
         try {
-            // TODO: GetAllAdministrativeAssets() requires CWallet* which isn't available via Qt interfaces layer
-            // std::vector<std::string> assets;
-            // GetAllAdministrativeAssets(wallet, assets, 0);
-
             QStringList list;
             list << "";
 
-            // TODO: Load reissuable assets once wallet bridge is available
-            // for (auto item : assets) { ... }
+            wallet::CWallet* pwallet = model ? model->wallet().wallet() : nullptr;
+            if (pwallet) {
+                LOCK(pwallet->cs_wallet);
+                wallet::CoinFilterParams params;
+                params.min_amount = 0;
+                wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+                for (const auto& [assetName, assetOutputs] : available.mapAssetCoins) {
+                    // Only show assets for which we have the owner token (admin rights)
+                    if (IsAssetNameAnOwner(assetName)) {
+                        std::string baseName = assetName;
+                        baseName.pop_back(); // Remove '!' suffix
+                        list << QString::fromStdString(baseName);
+                    }
+                }
+            }
 
             // Update UI on main thread
             QMetaObject::invokeMethod(this, [this, list]() { onAssetsListLoaded(list); }, Qt::QueuedConnection);
