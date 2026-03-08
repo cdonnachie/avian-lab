@@ -49,7 +49,7 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_4">
             <item>
-             <widget class="QLabel" name="label_5">
+             <widget class="QLabel" name="avnBalancesLabel">
               <property name="font">
                <font>
                 <weight>75</weight>
@@ -57,7 +57,7 @@
                </font>
               </property>
               <property name="text">
-               <string>Balances</string>
+               <string>AVN Balances</string>
               </property>
              </widget>
             </item>
@@ -269,7 +269,7 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QLabel" name="label_4">
+             <widget class="QLabel" name="recentTransactionsLabel">
               <property name="font">
                <font>
                 <weight>75</weight>

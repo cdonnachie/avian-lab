@@ -150,8 +150,24 @@
     </qresource>
     <qresource prefix="/fonts">
         <file alias="monospace">res/fonts/RobotoMono-Bold.ttf</file>
-        <file alias="konnect-regular">res/fonts/KonnectRegular.otf</file>
+        <file alias="konnect-black">res/fonts/KonnectBlack.otf</file>
+        <file alias="konnect-black-italic">res/fonts/KonnectBlackItalic.otf</file>
         <file alias="konnect-bold">res/fonts/KonnectBold.otf</file>
+        <file alias="konnect-bold-italic">res/fonts/KonnectBoldItalic.otf</file>
+        <file alias="konnect-extrabold">res/fonts/KonnectExtraBold.otf</file>
+        <file alias="konnect-extrabold-italic">res/fonts/KonnectExtraBoldItalic.otf</file>
+        <file alias="konnect-hairline">res/fonts/KonnectHairline.otf</file>
+        <file alias="konnect-hairline-italic">res/fonts/KonnectHairlineItalic.otf</file>
+        <file alias="konnect-italic">res/fonts/KonnectItalic.otf</file>
+        <file alias="konnect-light">res/fonts/KonnectLight.otf</file>
+        <file alias="konnect-light-italic">res/fonts/KonnectLightItalic.otf</file>
+        <file alias="konnect-medium">res/fonts/KonnectMedium.otf</file>
+        <file alias="konnect-medium-italic">res/fonts/KonnectMediumItalic.otf</file>
+        <file alias="konnect-regular">res/fonts/KonnectRegular.otf</file>
+        <file alias="konnect-semibold">res/fonts/KonnectSemiBold.otf</file>
+        <file alias="konnect-semibold-italic">res/fonts/KonnectSemiBoldItalic.otf</file>
+        <file alias="konnect-thin">res/fonts/KonnectThin.otf</file>
+        <file alias="konnect-thin-italic">res/fonts/KonnectThinItalic.otf</file>
         <file alias="manrope-bold">res/fonts/Manrope-Bold.ttf</file>
         <file alias="manrope-extrabold">res/fonts/Manrope-ExtraBold.ttf</file>
         <file alias="manrope-extralight">res/fonts/Manrope-ExtraLight.ttf</file>

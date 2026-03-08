@@ -216,7 +216,7 @@ public:
         // Asset name font
         QFont nameFont;
 #if !defined(Q_OS_MAC)
-        nameFont.setFamily("Manrope");
+        nameFont.setFamily("Konnect");
 #endif
         nameFont.setPixelSize(18);
         nameFont.setWeight(QFont::Weight::Normal);
@@ -224,7 +224,7 @@ public:
         // Asset amount font
         QFont amountFont;
 #if !defined(Q_OS_MAC)
-        amountFont.setFamily("Manrope");
+        amountFont.setFamily("Konnect");
 #endif
         amountFont.setPixelSize(14);
         amountFont.setWeight(QFont::Weight::Normal);

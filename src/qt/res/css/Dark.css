@@ -17,7 +17,7 @@ QDialog {
 QFrame {
   background-color: #2e2e2e;
   border: 0px;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QDialog,
@@ -25,13 +25,13 @@ QMainWindow,
 QMessageBox,
 WalletFrame {
   background-color: #2e2e2e;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QWidget {
   selection-color: #f4f4f4;
   selection-background-color: #3d3939;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
   background-color: #2e2e2e;
   color: #ccc;
 }
@@ -39,13 +39,13 @@ QWidget {
 QLabel,
 QListView {
   color: #f4f4f4;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QLabel:disabled,
 QListView:disabled {
   color: #878787;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 BitcoinAmountField,
@@ -60,7 +60,7 @@ QLineEdit {
   background-color: #777;
   border-color: #2b737f;
   color: #f4f4f4;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 BitcoinAmountField:hover:!focus,
@@ -263,7 +263,7 @@ QCalendarWidget QToolButton::menu-indicator {
 
 QCalendarWidget QWidget {
   alternate-background-color: #2b737f;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QCalendarWidget QAbstractItemView:enabled {
@@ -332,7 +332,7 @@ QCheckBox::indicator:indeterminate:disabled {
 }
 
 QCheckBox > .QLabel {
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 /* QComboBox */
@@ -409,21 +409,21 @@ QGroupBox {
   background-color: #2e2e2e;
   color: #f4f4f4;
   padding-top: 20px;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QGroupBox:title {
   background-color: #2e2e2e;
   margin-top: 5px;
   margin-left: 7px;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 /* QHeaderView */
 
 QHeaderView {
   background-color: #2b737f;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QHeaderView::section > .QLabel {
@@ -442,7 +442,7 @@ QHeaderView::section {
   background-color: #2b737f;
   border-color: #2b737f;
   color: #f4f4f4;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QHeaderView::section:last {
@@ -470,7 +470,7 @@ QHeaderView::up-arrow {
 QHeaderView::section:hover {
   background-color: #18a7b7;
   color: #f4f4f4;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 /* QProgressBar */
@@ -518,7 +518,7 @@ QPushButton {
   padding-right: 12px;
   padding-top: 1px;
   padding-bottom: 1px;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QPushButton:hover {
@@ -561,7 +561,7 @@ QPushButton > .QLabel {
   border-radius: 0px;
   background-color: transparent;
   color: #ffffff;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 #tabInfo:hover:checked,
@@ -578,7 +578,7 @@ QPushButton > .QLabel {
   border: none;
   background-color: transparent;
   color: #cfcccc;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 #tabInfo:hover:!checked,
@@ -595,7 +595,7 @@ QPushButton > .QLabel {
   border: none;
   background-color: transparent;
   color: #cfcccc;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 #tabInfo:checked,
@@ -612,7 +612,7 @@ QPushButton > .QLabel {
   border: none;
   background-color: transparent;
   color: #cfcccc;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 #tabShowInfo:hover:pressed,
@@ -628,7 +628,7 @@ QPushButton > .QLabel {
 #tabVerifyMessage:hover:pressed {
   border: none;
   background-color: #18a7b7;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 /* QRadioButton */
@@ -636,7 +636,7 @@ QPushButton > .QLabel {
 QRadioButton {
   color: #f4f4f4;
   background-color: #2e2e2e;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QRadioButton > .QLabel {
@@ -840,7 +840,7 @@ QStatusBar {
 
 QStatusBar QLabel {
   margin-right: 5px;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QStatusBar #lblStatusBarProgress {
@@ -906,7 +906,7 @@ QTableView::item {
   background-color: #2e2e2e;
   border-color: #2b737f;
   color: #f4f4f4;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QTableView::item:alternate {
@@ -916,7 +916,7 @@ QTableView::item:alternate {
 QTableView::item:selected {
   background-color: #18a7b7;
   color: #ffffff;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 /* QTableWidget */
@@ -992,14 +992,14 @@ QToolBar {
   padding: 1px;
   font-weight: bold;
   spacing: 2px;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QToolBar > QToolButton {
   border: none;
-  min-height: 2em;
-  min-width: 2em;
-  padding: 1px;
+  min-height: 3em;
+  min-width: 3em;
+  padding: 4px;
   text-align: center;
 }
 
@@ -1041,7 +1041,7 @@ QToolTip {
   background-color: #f4f4f4;
   border-color: #2b737f;
   color: #3d3939;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 /* QTreeWidget */
@@ -1052,7 +1052,7 @@ QTreeWidget {
   background-color: #2e2e2e;
   border-color: #2b737f;
   color: #f4f4f4;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QTreeWidget::branch::closed:has-children {
@@ -1380,7 +1380,7 @@ QDialog#OptionsDialog QLabel#overriddenByCommandLineInfoLabel {
 /* OverviewPage */
 
 QWidget#OverviewPage > .QLabel {
-  font: 13pt "Manrope";
+  font: 13pt "Konnect";
 }
 
 QWidget#OverviewPage #line,
@@ -1425,6 +1425,7 @@ QWidget .QFrame#frame .QLabel#labelBalance {
   qproperty-alignment: "AlignVCenter | AlignLeft";
   margin-bottom: -1px;
   margin-left: 0px;
+  font-family: "Roboto Mono";
 }
 
 QWidget .QFrame#frame .QLabel#avnBalancesLabel {
@@ -1432,7 +1433,7 @@ QWidget .QFrame#frame .QLabel#avnBalancesLabel {
   margin-bottom: -1px;
   margin-left: 0px;
   color: #2b737f;
-  font: 15pt "Manrope";
+  font: 15pt "Konnect";
   font-weight: bold;
 }
 
@@ -1454,6 +1455,7 @@ QWidget .QFrame#frame .QLabel#labelUnconfirmed {
   qproperty-alignment: "AlignVCenter | AlignLeft";
   margin-bottom: -2px;
   margin-left: 0px;
+  font-family: "Roboto Mono";
 }
 
 QWidget .QFrame#frame .QLabel#labelWatchPending {
@@ -1473,6 +1475,7 @@ QWidget .QFrame#frame .QLabel#labelImmature {
   qproperty-alignment: "AlignVCenter | AlignLeft";
   margin-bottom: -2px;
   margin-left: 0px;
+  font-family: "Roboto Mono";
 }
 
 QWidget .QFrame#frame .QLabel#labelWatchImmature {
@@ -1492,6 +1495,7 @@ QWidget .QFrame#frame .QLabel#labelTotal {
   qproperty-alignment: "AlignVCenter | AlignLeft";
   margin-bottom: -2px;
   margin-left: 0px;
+  font-family: "Roboto Mono";
   font-weight: bold;
 }
 
@@ -1512,7 +1516,7 @@ QLabel#labelCurrentMarket,
 QLabel#labelCurrentPrice,
 QLabel#labelVersionUpdate,
 QLabel#labelBtcAVN {
-  font: 16pt "Manrope";
+  font: 16pt "Konnect";
 }
 
 /* Notification icons */
@@ -1529,7 +1533,7 @@ QWidget .QFrame#assetFrame .QLabel#assetBalanceLabel {
   margin-right: 0px;
   min-height: 30px;
   color: #2b737f;
-  font: 15pt "Manrope";
+  font: 15pt "Konnect";
   font-weight: bold;
 }
 
@@ -1552,7 +1556,7 @@ QWidget .QFrame#frame_2 .QLabel#recentTransactionsLabel {
   margin-right: 0px;
   min-height: 30px;
   color: #2b737f;
-  font: 15pt "Manrope";
+  font: 15pt "Konnect";
   font-weight: bold;
 }
 
@@ -1629,7 +1633,7 @@ QWidget#RPCConsole QToolButton#clearButton {
   color: #ffffff;
   padding-top: 1px;
   padding-bottom: 1px;
-  font: 12pt "Manrope";
+  font: 12pt "Konnect";
 }
 
 QWidget#RPCConsole QTextEdit#messagesWidget {
@@ -1710,6 +1714,7 @@ QDialog#SendCoinsDialog QLabel#fallbackFeeWarningLabel {
 
 QDialog#SendCoinsDialog QLabel#labelBalance {
   margin-right: 10px;
+  font-family: "Roboto Mono";
 }
 
 QDialog#SendCoinsDialog QPushButton#sendButton {
@@ -1816,6 +1821,7 @@ QDialog#CreateAssetDialog QLabel#fallbackFeeWarningLabel {
 
 QDialog#CreateAssetDialog QLabel#labelBalance {
   margin-right: 10px;
+  font-family: "Roboto Mono";
 }
 
 QDialog#CreateAssetDialog QPushButton#createAssetButton {
@@ -1893,6 +1899,7 @@ QDialog#AssetsDialog QLabel#fallbackFeeWarningLabel {
 
 QDialog#AssetsDialog QLabel#labelBalance {
   margin-right: 10px;
+  font-family: "Roboto Mono";
 }
 
 QDialog#AssetsDialog QPushButton#sendButton {
@@ -1909,6 +1916,41 @@ QDialog#AssetsDialog QPushButton#clearButton:hover,
 QDialog#AssetsDialog QPushButton#addButton:hover {
   background-color: #3d3939;
   color: #ffffff;
+}
+
+/* ReissueAssetDialog */
+
+QDialog#ReissueAssetDialog QLabel#label,
+QDialog#ReissueAssetDialog QLabel#labelBalance {
+  qproperty-alignment: "AlignLeading | AlignLeft";
+  min-height: 20px;
+  max-height: 20px;
+}
+
+QDialog#ReissueAssetDialog QLabel#labelBalance {
+  margin-right: 10px;
+  font-family: "Roboto Mono";
+}
+
+QDialog#ReissueAssetDialog QLabel#labelFeeHeadline,
+QDialog#ReissueAssetDialog QLabel#fallbackFeeWarningLabel {
+  qproperty-alignment: "AlignVCenter";
+  height: 28px;
+  font-weight: bold;
+}
+
+/* RestrictedAssetsDialog */
+
+QDialog#RestrictedAssetsDialog QLabel#label,
+QDialog#RestrictedAssetsDialog QLabel#labelBalance {
+  qproperty-alignment: "AlignLeading | AlignLeft";
+  min-height: 20px;
+  max-height: 20px;
+}
+
+QDialog#RestrictedAssetsDialog QLabel#labelBalance {
+  margin-right: 10px;
+  font-family: "Roboto Mono";
 }
 
 /*

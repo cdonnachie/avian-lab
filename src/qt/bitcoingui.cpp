@@ -105,7 +105,7 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     // Load bundled fonts and set application font
     loadFonts();
 #if !defined(Q_OS_MAC)
-    this->setFont(QFont("Manrope"));
+    this->setFont(QFont("Konnect"));
 #endif
 
     setContextMenuPolicy(Qt::PreventContextMenu);
@@ -274,8 +274,24 @@ BitcoinGUI::~BitcoinGUI()
 
 void BitcoinGUI::loadFonts()
 {
+    QFontDatabase::addApplicationFont(":/fonts/konnect-black");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-black-italic");
     QFontDatabase::addApplicationFont(":/fonts/konnect-bold");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-bold-italic");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-extrabold");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-extrabold-italic");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-hairline");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-hairline-italic");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-italic");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-light");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-light-italic");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-medium");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-medium-italic");
     QFontDatabase::addApplicationFont(":/fonts/konnect-regular");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-semibold");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-semibold-italic");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-thin");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-thin-italic");
     QFontDatabase::addApplicationFont(":/fonts/manrope-bold");
     QFontDatabase::addApplicationFont(":/fonts/manrope-extrabold");
     QFontDatabase::addApplicationFont(":/fonts/manrope-extralight");
@@ -293,7 +309,7 @@ void BitcoinGUI::createActions()
     QFont navFont;
     navFont.setPixelSize(14);
 #if !defined(Q_OS_MAC)
-    navFont.setFamily("Manrope");
+    navFont.setFamily("Konnect");
 #endif
     navFont.setWeight(QFont::ExtraLight);
 
