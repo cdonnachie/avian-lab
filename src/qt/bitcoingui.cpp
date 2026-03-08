@@ -50,6 +50,8 @@
 #include <QCursor>
 #include <QDateTime>
 #include <QDragEnterEvent>
+#include <QFontDatabase>
+#include <QGraphicsDropShadowEffect>
 #include <QInputDialog>
 #include <QKeySequence>
 #include <QListWidget>
@@ -92,11 +94,18 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     QSettings settings;
     if (!restoreGeometry(settings.value("MainWindowGeometry").toByteArray())) {
         // Restore failed (perhaps missing setting), center the window
+        resize(850, 550);
         move(QGuiApplication::primaryScreen()->availableGeometry().center() - frameGeometry().center());
     }
 
     // Load dark/light theme stylesheet
     GUIUtil::loadTheme(settings.value("fDarkModeEnabled", false).toBool());
+
+    // Load bundled fonts and set application font
+    loadFonts();
+#if !defined(Q_OS_MAC)
+    this->setFont(QFont("Manrope"));
+#endif
 
     setContextMenuPolicy(Qt::PreventContextMenu);
 
@@ -112,14 +121,13 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
 #ifdef ENABLE_WALLET
     if(enableWallet)
     {
-        /** Create wallet frame and make it the central widget */
+        /** Create wallet frame — central widget is set up in createToolBars() */
         walletFrame = new WalletFrame(_platformStyle, this);
         connect(walletFrame, &WalletFrame::createWalletButtonClicked, this, &BitcoinGUI::createWallet);
         connect(walletFrame, &WalletFrame::message, [this](const QString& title, const QString& message, unsigned int style) {
             this->message(title, message, style);
         });
         connect(walletFrame, &WalletFrame::currentWalletSet, [this] { updateWalletStatus(); });
-        setCentralWidget(walletFrame);
     } else
 #endif // ENABLE_WALLET
     {
@@ -130,35 +138,15 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
         Q_EMIT consoleShown(rpcConsole);
     }
 
-    modalOverlay = new ModalOverlay(enableWallet, this->centralWidget());
-
     // Accept D&D of URIs
     setAcceptDrops(true);
 
-    // Create actions for the toolbar, menu bar and tray/dock icon
-    // Needs walletFrame to be initialized
-    createActions();
-
-    // Create application menu bar
-    createMenuBar();
-
-    // Create the toolbars
-    createToolBars();
-
-    // Create system tray icon and notification
-    if (QSystemTrayIcon::isSystemTrayAvailable()) {
-        createTrayIcon();
-    }
-    notificator = new Notificator(QApplication::applicationName(), trayIcon, this);
-
     // Create status bar
     statusBar();
-
-    // Disable size grip because it looks ugly and nobody needs it
     statusBar()->setSizeGripEnabled(false);
 
     // Status bar notification icons
-    QFrame *frameBlocks = new QFrame();
+    frameBlocks = new QFrame();
     frameBlocks->setContentsMargins(0,0,0,0);
     frameBlocks->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
     QHBoxLayout *frameBlocksLayout = new QHBoxLayout(frameBlocks);
@@ -187,6 +175,29 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     frameBlocksLayout->addWidget(labelBlocksIcon);
     frameBlocksLayout->addStretch();
 
+    // Create modal overlay early — needed by createActions() for signal connection.
+    // Will be re-parented to the final central widget after createToolBars().
+    modalOverlay = new ModalOverlay(enableWallet, this);
+
+    // Create actions for the toolbar, menu bar and tray/dock icon
+    // Needs walletFrame to be initialized
+    createActions();
+
+    // Create application menu bar
+    createMenuBar();
+
+    // Create the toolbars (also sets up the sidebar and central widget)
+    createToolBars();
+
+    // Re-parent modal overlay to the final central widget
+    modalOverlay->setParent(this->centralWidget());
+
+    // Create system tray icon and notification
+    if (QSystemTrayIcon::isSystemTrayAvailable()) {
+        createTrayIcon();
+    }
+    notificator = new Notificator(QApplication::applicationName(), trayIcon, this);
+
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
     progressBarLabel->setVisible(false);
@@ -205,6 +216,19 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
 
     statusBar()->addWidget(progressBarLabel);
     statusBar()->addWidget(progressBar);
+#ifdef ENABLE_WALLET
+    // Wallet selector in status bar
+    m_wallet_selector_label = new QLabel();
+    m_wallet_selector_label->setText(tr("Wallet:") + " ");
+    m_wallet_selector = new QComboBox();
+    m_wallet_selector->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    connect(m_wallet_selector, qOverload<int>(&QComboBox::currentIndexChanged), this, &BitcoinGUI::setCurrentWalletBySelectorIndex);
+    m_wallet_selector_label->setBuddy(m_wallet_selector);
+    m_wallet_selector_label->setVisible(false);
+    m_wallet_selector->setVisible(false);
+    statusBar()->addPermanentWidget(m_wallet_selector_label);
+    statusBar()->addPermanentWidget(m_wallet_selector);
+#endif
     statusBar()->addPermanentWidget(frameBlocks);
 
     // Install event filter to be able to catch status tip events (QEvent::StatusTip)
@@ -247,66 +271,94 @@ BitcoinGUI::~BitcoinGUI()
     delete rpcConsole;
 }
 
+void BitcoinGUI::loadFonts()
+{
+    QFontDatabase::addApplicationFont(":/fonts/konnect-bold");
+    QFontDatabase::addApplicationFont(":/fonts/konnect-regular");
+    QFontDatabase::addApplicationFont(":/fonts/manrope-bold");
+    QFontDatabase::addApplicationFont(":/fonts/manrope-extrabold");
+    QFontDatabase::addApplicationFont(":/fonts/manrope-extralight");
+    QFontDatabase::addApplicationFont(":/fonts/manrope-light");
+    QFontDatabase::addApplicationFont(":/fonts/manrope-medium");
+    QFontDatabase::addApplicationFont(":/fonts/manrope-regular");
+    QFontDatabase::addApplicationFont(":/fonts/manrope-semibold");
+}
+
 void BitcoinGUI::createActions()
 {
     QActionGroup *tabGroup = new QActionGroup(this);
     connect(modalOverlay, &ModalOverlay::triggered, tabGroup, &QActionGroup::setEnabled);
 
-    overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
+    QFont navFont;
+    navFont.setPixelSize(14);
+#if !defined(Q_OS_MAC)
+    navFont.setFamily("Manrope");
+#endif
+    navFont.setWeight(QFont::ExtraLight);
+
+    overviewAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/overview_selected", ":/icons/overview"), tr("&Overview"), this);
     overviewAction->setStatusTip(tr("Show general overview of wallet"));
     overviewAction->setToolTip(overviewAction->statusTip());
     overviewAction->setCheckable(true);
     overviewAction->setShortcut(QKeySequence(QStringLiteral("Alt+1")));
+    overviewAction->setFont(navFont);
     tabGroup->addAction(overviewAction);
 
-    sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
+    sendCoinsAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/send_selected", ":/icons/send"), tr("&Send"), this);
     sendCoinsAction->setStatusTip(tr("Send coins to an Avian address"));
     sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
     sendCoinsAction->setCheckable(true);
     sendCoinsAction->setShortcut(QKeySequence(QStringLiteral("Alt+2")));
+    sendCoinsAction->setFont(navFont);
     tabGroup->addAction(sendCoinsAction);
 
-    receiveCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/receiving_addresses"), tr("&Receive"), this);
+    receiveCoinsAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/receiving_addresses_selected", ":/icons/receiving_addresses"), tr("&Receive"), this);
     receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and avian: URIs)"));
     receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
     receiveCoinsAction->setCheckable(true);
     receiveCoinsAction->setShortcut(QKeySequence(QStringLiteral("Alt+3")));
+    receiveCoinsAction->setFont(navFont);
     tabGroup->addAction(receiveCoinsAction);
 
-    historyAction = new QAction(platformStyle->SingleColorIcon(":/icons/history"), tr("&Transactions"), this);
+    historyAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/history_selected", ":/icons/history"), tr("&Transactions"), this);
     historyAction->setStatusTip(tr("Browse transaction history"));
     historyAction->setToolTip(historyAction->statusTip());
     historyAction->setCheckable(true);
     historyAction->setShortcut(QKeySequence(QStringLiteral("Alt+4")));
+    historyAction->setFont(navFont);
     tabGroup->addAction(historyAction);
 
     /** AVN START */
-    transferAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_transfer"), tr("&Transfer Assets"), this);
+    transferAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_transfer_selected", ":/icons/asset_transfer"), tr("&Transfer Assets"), this);
     transferAssetAction->setStatusTip(tr("Transfer assets to Avian addresses"));
     transferAssetAction->setToolTip(transferAssetAction->statusTip());
     transferAssetAction->setCheckable(true);
     transferAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+5")));
+    transferAssetAction->setFont(navFont);
     tabGroup->addAction(transferAssetAction);
 
-    createAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_create"), tr("&Create Assets"), this);
+    createAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_create_selected", ":/icons/asset_create"), tr("&Create Assets"), this);
     createAssetAction->setStatusTip(tr("Create new assets"));
     createAssetAction->setToolTip(createAssetAction->statusTip());
     createAssetAction->setCheckable(true);
     createAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+6")));
+    createAssetAction->setFont(navFont);
     tabGroup->addAction(createAssetAction);
 
-    manageAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_manage"), tr("&Manage Assets"), this);
+    manageAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_manage_selected", ":/icons/asset_manage"), tr("&Manage Assets"), this);
     manageAssetAction->setStatusTip(tr("Manage existing assets"));
     manageAssetAction->setToolTip(manageAssetAction->statusTip());
     manageAssetAction->setCheckable(true);
     manageAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+7")));
+    manageAssetAction->setFont(navFont);
     tabGroup->addAction(manageAssetAction);
 
-    restrictedAssetAction = new QAction(platformStyle->SingleColorIcon(":/icons/asset_manage"), tr("&Restricted Assets"), this);
+    restrictedAssetAction = new QAction(platformStyle->SingleColorIconOnOff(":/icons/asset_edit_selected", ":/icons/asset_edit"), tr("&Restricted Assets"), this);
     restrictedAssetAction->setStatusTip(tr("Manage restricted assets"));
     restrictedAssetAction->setToolTip(restrictedAssetAction->statusTip());
     restrictedAssetAction->setCheckable(true);
     restrictedAssetAction->setShortcut(QKeySequence(QStringLiteral("Alt+8")));
+    restrictedAssetAction->setFont(navFont);
     tabGroup->addAction(restrictedAssetAction);
     /** AVN END */
 
@@ -653,41 +705,99 @@ void BitcoinGUI::createToolBars()
 {
     if(walletFrame)
     {
-        QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
+        /** AVN START — Vertical sidebar navigation */
+        // Create the sidebar background widget with gradient
+        QWidget* toolbarWidget = new QWidget();
+        QString widgetStyleSheet = ".QWidget {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 %1, stop: 1 %2);}";
+        toolbarWidget->setStyleSheet(widgetStyleSheet.arg(
+            platformStyle->LightBlueColor().name(),
+            platformStyle->DarkBlueColor().name()));
+
+        // Avian logo at top of sidebar
+        QLabel* label = new QLabel();
+        QImage avian(":/icons/avianlogo");
+        QImage avianScaled = avian.scaled(70, 70, Qt::KeepAspectRatio);
+        label->setPixmap(QPixmap::fromImage(avianScaled));
+        label->setContentsMargins(0, 0, 0, 0);
+        label->setStyleSheet(".QLabel{background-color: transparent;}");
+
+        // Create vertical toolbar
+        QToolBar* toolbar = new QToolBar();
         appToolBar = toolbar;
+        toolbar->setStyle(style());
+        toolbar->setMinimumWidth(label->width());
+        toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
         toolbar->setMovable(false);
-        toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
-        /** AVN START */
         toolbar->addAction(createAssetAction);
         toolbar->addAction(transferAssetAction);
         toolbar->addAction(manageAssetAction);
         toolbar->addAction(restrictedAssetAction);
-        /** AVN END */
+
+        // Style toolbar buttons: transparent bg, colored text states
+        QString tbStyleSheet = ".QToolBar {background-color: transparent; border-color: transparent;} "
+                               ".QToolButton {background-color: transparent; border-color: transparent; color: %1; border: none;} "
+                               ".QToolButton:checked {background: none; background-color: none; selection-background-color: none; color: %2; border: none;} "
+                               ".QToolButton:hover {background: none; background-color: none; border: none; color: %3;} "
+                               ".QToolButton:disabled {color: gray;}";
+        toolbar->setStyleSheet(tbStyleSheet.arg(
+            platformStyle->ToolBarNotSelectedTextColor().name(),
+            platformStyle->ToolBarSelectedTextColor().name(),
+            platformStyle->DarkOrangeColor().name()));
+
+        toolbar->setOrientation(Qt::Vertical);
+        toolbar->setIconSize(QSize(65, 65));
+
+        // Align toolbar items left
+        QLayout* lay = toolbar->layout();
+        for (int i = 0; i < lay->count(); ++i)
+            lay->itemAt(i)->setAlignment(Qt::AlignLeft);
+
         overviewAction->setChecked(true);
 
-#ifdef ENABLE_WALLET
-        QWidget *spacer = new QWidget();
-        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        toolbar->addWidget(spacer);
+        // Sidebar layout: logo + spacer + toolbar + spacer
+        QSpacerItem* topSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
+        QSpacerItem* bottomSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
-        m_wallet_selector = new QComboBox();
-        m_wallet_selector->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-        connect(m_wallet_selector, qOverload<int>(&QComboBox::currentIndexChanged), this, &BitcoinGUI::setCurrentWalletBySelectorIndex);
+        QVBoxLayout* sidebarLayout = new QVBoxLayout(toolbarWidget);
+        sidebarLayout->addWidget(label);
+        sidebarLayout->addItem(topSpacer);
+        sidebarLayout->addWidget(toolbar);
+        sidebarLayout->addItem(bottomSpacer);
+        sidebarLayout->setDirection(QBoxLayout::TopToBottom);
 
-        m_wallet_selector_label = new QLabel();
-        m_wallet_selector_label->setText(tr("Wallet:") + " ");
-        m_wallet_selector_label->setBuddy(m_wallet_selector);
+        // Create main content widget (right side)
+        QWidget* mainWalletWidget = new QWidget();
 
-        m_wallet_selector_label_action = appToolBar->addWidget(m_wallet_selector_label);
-        m_wallet_selector_action = appToolBar->addWidget(m_wallet_selector);
+        // Shadow effect on content area casting onto the sidebar
+        QGraphicsDropShadowEffect* walletFrameShadow = new QGraphicsDropShadowEffect;
+        walletFrameShadow->setBlurRadius(5);
+        walletFrameShadow->setColor(COLOR_WALLETFRAME_SHADOW);
+        walletFrameShadow->setXOffset(-1.0);
+        walletFrameShadow->setYOffset(0);
+        mainWalletWidget->setGraphicsEffect(walletFrameShadow);
 
-        m_wallet_selector_label_action->setVisible(false);
-        m_wallet_selector_action->setVisible(false);
-#endif
+        // Layout for the main content area
+        QVBoxLayout* mainFrameLayout = new QVBoxLayout(mainWalletWidget);
+        mainFrameLayout->addWidget(walletFrame);
+        mainFrameLayout->setDirection(QBoxLayout::TopToBottom);
+        mainFrameLayout->setContentsMargins(QMargins());
+
+        // Container: sidebar (left) + content (right)
+        QVBoxLayout* layout = new QVBoxLayout();
+        layout->addWidget(toolbarWidget);
+        layout->addWidget(mainWalletWidget);
+        layout->setSpacing(0);
+        layout->setContentsMargins(QMargins());
+        layout->setDirection(QBoxLayout::LeftToRight);
+        QWidget* containerWidget = new QWidget();
+        containerWidget->setLayout(layout);
+        setCentralWidget(containerWidget);
+        /** AVN END */
     }
 }
 
@@ -813,8 +923,8 @@ void BitcoinGUI::addWallet(WalletModel* walletModel)
     if (m_wallet_selector->count() == 0) {
         setWalletActionsEnabled(true);
     } else if (m_wallet_selector->count() == 1) {
-        m_wallet_selector_label_action->setVisible(true);
-        m_wallet_selector_action->setVisible(true);
+        m_wallet_selector_label->setVisible(true);
+        m_wallet_selector->setVisible(true);
     }
 
     connect(wallet_view, &WalletView::outOfSyncWarningClicked, this, &BitcoinGUI::showModalOverlay);
@@ -847,8 +957,8 @@ void BitcoinGUI::removeWallet(WalletModel* walletModel)
         setWalletActionsEnabled(false);
         overviewAction->setChecked(true);
     } else if (m_wallet_selector->count() == 1) {
-        m_wallet_selector_label_action->setVisible(false);
-        m_wallet_selector_action->setVisible(false);
+        m_wallet_selector_label->setVisible(false);
+        m_wallet_selector->setVisible(false);
     }
     rpcConsole->removeWallet(walletModel);
     walletFrame->removeWallet(walletModel);
@@ -901,11 +1011,11 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     m_close_wallet_action->setEnabled(enabled);
     m_close_all_wallets_action->setEnabled(enabled);
 
-    /** AVN START - asset actions start disabled, enabled by checkAssets() */
-    transferAssetAction->setEnabled(false);
-    createAssetAction->setEnabled(false);
-    manageAssetAction->setEnabled(false);
-    restrictedAssetAction->setEnabled(false);
+    /** AVN START - asset actions follow enabled state */
+    transferAssetAction->setEnabled(enabled);
+    createAssetAction->setEnabled(enabled);
+    manageAssetAction->setEnabled(enabled);
+    restrictedAssetAction->setEnabled(enabled);
     /** AVN END */
 }
 
@@ -1405,10 +1515,10 @@ void BitcoinGUI::message(const QString& title, QString message, unsigned int sty
 void BitcoinGUI::changeEvent(QEvent *e)
 {
     if (e->type() == QEvent::PaletteChange) {
-        overviewAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/overview")));
-        sendCoinsAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/send")));
-        receiveCoinsAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/receiving_addresses")));
-        historyAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/history")));
+        overviewAction->setIcon(platformStyle->SingleColorIconOnOff(QStringLiteral(":/icons/overview_selected"), QStringLiteral(":/icons/overview")));
+        sendCoinsAction->setIcon(platformStyle->SingleColorIconOnOff(QStringLiteral(":/icons/send_selected"), QStringLiteral(":/icons/send")));
+        receiveCoinsAction->setIcon(platformStyle->SingleColorIconOnOff(QStringLiteral(":/icons/receiving_addresses_selected"), QStringLiteral(":/icons/receiving_addresses")));
+        historyAction->setIcon(platformStyle->SingleColorIconOnOff(QStringLiteral(":/icons/history_selected"), QStringLiteral(":/icons/history")));
     }
 
     QMainWindow::changeEvent(e);

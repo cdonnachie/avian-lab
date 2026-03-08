@@ -37,6 +37,11 @@ public:
     /** Set whether to show conflicted transactions. */
     void setShowInactive(bool showInactive);
 
+    /** Set maximum number of rows returned, -1 if unlimited. */
+    void setLimit(int limit);
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const override;
 
@@ -47,6 +52,7 @@ private:
     quint32 typeFilter;
     CAmount minAmount{0};
     bool showInactive{true};
+    int limitRows{-1};
 };
 
 #endif // BITCOIN_QT_TRANSACTIONFILTERPROXY_H

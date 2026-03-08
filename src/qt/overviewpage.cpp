@@ -32,6 +32,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
+#include <QPainterPath>
 #include <QStatusTipEvent>
 #include <QTimer>
 #include <QUrl>
@@ -141,13 +142,134 @@ private:
     mutable std::map<int, int> m_minimum_width;
 };
 
+/** AVN START — Custom delegate for rendering asset rows as teal gradient cards */
+class AssetViewDelegate : public QAbstractItemDelegate
+{
+    Q_OBJECT
+public:
+    explicit AssetViewDelegate(const PlatformStyle* _platformStyle, QObject* parent = nullptr)
+        : QAbstractItemDelegate(parent), platformStyle(_platformStyle)
+    {
+    }
+
+    inline void paint(QPainter* painter, const QStyleOptionViewItem& option,
+                      const QModelIndex& index) const override
+    {
+        painter->save();
+
+        QPixmap pixmap = qvariant_cast<QPixmap>(index.data(Qt::DecorationRole));
+        QPixmap ipfspixmap = qvariant_cast<QPixmap>(index.data(AssetTableModel::AssetIPFSHashDecorationRole));
+        QPixmap anspixmap = qvariant_cast<QPixmap>(index.data(AssetTableModel::AssetANSDecorationRole));
+        bool admin = index.data(AssetTableModel::AdministratorRole).toBool();
+
+        int nIconSize = admin ? pixmap.height() : 0;
+        int nIPFSIconSize = ipfspixmap.height();
+        int nANSIconSize = anspixmap.height();
+        int extraNameSpacing = 12;
+        if (nIconSize) extraNameSpacing = 0;
+
+        QRect mainRect = option.rect;
+        int xspace = nIconSize + 32;
+        int ypad = 2;
+
+        // Gradient rect with insets
+        QRect gradientRect = mainRect;
+        gradientRect.setTop(gradientRect.top() + 2);
+        gradientRect.setBottom(gradientRect.bottom() - 2);
+        gradientRect.setRight(gradientRect.right() - 20);
+        int halfheight = (gradientRect.height() - 2 * ypad) / 2;
+
+        // Sub-rects for icon, name, amount
+        QRect assetAdministratorRect(QPoint(20, gradientRect.top() + halfheight / 2 - 3 * ypad),
+                                     QSize(nIconSize, nIconSize));
+        QRect assetNameRect(gradientRect.left() + xspace - extraNameSpacing,
+                            gradientRect.top() + ypad + (halfheight / 2),
+                            gradientRect.width() - xspace, halfheight + ypad);
+        QRect amountRect(gradientRect.left() + xspace,
+                         gradientRect.top() + ypad + (halfheight / 2),
+                         gradientRect.width() - xspace - 24, halfheight);
+        QRect ipfsLinkRect(QPoint(gradientRect.right() - nIconSize / 2,
+                                  gradientRect.top() + halfheight / 1.5),
+                           QSize(nIconSize / 2, nIconSize / 2));
+        QRect ansRect(QPoint(4, gradientRect.top() + halfheight / 1.5),
+                      QSize(nIconSize / 2, nIconSize / 2));
+
+        // Teal gradient background
+        QLinearGradient gradient(mainRect.topLeft(), mainRect.bottomRight());
+        gradient.setColorAt(0, COLOR_AVIAN_19827B);
+        gradient.setColorAt(1, COLOR_AVIAN_18A7B7);
+
+        QPainterPath path;
+        path.addRoundedRect(gradientRect, 4, 4);
+
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->fillPath(path, gradient);
+
+        // Draw icons
+        if (nIconSize)
+            painter->drawPixmap(assetAdministratorRect, pixmap);
+        if (nIPFSIconSize)
+            painter->drawPixmap(ipfsLinkRect, ipfspixmap);
+        if (nANSIconSize)
+            painter->drawPixmap(ansRect, anspixmap);
+
+        // Asset name font
+        QFont nameFont;
+#if !defined(Q_OS_MAC)
+        nameFont.setFamily("Manrope");
+#endif
+        nameFont.setPixelSize(18);
+        nameFont.setWeight(QFont::Weight::Normal);
+
+        // Asset amount font
+        QFont amountFont;
+#if !defined(Q_OS_MAC)
+        amountFont.setFamily("Manrope");
+#endif
+        amountFont.setPixelSize(14);
+        amountFont.setWeight(QFont::Weight::Normal);
+
+        // Get data
+        QString name = index.data(AssetTableModel::AssetNameRole).toString();
+        QString amountText = index.data(AssetTableModel::FormattedAmountRole).toString();
+
+        // White text
+        QColor textColor = COLOR_WHITE;
+        QPen penName(textColor);
+
+        // Truncate name if it would overlap amount
+        painter->setFont(amountFont);
+        int amount_width = painter->fontMetrics().horizontalAdvance(amountText);
+        painter->setFont(nameFont);
+        GUIUtil::concatenate(painter, name, amount_width, assetNameRect.left(), amountRect.right());
+
+        // Draw name (left) and amount (right)
+        painter->setPen(penName);
+        painter->drawText(assetNameRect, Qt::AlignLeft | Qt::AlignVCenter, name);
+
+        painter->setFont(amountFont);
+        painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
+
+        painter->restore();
+    }
+
+    inline QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        return QSize(42, 42);
+    }
+
+    const PlatformStyle* platformStyle;
+};
+/** AVN END */
+
 #include <qt/overviewpage.moc>
 
 OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::OverviewPage),
     m_platform_style{platformStyle},
-    txdelegate(new TxViewDelegate(platformStyle, this))
+    txdelegate(new TxViewDelegate(platformStyle, this)),
+    assetdelegate(new AssetViewDelegate(platformStyle, this))
 {
     ui->setupUi(this);
 
@@ -165,6 +287,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     connect(ui->listTransactions, &TransactionOverviewWidget::clicked, this, &OverviewPage::handleTransactionClicked);
 
     /** AVN START - asset list setup */
+    ui->listAssets->setItemDelegate(assetdelegate);
     ui->listAssets->setIconSize(QSize(42, 42));
     ui->listAssets->setMinimumHeight(5 * (42 + 2));
     ui->listAssets->viewport()->setAutoFillBackground(false);
@@ -286,15 +409,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
         filter->setDynamicSortFilter(true);
         filter->setSortRole(Qt::EditRole);
         filter->setShowInactive(false);
+        filter->setLimit(NUM_ITEMS);
         filter->sort(TransactionTableModel::Date, Qt::DescendingOrder);
 
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
-
-        connect(filter.get(), &TransactionFilterProxy::rowsInserted, this, &OverviewPage::LimitTransactionRows);
-        connect(filter.get(), &TransactionFilterProxy::rowsRemoved, this, &OverviewPage::LimitTransactionRows);
-        connect(filter.get(), &TransactionFilterProxy::rowsMoved, this, &OverviewPage::LimitTransactionRows);
-        LimitTransactionRows();
 
         // Set up asset list
         assetFilter.reset(new AssetFilterProxy());
@@ -325,15 +444,6 @@ void OverviewPage::changeEvent(QEvent* e)
 }
 
 // Only show most recent NUM_ITEMS rows
-void OverviewPage::LimitTransactionRows()
-{
-    if (filter && ui->listTransactions && ui->listTransactions->model() && filter.get() == ui->listTransactions->model()) {
-        for (int i = 0; i < filter->rowCount(); ++i) {
-            ui->listTransactions->setRowHidden(i, i >= NUM_ITEMS);
-        }
-    }
-}
-
 void OverviewPage::updateDisplayUnit()
 {
     if (walletModel && walletModel->getOptionsModel()) {
@@ -391,7 +501,7 @@ void OverviewPage::handleAssetRightClicked(const QModelIndex& index)
     QString assetName = index.data(AssetTableModel::AssetNameRole).toString();
     QString ipfshash = index.data(AssetTableModel::AssetIPFSHashRole).toString();
     QString ansid = index.data(AssetTableModel::AssetANSRole).toString();
-    QString ipfsbrowser = "https://cloudflare-ipfs.com/ipfs/%s";
+    QString ipfsbrowser = "https://ipfs.avn.network/ipfs/%s";
 
     // Disable send for owner tokens
     if (IsAssetNameAnOwner(assetName.toStdString())) {

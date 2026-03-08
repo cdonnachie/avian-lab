@@ -8,6 +8,8 @@
 #include <chrono>
 #include <cstdint>
 
+#include <QColor>
+
 using namespace std::chrono_literals;
 
 /* A delay between model updates */
@@ -20,7 +22,7 @@ static constexpr auto SHUTDOWN_POLLING_DELAY{200ms};
 static const int MAX_PASSPHRASE_SIZE = 1024;
 
 /* BitcoinGUI -- Size of icons in status bar */
-static const int STATUSBAR_ICONSIZE = 16;
+static const int STATUSBAR_ICONSIZE = 20;
 
 static const bool DEFAULT_SPLASHSCREEN = true;
 
@@ -40,6 +42,43 @@ static const bool DEFAULT_SPLASHSCREEN = true;
 #define COLOR_TX_STATUS_DANGER QColor(200, 100, 100)
 /* Transaction list -- TX status decoration - default color */
 #define COLOR_BLACK QColor(0, 0, 0)
+/* Widget Background color - default color */
+#define COLOR_WHITE QColor(255, 255, 255)
+
+/* Avian brand colors */
+#define COLOR_AVIAN_2B737F QColor("#2B737F")
+#define COLOR_AVIAN_19827B QColor("#19827B")
+#define COLOR_AVIAN_18A7B7 QColor("#18A7B7")
+#define COLOR_AVIAN_34E2D6 QColor("#34E2D6")
+
+#define COLOR_WALLETFRAME_SHADOW QColor(0, 0, 0, 71)
+
+/** LIGHT MODE */
+#define COLOR_BACKGROUND_LIGHT QColor("#ffffff")
+#define COLOR_WIDGET_BACKGROUND QColor("#ffffff")
+#define COLOR_DARK_ORANGE QColor("#f05339")
+#define COLOR_LIGHT_ORANGE QColor("#f79433")
+#define COLOR_DARK_BLUE QColor("#3d3d3d")
+#define COLOR_LIGHT_BLUE QColor("#3d3d3d")
+#define COLOR_SHADOW_LIGHT QColor("#cacaca")
+#define COLOR_TOOLBAR_NOT_SELECTED_TEXT QColor("#e8e6e6")
+#define COLOR_TOOLBAR_SELECTED_TEXT QColor("#000000")
+#define COLOR_SENDENTRIES_BACKGROUND QColor("#ffffff")
+#define COLOR_ASSET_TEXT QColor(255, 255, 255)
+
+/** DARK MODE */
+#define COLOR_WIDGET_BACKGROUND_DARK QColor("#2E2E2E")
+#define COLOR_SHADOW_DARK QColor("#1B1B1B")
+#define COLOR_LIGHT_BLUE_DARK QColor("#1D1D1D")
+#define COLOR_DARK_BLUE_DARK QColor("#1D1D1D")
+#define COLOR_PRICING_WIDGET QColor("#2E2E2E")
+#define COLOR_TOOLBAR_NOT_SELECTED_TEXT_DARK_MODE QColor("#6c80c5")
+#define COLOR_TOOLBAR_SELECTED_TEXT_DARK_MODE QColor("#ffffff")
+#define COLOR_SENDENTRIES_BACKGROUND_DARK QColor("#2E2E2E")
+
+/* Label colors */
+#define STRING_LABEL_COLOR QColor("#000000")
+#define STRING_LABEL_COLOR_WARNING "color: #ff6666"
 
 /* Tooltips longer than this (in characters) are converted into rich text,
    so that they can be word-wrapped.

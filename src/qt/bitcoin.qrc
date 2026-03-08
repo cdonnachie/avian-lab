@@ -63,6 +63,11 @@
         <file alias="ext_add">res/icons/ext_add.png</file>
         <file alias="ext_add_light">res/icons/ext_add_light.png</file>
         <file alias="paper_wallet">res/icons/paper_wallet.png</file>
+        <file alias="overview_selected">res/icons/overview_selected.png</file>
+        <file alias="send_selected">res/icons/send_selected.png</file>
+        <file alias="receiving_addresses_selected">res/icons/receive_selected.png</file>
+        <file alias="history_selected">res/icons/history_selected.png</file>
+        <file alias="avianlogo">res/icons/avianlogo.png</file>
     </qresource>
     <qresource prefix="/css">
         <file alias="Dark">res/css/Dark.css</file>
@@ -145,5 +150,14 @@
     </qresource>
     <qresource prefix="/fonts">
         <file alias="monospace">res/fonts/RobotoMono-Bold.ttf</file>
+        <file alias="konnect-regular">res/fonts/KonnectRegular.otf</file>
+        <file alias="konnect-bold">res/fonts/KonnectBold.otf</file>
+        <file alias="manrope-bold">res/fonts/Manrope-Bold.ttf</file>
+        <file alias="manrope-extrabold">res/fonts/Manrope-ExtraBold.ttf</file>
+        <file alias="manrope-extralight">res/fonts/Manrope-ExtraLight.ttf</file>
+        <file alias="manrope-light">res/fonts/Manrope-Light.ttf</file>
+        <file alias="manrope-medium">res/fonts/Manrope-Medium.ttf</file>
+        <file alias="manrope-regular">res/fonts/Manrope-Regular.ttf</file>
+        <file alias="manrope-semibold">res/fonts/Manrope-SemiBold.ttf</file>
     </qresource>
 </RCC>

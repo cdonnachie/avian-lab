@@ -45,6 +45,23 @@ public:
     /** AVN: Color accessors for theming */
     QColor WidgetBackGroundColor() const;
     QColor Avian_2B737F() const;
+    QColor Avian_18A7B7() const;
+    QColor Avian_19827B() const;
+    QColor Avian_34E2D6() const;
+    QColor ToolBarSelectedTextColor() const;
+    QColor ToolBarNotSelectedTextColor() const;
+    QColor MainBackGroundColor() const;
+    QColor TopWidgetBackGroundColor() const;
+    QColor SendEntriesBackGroundColor() const;
+    QColor ShadowColor() const;
+    QColor LightBlueColor() const;
+    QColor DarkBlueColor() const;
+    QColor LightOrangeColor() const;
+    QColor DarkOrangeColor() const;
+    QColor AssetTxColor() const;
+
+    /** AVN: Create icon with on/off states for toolbar */
+    QIcon SingleColorIconOnOff(const QString& filenameOn, const QString& filenameOff) const;
 
 private:
     PlatformStyle(const QString &name, bool imagesOnButtons, bool colorizeIcons, bool useExtraSpacing);

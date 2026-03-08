@@ -6,6 +6,7 @@
 
 #include <qt/bitcoinaddressvalidator.h>
 #include <qt/bitcoinunits.h>
+#include <qt/guiconstants.h>
 #include <qt/platformstyle.h>
 #include <qt/qvalidatedlineedit.h>
 #include <qt/sendcoinsrecipient.h>
@@ -56,6 +57,7 @@
 #include <QLocale>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPluginLoader>
 #include <QProgressDialog>
 #include <QRegularExpression>
@@ -469,6 +471,9 @@ bool openBitcoinConf()
 
 void loadTheme(bool darkmode)
 {
+    // Update the global darkModeEnabled flag used by PlatformStyle color methods
+    darkModeEnabled = darkmode;
+
     QString fileName = QStringLiteral(":/css/");
     fileName += darkmode ? QStringLiteral("Dark") : QStringLiteral("Light");
 
@@ -1020,10 +1025,27 @@ QString WalletDisplayName(const std::string& name)
 QGraphicsDropShadowEffect *getShadowEffect()
 {
     QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect;
-    shadow->setBlurRadius(15);
-    shadow->setColor(QColor(0, 0, 0, 40));
-    shadow->setOffset(0, 3);
+    shadow->setBlurRadius(50);
+    shadow->setColor(darkModeEnabled ? COLOR_SHADOW_DARK : COLOR_SHADOW_LIGHT);
+    shadow->setOffset(8.0);
     return shadow;
+}
+
+void concatenate(QPainter* painter, QString& catString, int static_width, int left_side, int right_size)
+{
+    int start_name_length = catString.size();
+    int dots_width = painter->fontMetrics().horizontalAdvance("...");
+    static_width += dots_width;
+
+    while (catString.size() > 3) {
+        int text_width = painter->fontMetrics().horizontalAdvance(catString);
+        if (left_side + text_width < right_size - static_width)
+            break;
+        catString = catString.left(catString.size() - 1);
+    }
+
+    if (catString.size() != start_name_length)
+        catString.append("...");
 }
 
 SyncWarningMessage::SyncWarningMessage(QWidget *parent)

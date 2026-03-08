@@ -12,6 +12,7 @@
 #include <memory>
 
 class AssetFilterProxy;
+class AssetViewDelegate;
 class ClientModel;
 class TransactionFilterProxy;
 class TxViewDelegate;
@@ -70,6 +71,7 @@ private:
     const PlatformStyle* m_platform_style;
 
     TxViewDelegate *txdelegate;
+    AssetViewDelegate *assetdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
 
     /** AVN START */
@@ -87,7 +89,6 @@ private:
     /** AVN END */
 
 private Q_SLOTS:
-    void LimitTransactionRows();
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);

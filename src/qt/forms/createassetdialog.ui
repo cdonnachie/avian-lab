@@ -1435,7 +1435,7 @@
       </spacer>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_7">
+      <layout class="QHBoxLayout" name="horizontalLayout_11">
        <property name="spacing">
         <number>3</number>
        </property>

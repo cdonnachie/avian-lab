@@ -631,7 +631,7 @@ void CreateAssetDialog::checkAvailabilityClicked()
 void CreateAssetDialog::openIpfsBrowser()
 {
     QString ipfshash = ui->ipfsText->text();
-    QString ipfsbrowser = QString("https://cloudflare-ipfs.com/ipfs/");
+    QString ipfsbrowser = QString("https://ipfs.avn.network/ipfs/");
 
     // If the ipfs hash isn't there or doesn't start with Qm, disable the action item
     if (ipfshash.size() > 0 && ipfshash.indexOf("Qm") == 0 && ipfsbrowser.indexOf("http") == 0)

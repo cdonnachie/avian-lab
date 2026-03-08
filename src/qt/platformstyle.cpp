@@ -4,6 +4,8 @@
 
 #include <qt/platformstyle.h>
 
+#include <qt/guiconstants.h>
+
 #include <QApplication>
 #include <QColor>
 #include <QImage>
@@ -22,9 +24,9 @@ static const struct {
     const bool useExtraSpacing;
 } platform_styles[] = {
     {"macosx", false, true, true},
-    {"windows", true, false, false},
+    {"windows", false, true, false},
     /* Other: linux, unix, ... */
-    {"other", true, true, false}
+    {"other", false, true, false}
 };
 
 namespace {
@@ -80,22 +82,14 @@ PlatformStyle::PlatformStyle(const QString &_name, bool _imagesOnButtons, bool _
 
 QColor PlatformStyle::TextColor() const
 {
-    return QApplication::palette().color(QPalette::WindowText);
+    if (darkModeEnabled)
+        return COLOR_TOOLBAR_SELECTED_TEXT_DARK_MODE;
+    return STRING_LABEL_COLOR;
 }
 
 QColor PlatformStyle::SingleColor() const
 {
-    if (colorizeIcons) {
-        QColor colorHighlightBg(QApplication::palette().color(QPalette::Highlight));
-        QColor colorHighlightFg(QApplication::palette().color(QPalette::HighlightedText));
-        const QColor colorText(QApplication::palette().color(QPalette::WindowText));
-        const int colorTextLightness = colorText.lightness();
-        if (abs(colorHighlightBg.lightness() - colorTextLightness) < abs(colorHighlightFg.lightness() - colorTextLightness)) {
-            return colorHighlightBg;
-        }
-        return colorHighlightFg;
-    }
-    return {0, 0, 0};
+    return COLOR_AVIAN_34E2D6;
 }
 
 QImage PlatformStyle::SingleColorImage(const QString& filename) const
@@ -129,14 +123,110 @@ QIcon PlatformStyle::SingleColorIcon(const QString& filename, const QColor& colo
     return ColorizeIcon(filename, colorbase);
 }
 
+QIcon PlatformStyle::SingleColorIconOnOff(const QString& filenameOn, const QString& filenameOff) const
+{
+    QIcon icon;
+    icon.addPixmap(QPixmap(filenameOn), QIcon::Normal, QIcon::On);
+    icon.addPixmap(QPixmap(filenameOff), QIcon::Normal, QIcon::Off);
+    return icon;
+}
+
+QColor PlatformStyle::ToolBarSelectedTextColor() const
+{
+    return COLOR_TOOLBAR_SELECTED_TEXT;
+}
+
+QColor PlatformStyle::ToolBarNotSelectedTextColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_TOOLBAR_NOT_SELECTED_TEXT_DARK_MODE;
+    return COLOR_TOOLBAR_NOT_SELECTED_TEXT;
+}
+
+QColor PlatformStyle::MainBackGroundColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_WIDGET_BACKGROUND_DARK;
+    return COLOR_BACKGROUND_LIGHT;
+}
+
+QColor PlatformStyle::TopWidgetBackGroundColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_PRICING_WIDGET;
+    return COLOR_BACKGROUND_LIGHT;
+}
+
 QColor PlatformStyle::WidgetBackGroundColor() const
 {
-    return QApplication::palette().color(QPalette::Window);
+    if (darkModeEnabled)
+        return COLOR_WIDGET_BACKGROUND_DARK;
+    return COLOR_WIDGET_BACKGROUND;
+}
+
+QColor PlatformStyle::SendEntriesBackGroundColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_SENDENTRIES_BACKGROUND_DARK;
+    return COLOR_SENDENTRIES_BACKGROUND;
+}
+
+QColor PlatformStyle::ShadowColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_SHADOW_DARK;
+    return COLOR_SHADOW_LIGHT;
+}
+
+QColor PlatformStyle::LightBlueColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_LIGHT_BLUE_DARK;
+    return COLOR_LIGHT_BLUE;
+}
+
+QColor PlatformStyle::DarkBlueColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_DARK_BLUE_DARK;
+    return COLOR_DARK_BLUE;
+}
+
+QColor PlatformStyle::LightOrangeColor() const
+{
+    return COLOR_LIGHT_ORANGE;
+}
+
+QColor PlatformStyle::DarkOrangeColor() const
+{
+    return COLOR_DARK_ORANGE;
+}
+
+QColor PlatformStyle::Avian_18A7B7() const
+{
+    return COLOR_AVIAN_18A7B7;
+}
+
+QColor PlatformStyle::Avian_19827B() const
+{
+    return COLOR_AVIAN_19827B;
 }
 
 QColor PlatformStyle::Avian_2B737F() const
 {
-    return QColor(0x2B, 0x73, 0x7F);
+    return COLOR_AVIAN_2B737F;
+}
+
+QColor PlatformStyle::Avian_34E2D6() const
+{
+    return COLOR_AVIAN_34E2D6;
+}
+
+QColor PlatformStyle::AssetTxColor() const
+{
+    if (darkModeEnabled)
+        return COLOR_LIGHT_BLUE;
+    return COLOR_DARK_BLUE;
 }
 
 const PlatformStyle *PlatformStyle::instantiate(const QString &platformId)

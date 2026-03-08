@@ -28,6 +28,7 @@
 #include <utility>
 
 class PlatformStyle;
+class QPainter;
 class QValidatedLineEdit;
 class SendCoinsRecipient;
 
@@ -423,6 +424,9 @@ namespace GUIUtil
 
     /** Create a shadow effect for UI frames */
     QGraphicsDropShadowEffect *getShadowEffect();
+
+    /** Truncate a string with "..." to fit within available space */
+    void concatenate(QPainter* painter, QString& catString, int static_width, int left_side, int right_size);
 
     /** Dialog to confirm sending during initial sync */
     class SyncWarningMessage : public QMessageBox

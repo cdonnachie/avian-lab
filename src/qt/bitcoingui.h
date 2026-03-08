@@ -129,6 +129,7 @@ private:
     QLabel* progressBarLabel = nullptr;
     GUIUtil::ClickableProgressBar* progressBar = nullptr;
     QProgressDialog* progressDialog = nullptr;
+    QFrame* frameBlocks = nullptr;
 
     QMenuBar* appMenuBar = nullptr;
     QToolBar* appToolBar = nullptr;
@@ -158,8 +159,6 @@ private:
     QAction* m_restore_wallet_action{nullptr};
     QAction* m_close_wallet_action{nullptr};
     QAction* m_close_all_wallets_action{nullptr};
-    QAction* m_wallet_selector_label_action = nullptr;
-    QAction* m_wallet_selector_action = nullptr;
     QAction* m_mask_values_action{nullptr};
     QAction* m_migrate_wallet_action{nullptr};
     QMenu* m_migrate_wallet_menu{nullptr};
@@ -202,6 +201,8 @@ private:
     void createMenuBar();
     /** Create the toolbars */
     void createToolBars();
+    /** Load bundled fonts */
+    void loadFonts();
     /** Create system tray icon and notification */
     void createTrayIcon();
     /** Create system tray menu (or setup the dock menu) */
