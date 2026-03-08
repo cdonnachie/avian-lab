@@ -911,6 +911,21 @@ RPCHelpMan listmyassets();
 RPCHelpMan issue();
 RPCHelpMan transfer();
 RPCHelpMan reissue();
+RPCHelpMan issueunique();
+RPCHelpMan transferfromaddress();
+RPCHelpMan transferfromaddresses();
+RPCHelpMan issuequalifierasset();
+RPCHelpMan issuerestrictedasset();
+RPCHelpMan reissuerestrictedasset();
+RPCHelpMan transferqualifier();
+RPCHelpMan addtagtoaddress();
+RPCHelpMan removetagfromaddress();
+RPCHelpMan freezeaddress();
+RPCHelpMan unfreezeaddress();
+RPCHelpMan freezerestrictedasset();
+RPCHelpMan unfreezerestrictedasset();
+RPCHelpMan sendmessage();
+RPCHelpMan consolidateutxos();
 
 std::span<const CRPCCommand> GetWalletRPCCommands()
 {
@@ -979,6 +994,21 @@ std::span<const CRPCCommand> GetWalletRPCCommands()
         {"assets", &issue},
         {"assets", &transfer},
         {"assets", &reissue},
+        {"assets", &issueunique},
+        {"assets", &transferfromaddress},
+        {"assets", &transferfromaddresses},
+        {"assets", &issuequalifierasset},
+        {"assets", &issuerestrictedasset},
+        {"assets", &reissuerestrictedasset},
+        {"assets", &transferqualifier},
+        {"restricted assets", &addtagtoaddress},
+        {"restricted assets", &removetagfromaddress},
+        {"restricted assets", &freezeaddress},
+        {"restricted assets", &unfreezeaddress},
+        {"restricted assets", &freezerestrictedasset},
+        {"restricted assets", &unfreezerestrictedasset},
+        {"messages", &sendmessage},
+        {"wallet", &consolidateutxos},
     };
     return commands;
 }

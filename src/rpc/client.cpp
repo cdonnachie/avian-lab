@@ -314,6 +314,93 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "stop", 0, "wait" },
     { "addnode", 2, "v2transport" },
     { "addconnection", 2, "v2transport" },
+
+    /** AVN START - Asset RPCs */
+    // issue
+    { "issue", 1, "qty" },
+    { "issue", 4, "units" },
+    { "issue", 5, "reissuable" },
+    { "issue", 6, "has_ipfs" },
+    // issueunique
+    { "issueunique", 1, "asset_tags" },
+    { "issueunique", 2, "ipfs_hashes" },
+    // issuequalifierasset
+    { "issuequalifierasset", 1, "qty" },
+    { "issuequalifierasset", 4, "has_ipfs" },
+    // issuerestrictedasset
+    { "issuerestrictedasset", 1, "qty" },
+    { "issuerestrictedasset", 5, "units" },
+    { "issuerestrictedasset", 6, "reissuable" },
+    { "issuerestrictedasset", 7, "has_ipfs" },
+    // transfer
+    { "transfer", 1, "qty" },
+    { "transfer", 4, "expire_time" },
+    // transferfromaddress
+    { "transferfromaddress", 2, "qty" },
+    { "transferfromaddress", 5, "expire_time" },
+    // transferfromaddresses
+    { "transferfromaddresses", 1, "from_addresses" },
+    { "transferfromaddresses", 2, "qty" },
+    { "transferfromaddresses", 5, "expire_time" },
+    // transferqualifier
+    { "transferqualifier", 1, "qty" },
+    { "transferqualifier", 5, "expire_time" },
+    // reissue
+    { "reissue", 1, "qty" },
+    { "reissue", 4, "reissuable" },
+    { "reissue", 5, "new_unit" },
+    // reissuerestrictedasset
+    { "reissuerestrictedasset", 1, "qty" },
+    { "reissuerestrictedasset", 3, "change_verifier" },
+    { "reissuerestrictedasset", 6, "new_unit" },
+    { "reissuerestrictedasset", 7, "reissuable" },
+    // listmyassets
+    { "listmyassets", 1, "verbose" },
+    { "listmyassets", 2, "count" },
+    { "listmyassets", 3, "start" },
+    { "listmyassets", 4, "confs" },
+    // listassets
+    { "listassets", 1, "verbose" },
+    { "listassets", 2, "count" },
+    { "listassets", 3, "start" },
+    // listaddressesbyasset
+    { "listaddressesbyasset", 1, "totalonly" },
+    { "listaddressesbyasset", 2, "count" },
+    { "listaddressesbyasset", 3, "start" },
+    // listassetbalancesbyaddress
+    { "listassetbalancesbyaddress", 1, "totalonly" },
+    { "listassetbalancesbyaddress", 2, "count" },
+    { "listassetbalancesbyaddress", 3, "start" },
+    // sendmessage
+    { "sendmessage", 2, "expire_time" },
+    // snapshot
+    { "requestsnapshot", 1, "block_height" },
+    { "getsnapshotrequest", 1, "block_height" },
+    { "listsnapshotrequests", 1, "block_height" },
+    { "cancelsnapshotrequest", 1, "block_height" },
+    { "getsnapshot", 1, "block_height" },
+    { "purgesnapshot", 1, "block_height" },
+    // rewards
+    { "distributereward", 1, "snapshot_height" },
+    { "distributereward", 3, "gross_distribution_amount" },
+    { "getdistributestatus", 1, "snapshot_height" },
+    { "getdistributestatus", 3, "gross_distribution_amount" },
+    // consolidateutxos
+    { "consolidateutxos", 1, "min_utxos" },
+    { "consolidateutxos", 2, "max_batches" },
+    { "consolidateutxos", 3, "min_amount" },
+    { "consolidateutxos", 4, "max_amount" },
+    // address/spent indexes
+    { "getspentinfo", 0, "txid_index" },
+    { "getaddresstxids", 0, "addresses" },
+    { "getaddresstxids", 1, "includeAssets" },
+    { "getaddressbalance", 0, "addresses" },
+    { "getaddressbalance", 1, "includeAssets" },
+    { "getaddressdeltas", 0, "addresses" },
+    { "getaddressutxos", 0, "addresses" },
+    { "getaddressmempool", 0, "addresses" },
+    { "getaddressmempool", 1, "includeAssets" },
+    /** AVN END */
 };
 // clang-format on
 

@@ -8,6 +8,8 @@
 
 #include <coins.h>
 #include <consensus/amount.h>
+#include <addressindex.h>
+#include <spentindex.h>
 #include <assets/assettypes.h>
 #include <indirectmap.h>
 #include <kernel/cs_main.h>
@@ -390,6 +392,16 @@ public:
 private:
     typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
 
+    // AVN: Address/spent index support for mempool queries
+    typedef std::map<CMempoolAddressDeltaKey, CMempoolAddressDelta, CMempoolAddressDeltaKeyCompare> addressDeltaMap;
+    addressDeltaMap mapAddress GUARDED_BY(cs);
+    typedef std::map<uint256, std::vector<CMempoolAddressDeltaKey>> addressDeltaMapInserted;
+    addressDeltaMapInserted mapAddressInserted GUARDED_BY(cs);
+    typedef std::map<CSpentIndexKey, CSpentIndexValue, CSpentIndexKeyCompare> mapSpentIndex;
+    mapSpentIndex mapSpent GUARDED_BY(cs);
+    typedef std::map<uint256, std::vector<CSpentIndexKey>> mapSpentIndexInserted;
+    mapSpentIndexInserted mapSpentInserted GUARDED_BY(cs);
+
 
     void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void UpdateChild(txiter entry, txiter child, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -489,6 +501,17 @@ public:
     void removeConflicts(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight, ConnectedBlockAssetData& connectedBlockData) EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    // AVN: Address/spent index mempool tracking
+    void addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool getAddressIndex(std::vector<std::pair<uint160, int>> &addresses,
+                         std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta>> &results) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool getAddressIndex(std::vector<std::pair<uint160, int>> &addresses, std::string assetName,
+                         std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta>> &results) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool removeAddressIndex(const uint256 txhash) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool getSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool removeSpentIndex(const uint256 txhash) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     bool CompareDepthAndScore(const Wtxid& hasha, const Wtxid& hashb) const;
     bool isSpent(const COutPoint& outpoint) const;

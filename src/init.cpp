@@ -577,6 +577,9 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-shutdownnotify=<cmd>", "Execute command immediately before beginning shutdown. The need for shutdown may be urgent, so be careful not to delay it long (if the command doesn't require interaction with the server, consider having it fork into the background).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #endif
     argsman.AddArg("-txindex", strprintf("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)", DEFAULT_TXINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-addressindex", "Maintain a full address index, used to query for the balance, txids and unspent outputs for addresses (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-timestampindex", "Maintain a timestamp index for block hashes, used to query blocks within a time range (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-spentindex", "Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blockfilterindex=<type>",
                  strprintf("Maintain an index of compact filters by block (default: %s, values: %s).", DEFAULT_BLOCKFILTERINDEX, ListBlockFilterTypes()) +
                  " If <type> is not supplied or if <type> = 1, indexes for all known types are enabled.",
@@ -1969,6 +1972,45 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     // ********************************************************* Step 8: start indexers
+
+    // AVN: Load address/timestamp/spent index flags from block tree DB
+    {
+        LOCK(cs_main);
+        auto& block_tree_db = *chainman.m_blockman.m_block_tree_db;
+
+        // Read flags from the block tree DB, or set defaults from command line args
+        bool flagValue;
+        if (!block_tree_db.ReadFlag("addressindex", flagValue)) {
+            // Not yet stored: use command-line arg (default: false)
+            fAddressIndex = args.GetBoolArg("-addressindex", false);
+        } else {
+            fAddressIndex = flagValue;
+        }
+
+        if (!block_tree_db.ReadFlag("timestampindex", flagValue)) {
+            fTimestampIndex = args.GetBoolArg("-timestampindex", false);
+        } else {
+            fTimestampIndex = flagValue;
+        }
+
+        if (!block_tree_db.ReadFlag("spentindex", flagValue)) {
+            fSpentIndex = args.GetBoolArg("-spentindex", false);
+        } else {
+            fSpentIndex = flagValue;
+        }
+
+        // Write flags to DB (persists the state for future runs)
+        block_tree_db.WriteFlag("addressindex", fAddressIndex);
+        block_tree_db.WriteFlag("timestampindex", fTimestampIndex);
+        block_tree_db.WriteFlag("spentindex", fSpentIndex);
+
+        if (fAddressIndex) LogPrintf("Address index enabled\n");
+        if (fTimestampIndex) LogPrintf("Timestamp index enabled\n");
+        if (fSpentIndex) LogPrintf("Spent index enabled\n");
+
+        // Set global pointer for RPC helper functions in validation.cpp
+        g_block_tree_db = &block_tree_db;
+    }
 
     if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
         g_txindex = std::make_unique<TxIndex>(interfaces::MakeChain(node), index_cache_sizes.tx_index, false, do_reindex);

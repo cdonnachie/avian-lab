@@ -12,8 +12,10 @@
 #include <consensus/consensus.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
+#include <hash.h>
 #include <logging.h>
 #include <policy/policy.h>
+#include <validation.h>
 #include <policy/settings.h>
 #include <random.h>
 #include <tinyformat.h>
@@ -518,6 +520,193 @@ void CTxMemPool::addNewTransaction(CTxMemPool::txiter newit, CTxMemPool::setEntr
     );
 }
 
+// AVN: Address index support for mempool queries
+void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view)
+{
+    AssertLockHeld(cs);
+    const CTransaction& tx = entry.GetTx();
+    std::vector<CMempoolAddressDeltaKey> inserted;
+    uint256 txhash = tx.GetHash().ToUint256();
+    int64_t entryTime = entry.GetTime().count();
+
+    for (unsigned int j = 0; j < tx.vin.size(); j++) {
+        const CTxIn& input = tx.vin[j];
+        const CTxOut &prevout = view.AccessCoin(input.prevout).out;
+        const CScript &prevScript = prevout.scriptPubKey;
+
+        if (prevScript.IsPayToScriptHash()) {
+            std::vector<unsigned char> hashBytes(prevScript.begin()+2, prevScript.begin()+22);
+            CMempoolAddressDeltaKey key(2, uint160(hashBytes), AVN, txhash, j, 1);
+            CMempoolAddressDelta delta(entryTime, prevout.nValue * -1, input.prevout.hash.ToUint256(), input.prevout.n);
+            mapAddress.insert(std::make_pair(key, delta));
+            inserted.push_back(key);
+        } else if (prevScript.size() == 25 && prevScript[0] == OP_DUP && prevScript[1] == OP_HASH160 && prevScript[2] == 20 && prevScript[22] == OP_EQUALVERIFY && prevScript[24] == OP_CHECKSIG) {
+            std::vector<unsigned char> hashBytes(prevScript.begin()+3, prevScript.begin()+23);
+            CMempoolAddressDeltaKey key(1, uint160(hashBytes), AVN, txhash, j, 1);
+            CMempoolAddressDelta delta(entryTime, prevout.nValue * -1, input.prevout.hash.ToUint256(), input.prevout.n);
+            mapAddress.insert(std::make_pair(key, delta));
+            inserted.push_back(key);
+        } else if ((prevScript.size() == 35 || prevScript.size() == 67) && prevScript[prevScript.size()-1] == OP_CHECKSIG) {
+            uint160 hashBytes(Hash160(std::vector<unsigned char>(prevScript.begin()+1, prevScript.end()-1)));
+            CMempoolAddressDeltaKey key(1, hashBytes, AVN, txhash, j, 1);
+            CMempoolAddressDelta delta(entryTime, prevout.nValue * -1, input.prevout.hash.ToUint256(), input.prevout.n);
+            mapAddress.insert(std::make_pair(key, delta));
+            inserted.push_back(key);
+        } else {
+            if (AreAssetsDeployed()) {
+                uint160 hashBytes;
+                std::string assetName;
+                CAmount assetAmount;
+                if (ParseAssetScript(prevScript, hashBytes, assetName, assetAmount)) {
+                    CMempoolAddressDeltaKey key(1, hashBytes, assetName, txhash, j, 1);
+                    CMempoolAddressDelta delta(entryTime, assetAmount * -1, input.prevout.hash.ToUint256(), input.prevout.n);
+                    mapAddress.insert(std::make_pair(key, delta));
+                    inserted.push_back(key);
+                }
+            }
+        }
+    }
+
+    for (unsigned int k = 0; k < tx.vout.size(); k++) {
+        const CTxOut &out = tx.vout[k];
+        const CScript &outScript = out.scriptPubKey;
+
+        if (outScript.IsPayToScriptHash()) {
+            std::vector<unsigned char> hashBytes(outScript.begin()+2, outScript.begin()+22);
+            CMempoolAddressDeltaKey key(2, uint160(hashBytes), AVN, txhash, k, 0);
+            mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entryTime, out.nValue)));
+            inserted.push_back(key);
+        } else if (outScript.size() == 25 && outScript[0] == OP_DUP && outScript[1] == OP_HASH160 && outScript[2] == 20 && outScript[22] == OP_EQUALVERIFY && outScript[24] == OP_CHECKSIG) {
+            std::vector<unsigned char> hashBytes(outScript.begin()+3, outScript.begin()+23);
+            CMempoolAddressDeltaKey key(1, uint160(hashBytes), AVN, txhash, k, 0);
+            mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entryTime, out.nValue)));
+            inserted.push_back(key);
+        } else if ((outScript.size() == 35 || outScript.size() == 67) && outScript[outScript.size()-1] == OP_CHECKSIG) {
+            uint160 hashBytes(Hash160(std::vector<unsigned char>(outScript.begin()+1, outScript.end()-1)));
+            CMempoolAddressDeltaKey key(1, hashBytes, AVN, txhash, k, 0);
+            mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entryTime, out.nValue)));
+            inserted.push_back(key);
+        } else {
+            if (AreAssetsDeployed()) {
+                uint160 hashBytes;
+                std::string assetName;
+                CAmount assetAmount;
+                if (ParseAssetScript(outScript, hashBytes, assetName, assetAmount)) {
+                    CMempoolAddressDeltaKey key(1, hashBytes, assetName, txhash, k, 0);
+                    mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entryTime, assetAmount)));
+                    inserted.push_back(key);
+                }
+            }
+        }
+    }
+
+    mapAddressInserted.insert(std::make_pair(txhash, inserted));
+}
+
+bool CTxMemPool::getAddressIndex(std::vector<std::pair<uint160, int>> &addresses,
+                                 std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta>> &results) const
+{
+    AssertLockHeld(cs);
+    for (const auto& [addressHash, addressType] : addresses) {
+        auto ait = mapAddress.lower_bound(CMempoolAddressDeltaKey(addressType, addressHash));
+        while (ait != mapAddress.end() && ait->first.addressBytes == addressHash && ait->first.type == addressType) {
+            results.push_back(*ait);
+            ait++;
+        }
+    }
+    return true;
+}
+
+bool CTxMemPool::getAddressIndex(std::vector<std::pair<uint160, int>> &addresses, std::string assetName,
+                                 std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta>> &results) const
+{
+    AssertLockHeld(cs);
+    for (const auto& [addressHash, addressType] : addresses) {
+        auto ait = mapAddress.lower_bound(CMempoolAddressDeltaKey(addressType, addressHash, assetName));
+        while (ait != mapAddress.end() && ait->first.addressBytes == addressHash
+               && ait->first.type == addressType && ait->first.asset == assetName) {
+            results.push_back(*ait);
+            ait++;
+        }
+    }
+    return true;
+}
+
+bool CTxMemPool::removeAddressIndex(const uint256 txhash)
+{
+    AssertLockHeld(cs);
+    auto it = mapAddressInserted.find(txhash);
+    if (it != mapAddressInserted.end()) {
+        for (const auto& key : it->second) {
+            mapAddress.erase(key);
+        }
+        mapAddressInserted.erase(it);
+    }
+    return true;
+}
+
+void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view)
+{
+    AssertLockHeld(cs);
+    const CTransaction& tx = entry.GetTx();
+    std::vector<CSpentIndexKey> inserted;
+    uint256 txhash = tx.GetHash().ToUint256();
+
+    for (unsigned int j = 0; j < tx.vin.size(); j++) {
+        const CTxIn& input = tx.vin[j];
+        const CTxOut &prevout = view.AccessCoin(input.prevout).out;
+        const CScript &prevScript = prevout.scriptPubKey;
+        uint160 addressHash;
+        int addressType = 0;
+
+        if (prevScript.IsPayToScriptHash()) {
+            addressHash = uint160(std::vector<unsigned char>(prevScript.begin()+2, prevScript.begin()+22));
+            addressType = 2;
+        } else if (prevScript.size() == 25 && prevScript[0] == OP_DUP && prevScript[1] == OP_HASH160 && prevScript[2] == 20 && prevScript[22] == OP_EQUALVERIFY && prevScript[24] == OP_CHECKSIG) {
+            addressHash = uint160(std::vector<unsigned char>(prevScript.begin()+3, prevScript.begin()+23));
+            addressType = 1;
+        } else if ((prevScript.size() == 35 || prevScript.size() == 67) && prevScript[prevScript.size()-1] == OP_CHECKSIG) {
+            addressHash = Hash160(std::vector<unsigned char>(prevScript.begin()+1, prevScript.end()-1));
+            addressType = 1;
+        } else {
+            addressHash.SetNull();
+            addressType = 0;
+        }
+
+        CSpentIndexKey key(input.prevout.hash.ToUint256(), input.prevout.n);
+        CSpentIndexValue value(txhash, j, -1, prevout.nValue, addressType, addressHash);
+
+        mapSpent.insert(std::make_pair(key, value));
+        inserted.push_back(key);
+    }
+
+    mapSpentInserted.insert(std::make_pair(txhash, inserted));
+}
+
+bool CTxMemPool::getSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value) const
+{
+    AssertLockHeld(cs);
+    auto it = mapSpent.find(key);
+    if (it != mapSpent.end()) {
+        value = it->second;
+        return true;
+    }
+    return false;
+}
+
+bool CTxMemPool::removeSpentIndex(const uint256 txhash)
+{
+    AssertLockHeld(cs);
+    auto it = mapSpentInserted.find(txhash);
+    if (it != mapSpentInserted.end()) {
+        for (const auto& key : it->second) {
+            mapSpent.erase(key);
+        }
+        mapSpentInserted.erase(it);
+    }
+    return true;
+}
+
 void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 {
     // We increment mempool sequence value no matter removal reason
@@ -563,6 +752,10 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 
     /** AVN START - Clean up asset tracking maps */
     const uint256 hash = it->GetTx().GetHash().ToUint256();
+
+    // Clean up address/spent index entries
+    removeAddressIndex(hash);
+    removeSpentIndex(hash);
 
     // If the transaction being removed from the mempool is locking other reissues, free them
     if (mapReissuedTx.count(hash)) {
