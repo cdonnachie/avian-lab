@@ -1,38 +1,38 @@
 # It is not recommended to modify this file in-place, because it will
 # be overwritten during package upgrades. If you want to add further
 # options or overwrite existing ones then use
-# $ systemctl edit bitcoind.service
+# $ systemctl edit aviand.service
 # See "man systemd.service" for details.
 
 # Note that almost all daemon options could be specified in
-# /etc/bitcoin/bitcoin.conf, but keep in mind those explicitly
+# /etc/avian/avian.conf, but keep in mind those explicitly
 # specified as arguments in ExecStart= will override those in the
 # config file.
 
 [Unit]
-Description=Bitcoin daemon
-Documentation=https://github.com/bitcoin/bitcoin/blob/master/doc/init.md
+Description=Avian daemon
+Documentation=https://github.com/AvianNetwork/Avian/blob/master/doc/init.md
 
 # https://www.freedesktop.org/wiki/Software/systemd/NetworkTarget/
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/bitcoind -pid=/run/bitcoind/bitcoind.pid \
-                            -conf=/etc/bitcoin/bitcoin.conf \
-                            -datadir=/var/lib/bitcoind \
+ExecStart=/usr/bin/aviand -pid=/run/aviand/aviand.pid \
+                            -conf=/etc/avian/avian.conf \
+                            -datadir=/var/lib/aviand \
                             -startupnotify='systemd-notify --ready' \
                             -shutdownnotify='systemd-notify --stopping'
 
 # Make sure the config directory is readable by the service user
-ExecStartPre=!/bin/chgrp bitcoin /etc/bitcoin
+ExecStartPre=!/bin/chgrp avian /etc/avian
 
 # Process management
 ####################
 
 Type=notify
 NotifyAccess=all
-PIDFile=/run/bitcoind/bitcoind.pid
+PIDFile=/run/aviand/aviand.pid
 
 Restart=on-failure
 TimeoutStartSec=infinity
@@ -41,19 +41,19 @@ TimeoutStopSec=600
 # Directory creation and permissions
 ####################################
 
-# Run as bitcoin:bitcoin
-User=bitcoin
+# Run as avian:avian
+User=avian
 
-# /run/bitcoind
-RuntimeDirectory=bitcoind
+# /run/aviand
+RuntimeDirectory=aviand
 RuntimeDirectoryMode=0710
 
-# /etc/bitcoin
-ConfigurationDirectory=bitcoin
+# /etc/avian
+ConfigurationDirectory=avian
 ConfigurationDirectoryMode=0710
 
-# /var/lib/bitcoind
-StateDirectory=bitcoind
+# /var/lib/aviand
+StateDirectory=aviand
 StateDirectoryMode=0710
 
 # Hardening measures

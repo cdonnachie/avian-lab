@@ -23,7 +23,7 @@ endforeach()
 function(extract_strings output)
   execute_process(
     COMMAND ${XGETTEXT_EXECUTABLE}
-      --output=bitcoinstrings.po
+      --output=avianstrings.po
       --no-location
       --from-code=utf-8
       --keyword=_
@@ -31,7 +31,7 @@ function(extract_strings output)
     COMMAND_ERROR_IS_FATAL ANY
   )
 
-  file(STRINGS "bitcoinstrings.po" text ENCODING "UTF-8")
+  file(STRINGS "avianstrings.po" text ENCODING "UTF-8")
 
   set(messages "${COPYRIGHT_HOLDERS}")
   foreach(line IN LISTS text)
@@ -57,10 +57,10 @@ function(extract_strings output)
 #define UNUSED
 #endif
 
-static const char UNUSED *bitcoin_strings[] = {
+static const char UNUSED *avian_strings[] = {
 ]])
 
-  set(prefix "QT_TRANSLATE_NOOP(\"bitcoin-core\", \"")
+  set(prefix "QT_TRANSLATE_NOOP(\"avian-core\", \"")
   set(suffix "\"),\n")
 
   list(SORT messages)
@@ -96,7 +96,7 @@ foreach(directory IN LISTS subtrees exclude_dirs)
   )
 endforeach()
 
-extract_strings("${PROJECT_SOURCE_DIR}/src/qt/bitcoinstrings.cpp"
+extract_strings("${PROJECT_SOURCE_DIR}/src/qt/avianstrings.cpp"
   ${translatable_sources}
 )
 
@@ -107,24 +107,24 @@ execute_process(
     -locations relative
     ${ui_files}
     ${qt_translatable_sources}
-    ${PROJECT_SOURCE_DIR}/src/qt/bitcoinstrings.cpp
-    -ts ${PROJECT_SOURCE_DIR}/src/qt/locale/bitcoin_en.ts
+    ${PROJECT_SOURCE_DIR}/src/qt/avianstrings.cpp
+    -ts ${PROJECT_SOURCE_DIR}/src/qt/locale/avian_en.ts
   COMMAND_ERROR_IS_FATAL ANY
 )
 
 execute_process(
   COMMAND ${LCONVERT_EXECUTABLE}
     -drop-translations
-    -o ${PROJECT_SOURCE_DIR}/src/qt/locale/bitcoin_en.xlf
-    -i ${PROJECT_SOURCE_DIR}/src/qt/locale/bitcoin_en.ts
+    -o ${PROJECT_SOURCE_DIR}/src/qt/locale/avian_en.xlf
+    -i ${PROJECT_SOURCE_DIR}/src/qt/locale/avian_en.ts
   COMMAND_ERROR_IS_FATAL ANY
 )
 
-file(READ "${PROJECT_SOURCE_DIR}/src/qt/locale/bitcoin_en.xlf" bitcoin_en)
+file(READ "${PROJECT_SOURCE_DIR}/src/qt/locale/avian_en.xlf" bitcoin_en)
 string(REPLACE "source-language=\"en\" target-language=\"en\""
   "source-language=\"en\"" bitcoin_en "${bitcoin_en}"
 )
 string(REGEX REPLACE " *<target xml:space=\"preserve\"></target>\n"
   "" bitcoin_en "${bitcoin_en}"
 )
-file(WRITE "${PROJECT_SOURCE_DIR}/src/qt/locale/bitcoin_en.xlf" "${bitcoin_en}")
+file(WRITE "${PROJECT_SOURCE_DIR}/src/qt/locale/avian_en.xlf" "${bitcoin_en}")

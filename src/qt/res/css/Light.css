@@ -1000,9 +1000,9 @@ QToolBar {
 
 QToolBar > QToolButton {
   border: none;
-  min-height: 3em;
-  min-width: 3em;
-  padding: 4px;
+  min-height: 50px;
+  min-width: 50px;
+  padding: 6px;
   text-align: center;
 }
 

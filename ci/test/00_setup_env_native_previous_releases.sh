@@ -15,7 +15,7 @@ export TEST_RUNNER_EXTRA="--previous-releases --coverage --extended --exclude fe
 export GOAL="install"
 export CI_LIMIT_STACK_SIZE=1
 export DOWNLOAD_PREVIOUS_RELEASES="true"
-export BITCOIN_CONFIG="\
+export AVIAN_CONFIG="\
  -DWITH_ZMQ=ON -DBUILD_GUI=ON -DREDUCE_EXPORTS=ON \
  -DCMAKE_BUILD_TYPE=Debug \
  -DCMAKE_C_FLAGS='-funsigned-char' \

@@ -1,79 +1,113 @@
-Bitcoin Core integration/staging tree
-=====================================
+<h1 align="center">
+Avian Network [AVN]
+<br/><br/>
+<img src="./src/qt/res/icons/avian.png" alt="Avian" width="300"/>
+</h1>
 
-https://bitcoincore.org
+<div align="center">
 
-For an immediately usable, binary version of the Bitcoin Core software, see
-https://bitcoincore.org/en/download/.
+[![Avian](https://img.shields.io/badge/Avian-Network-blue.svg)](https://avn.network)
+[![Downloads](https://img.shields.io/github/downloads/AvianNetwork/Avian/total)](https://avn.network)
 
-What is Bitcoin Core?
----------------------
+</div>
 
-Bitcoin Core connects to the Bitcoin peer-to-peer network to download and fully
-validate blocks and transactions. It also includes a wallet and graphical user
-interface, which can be optionally built.
+# What is Avian?
 
-Further information about Bitcoin Core is available in the [doc folder](/doc).
+Avian Network is a proof-of-work secured blockchain designed
+for efficient and interoperable asset management.
+The assets can be automated using Avian Flight Plans allowing the creation of decentralized applications.
+The network prioritizes usability, automation, and low fees to make asset minting and management
+simple, affordable, and secure. The network's economy runs on AVN, our
+native coin that can be mined on a dual algorithm setup using either GPUs
+or CPUs.
 
-License
--------
+For more information, as well as an immediately useable, binary version of
+the Avian Core software, see https://avn.network
 
-Bitcoin Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
-information or see https://opensource.org/license/MIT.
+# License
 
-Development Process
--------------------
+Avian Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
+information or see https://opensource.org/licenses/MIT.
 
-The `master` branch is regularly built (see `doc/build-*.md` for instructions) and tested, but it is not guaranteed to be
-completely stable. [Tags](https://github.com/bitcoin/bitcoin/tags) are created
-regularly from release branches to indicate new official, stable release versions of Bitcoin Core.
+# Development
 
-The https://github.com/bitcoin-core/gui repository is used exclusively for the
-development of the GUI. Its master branch is identical in all monotree
-repositories. Release branches and tags do not exist, so please do not fork
-that repository unless it is for development reasons.
+Avian is open source and community driven. The development process is publicly visible and anyone can contribute.
 
-The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md)
-and useful hints for developers can be found in [doc/developer-notes.md](doc/developer-notes.md).
+### Branches
 
-Testing
--------
+- master: _Stable_, contains the code of the latest version.
+- dev: _Unstable_, contains new code for planned releases.
 
-Testing and code review is the bottleneck for development; we get more pull
-requests than we can review and test on short notice. Please be patient and help out by testing
-other people's pull requests, and remember this is a security-critical project where any mistake might cost people
-lots of money.
+The `master` branch is regularly built and tested, but is not guaranteed to be
+completely stable. [Tags](https://github.com/AvianNetwork/Avian/tags) are created
+regularly to indicate new official, stable release versions of Avian Core.
 
-### Automated Testing
+### Contributing
+
+If you find a bug with this software, please report it using the issue system.
+
+The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Running on Testnet
+
+Testnet is up and running and available to use during development. It is recommended to run the testnet using the `-maxtipage` parameter in order to connect to the test network if there has been no recently mined blocks.
+
+Use this command to initially start `aviand` on the testnet: `./aviand -testnet -maxtipage=259200`
+
+### Running on Mainnet
+
+Use this command to start `aviand` (CLI) on the mainnet:
+```
+./aviand
+```
+
+Use this command to start `avian-qt` (GUI) on the mainnet:
+```
+./avian-qt
+```
+
+# Building
+
+Avian Core v5.0 is based on Bitcoin Core v30.2 and uses CMake as its build system.
+
+Further build information is available in the [doc folder](/doc):
+- [Build on Linux](doc/build-openbsd.md)
+- [Build on macOS](doc/build-osx.md)
+- [Build on Windows](doc/build-windows-msvc.md)
+- [Build on FreeBSD](doc/build-freebsd.md)
+- [Build on OpenBSD](doc/build-openbsd.md)
+
+#### Quick Start (Linux)
+
+```shell
+# Install dependencies (Debian/Ubuntu)
+sudo apt-get install build-essential cmake pkg-config libevent-dev libboost-dev \
+  libsqlite3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools \
+  libqrencode-dev libzmq3-dev
+
+# Clone Avian repo
+git clone https://github.com/AvianNetwork/Avian
+cd Avian
+
+# Build Avian Core
+cmake -B build
+cmake --build build -j$(nproc)
+```
+
+# Testing
 
 Developers are strongly encouraged to write [unit tests](src/test/README.md) for new code, and to
-submit new unit tests for old code. Unit tests can be compiled and run
-(assuming they weren't disabled during the generation of the build system) with: `ctest`. Further details on running
-and extending unit tests can be found in [/src/test/README.md](/src/test/README.md).
+submit new unit tests for old code. Unit tests can be compiled and run with: `ctest --test-dir build`.
 
-There are also [regression and integration tests](/test), written
-in Python.
-These tests can be run (if the [test dependencies](/test) are installed) with: `build/test/functional/test_runner.py`
-(assuming `build` is your build directory).
+There are also [regression and integration tests](/test), written in Python.
+These tests can be run with: `build/test/functional/test_runner.py`.
 
-The CI (Continuous Integration) systems make sure that every pull request is tested on Windows, Linux, and macOS.
-The CI must pass on all commits before merge to avoid unrelated CI failures on new pull requests.
+# Avian History
 
-### Manual Quality Assurance (QA) Testing
+Avian is a digital peer-to-peer network for the facilitation of asset transfer.
 
-Changes should be tested by somebody other than the developer who wrote the
-code. This is especially important for large or high-risk changes. It is useful
-to add a test plan to the pull request description if testing the changes is
-not straightforward.
+Having started development on August 12th of 2021, and active on mainnet since September 1st, Avian (AVN) is a fork of Ravencoin Lite (RVL) which is a fork of Ravencoin Classic (RVC), aimed primarily at bringing the means of development back into the hands of the community after RVC had been abandoned by its creators. With the RVC GitHub locked, and software in disrepair, RVL sought to improve upon the existing foundations by implementing the necessary updates and bug fixes needed to bring the original x16r fork of Ravencoin Classic up to par with modern cryptocurrencies.
 
-Translations
-------------
+We implemented a secondary CPU algorithm, somewhat akin to Myriad (XMY) called MinotaurX which was developed by LitecoinCash (LCC), to help decentralize the mining of AVN without resorting to replacing the primary algorithm.
 
-Changes to translations as well as new translations can be submitted to
-[Bitcoin Core's Transifex page](https://explore.transifex.com/bitcoin/bitcoin/).
-
-Translations are periodically pulled from Transifex and merged into the git repository. See the
-[translation process](doc/translation_process.md) for details on how this works.
-
-**Important**: We do not accept translation changes as GitHub pull requests because the next
-pull from Transifex would automatically overwrite them again.
+Thank you to the Bitcoin developers and Ravencoin developers for your hard work. The Avian project is built on the foundation of your efforts and we continue to expand upon it.

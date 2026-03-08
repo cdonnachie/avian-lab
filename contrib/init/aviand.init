@@ -1,36 +1,36 @@
 #!/usr/bin/env bash
 #
-#  bitcoind The bitcoin core server.
+#  aviand The avian core server.
 #
 #
 # chkconfig: 345 80 20
-# description: bitcoind
-# processname: bitcoind
+# description: aviand
+# processname: aviand
 #
 
 # Source function library.
 . /etc/init.d/functions
 
-# you can override defaults in /etc/sysconfig/bitcoind, see below
-if [ -f /etc/sysconfig/bitcoind ]; then
-        . /etc/sysconfig/bitcoind
+# you can override defaults in /etc/sysconfig/aviand, see below
+if [ -f /etc/sysconfig/aviand ]; then
+        . /etc/sysconfig/aviand
 fi
 
 RETVAL=0
 
-prog=bitcoind
-# you can override the lockfile via BITCOIND_LOCKFILE in /etc/sysconfig/bitcoind
-lockfile=${BITCOIND_LOCKFILE-/var/lock/subsys/bitcoind}
+prog=aviand
+# you can override the lockfile via AVIAND_LOCKFILE in /etc/sysconfig/aviand
+lockfile=${AVIAND_LOCKFILE-/var/lock/subsys/aviand}
 
-# bitcoind defaults to /usr/bin/bitcoind, override with BITCOIND_BIN
-bitcoind=${BITCOIND_BIN-/usr/bin/bitcoind}
+# aviand defaults to /usr/bin/aviand, override with AVIAND_BIN
+aviand=${AVIAND_BIN-/usr/bin/aviand}
 
-# bitcoind opts default to -disablewallet, override with BITCOIND_OPTS
-bitcoind_opts=${BITCOIND_OPTS--disablewallet}
+# aviand opts default to -disablewallet, override with AVIAND_OPTS
+aviand_opts=${AVIAND_OPTS--disablewallet}
 
 start() {
     echo -n $"Starting $prog: "
-    daemon $DAEMONOPTS $bitcoind $bitcoind_opts
+    daemon $DAEMONOPTS $aviand $aviand_opts
     RETVAL=$?
     echo
     [ $RETVAL -eq 0 ] && touch $lockfile

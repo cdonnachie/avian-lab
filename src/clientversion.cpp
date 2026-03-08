@@ -72,12 +72,16 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
 std::string CopyrightHolders(const std::string& strPrefix)
 {
     const auto copyright_devs = strprintf(_(COPYRIGHT_HOLDERS), COPYRIGHT_HOLDERS_SUBSTITUTION).translated;
-    std::string strCopyrightHolders = strPrefix + copyright_devs;
+    std::string strCopyrightHolders;
 
-    // Make sure Bitcoin Core copyright is not removed by accident
+    // Chronological order: Bitcoin Core (2009) -> Ravencoin (2018) -> Avian (2021)
     if (copyright_devs.find("Bitcoin Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
+        strCopyrightHolders += strPrefix + strprintf("%i-%i ", 2009, COPYRIGHT_YEAR) + "The Bitcoin Core developers";
+        strCopyrightHolders += "\n";
     }
+    strCopyrightHolders += strPrefix + "2018-2021 The Ravencoin Core developers";
+    strCopyrightHolders += "\n" + strPrefix + strprintf("%i-%i ", 2021, COPYRIGHT_YEAR) + copyright_devs;
+
     return strCopyrightHolders;
 }
 
@@ -85,7 +89,7 @@ std::string LicenseInfo()
 {
     const std::string URL_SOURCE_CODE = "<https://github.com/AltcoinBaggins/avian>";
 
-    return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR).translated + " ") + "\n" +
+    return CopyrightHolders("Copyright (C) ") + "\n" +
            "\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software."),
