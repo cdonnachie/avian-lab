@@ -100,6 +100,11 @@ target_link_libraries(avian_algo
   PRIVATE
     core_interface
 )
+# Suppress warnings for third-party SPH hashing library code
+target_compile_options(avian_algo PRIVATE
+  -Wno-undef
+  -Wno-redundant-decls
+)
 
 add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
   arith_uint256.cpp

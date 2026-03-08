@@ -16,8 +16,12 @@
 #include <util/fs.h>
 #include <util/fs_helpers.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wundef"
+#pragma GCC diagnostic ignored "-Wredundant-decls"
 #include <algo/minotaurx/minotaurx.h>
 #include <algo/x16r/x16r.h>
+#pragma GCC diagnostic pop
 
 #include <cstdint>
 #include <cstring>
