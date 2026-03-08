@@ -399,7 +399,7 @@ CoinsResult AvailableCoins(const CWallet& wallet,
                 safeTx = false;
             }
 
-            if (nDepth == 0 && params.check_version_trucness) {
+            if (nDepth == 0 && params.check_version_trucness && coinControl) {
                 if (coinControl->m_version == TRUC_VERSION) {
                     if (wtx.tx->version != TRUC_VERSION) continue;
                     // this unconfirmed v3 transaction already has a child

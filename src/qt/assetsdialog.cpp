@@ -26,6 +26,7 @@
 #include <wallet/wallet.h>
 #include <wallet/spend.h>
 #include <wallet/asset_tx.h>
+#include <policy/fees.h>
 #include <validation.h>
 #include <node/interface_ui.h>
 #include <qt/createassetdialog.h>
@@ -194,8 +195,8 @@ void AssetsDialog::setModel(WalletModel *_model)
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(setMinimumFee()));
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(updateFeeSectionControls()));
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(assetControlUpdateLabels()));
-        // Rule 9: GetRequiredFee -> CAmount(1000) stub
-        ui->customFee->setSingleStep(CAmount(1000));
+        CAmount requiredFee = model->wallet().getRequiredFee(1000);
+        ui->customFee->setSingleStep(requiredFee);
         updateFeeSectionControls();
         updateMinFeeLabel();
         updateSmartFeeLabel();
@@ -624,8 +625,7 @@ void AssetsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn &se
             msgParams.second = CClientUIInterface::MSG_ERROR;
             break;
         case WalletModel::AbsurdFee:
-            // Rule 11: maxTxFee -> CAmount(10000000)
-            msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CAmount(10000000)));
+            msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getDefaultMaxTxFee()));
             break;
             // included to prevent a compiler warning.
         case WalletModel::OK:
@@ -659,8 +659,7 @@ void AssetsDialog::on_buttonMinimizeFee_clicked()
 
 void AssetsDialog::setMinimumFee()
 {
-    // Rule 9: GetRequiredFee -> CAmount(1000) stub
-    ui->customFee->setValue(CAmount(1000));
+    ui->customFee->setValue(model->wallet().getRequiredFee(1000));
 }
 
 void AssetsDialog::updateFeeSectionControls()
@@ -691,9 +690,8 @@ void AssetsDialog::updateFeeMinimizedLabel()
 void AssetsDialog::updateMinFeeLabel()
 {
     if (model && model->getOptionsModel())
-        // Rule 9: GetRequiredFee -> CAmount(1000) stub
         ui->checkBoxMinimumFee->setText(tr("Pay only the required fee of %1").arg(
-                BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CAmount(1000)) + "/kB")
+                BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getRequiredFee(1000)) + "/kB")
         );
 }
 
@@ -714,26 +712,29 @@ void AssetsDialog::updateSmartFeeLabel()
 {
     if(!model || !model->getOptionsModel())
         return;
-    // Rule 2: wallet::CCoinControl
     wallet::CCoinControl coin_control;
     updateAssetControlState(coin_control);
     coin_control.m_feerate.reset(); // Explicitly use only fee estimation rate for smart fee labels
 
-    // Rule 9: GetMinimumFee -> CAmount(1000) stub
-    // Rule 10: ::mempool, ::feeEstimator removed
-    CFeeRate feeRate = CFeeRate(CAmount(1000));
+    int returned_target;
+    FeeReason reason;
+    CFeeRate feeRate = CFeeRate(model->wallet().getMinimumFee(1000, coin_control, &returned_target, &reason));
 
     ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK()) + "/kB");
 
-    // Without fee estimation, always show fallback warning
-    ui->labelSmartFee2->show();
-    ui->labelFeeEstimation->setText("");
-    ui->fallbackFeeWarningLabel->setVisible(true);
-    int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
-    QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
-    ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
-    // Rule 25: always use Qt5/6 code path
-    ui->fallbackFeeWarningLabel->setIndent(GUIUtil::TextWidth(QFontMetrics(ui->fallbackFeeWarningLabel->font()), "x"));
+    if (reason == FeeReason::FALLBACK) {
+        ui->labelSmartFee2->show();
+        ui->labelFeeEstimation->setText("");
+        ui->fallbackFeeWarningLabel->setVisible(true);
+        int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
+        QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
+        ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
+        ui->fallbackFeeWarningLabel->setIndent(GUIUtil::TextWidth(QFontMetrics(ui->fallbackFeeWarningLabel->font()), "x"));
+    } else {
+        ui->labelSmartFee2->hide();
+        ui->labelFeeEstimation->setText(tr("Estimated to begin confirmation within %n block(s).", "", returned_target));
+        ui->fallbackFeeWarningLabel->setVisible(false);
+    }
 
     updateFeeMinimizedLabel();
 }

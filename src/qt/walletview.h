@@ -148,6 +148,10 @@ Q_SIGNALS:
     void outOfSyncWarningClicked();
     /** AVN: Check if assets are deployed and enable/disable UI */
     void checkAssets();
+    /** AVN: Request navigation to asset pages (for sidebar icon update) */
+    void assetPageRequested();
+    void createAssetPageRequested();
+    void manageAssetPageRequested();
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H

@@ -198,8 +198,9 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         updateFeeSectionControls();
         updateSmartFeeLabel();
 
-        // set default rbf checkbox state
-        ui->optInRBF->setCheckState(Qt::Checked);
+        // AVN: RBF is not used in Avian — hide the checkbox and force it off
+        ui->optInRBF->setChecked(false);
+        ui->optInRBF->hide();
 
         if (model->wallet().hasExternalSigner()) {
             //: "device" usually means a hardware wallet.
@@ -363,15 +364,6 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
         question_string.append("<span style='color:#aa0000; font-weight:bold;'>");
         question_string.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
         question_string.append("</span><br />");
-
-        // append RBF message according to transaction's signalling
-        question_string.append("<span style='font-size:10pt; font-weight:normal;'>");
-        if (ui->optInRBF->isChecked()) {
-            question_string.append(tr("You can increase the fee later (signals Replace-By-Fee, BIP-125)."));
-        } else {
-            question_string.append(tr("Not signalling Replace-By-Fee, BIP-125."));
-        }
-        question_string.append("</span>");
     }
 
     // add total amount in all subdivision units
@@ -504,6 +496,11 @@ void SendCoinsDialog::sendButtonClicked([[maybe_unused]] bool checked)
     if (retval == QMessageBox::Save) {
         // "Create Unsigned" clicked
         CMutableTransaction mtx = CMutableTransaction{*(m_current_transaction->getWtx())};
+        // Strip scriptSigs and scriptWitnesses — PSBT format requires unsigned tx
+        for (CTxIn& txin : mtx.vin) {
+            txin.scriptSig.clear();
+            txin.scriptWitness.SetNull();
+        }
         PartiallySignedTransaction psbtx(mtx);
         bool complete = false;
         // Fill without signing
@@ -519,6 +516,11 @@ void SendCoinsDialog::sendButtonClicked([[maybe_unused]] bool checked)
         bool broadcast = true;
         if (model->wallet().hasExternalSigner()) {
             CMutableTransaction mtx = CMutableTransaction{*(m_current_transaction->getWtx())};
+            // Strip scriptSigs and scriptWitnesses — PSBT format requires unsigned tx
+            for (CTxIn& txin : mtx.vin) {
+                txin.scriptSig.clear();
+                txin.scriptWitness.SetNull();
+            }
             PartiallySignedTransaction psbtx(mtx);
             bool complete = false;
             // Always fill without signing first. This prevents an external signer

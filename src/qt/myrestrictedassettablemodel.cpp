@@ -18,6 +18,7 @@
 #include <uint256.h>
 #include <common/args.h>
 #include <assets/assets.h>
+#include <assets/myassetsdb.h>
 #include <validation.h>
 #include <wallet/wallet.h>
 
@@ -29,6 +30,8 @@
 
 #include <functional>
 using namespace std::placeholders;
+
+extern CMyRestrictedDB* pmyrestricteddb;
 
 // Amount column is right-aligned it contains numbers
 static int column_alignments[] = {
@@ -74,9 +77,41 @@ public:
         qDebug() << "MyRestrictedAssetsTablePriv::refreshWallet";
         cacheMyAssetData.clear();
         vectAssetData.clear();
-        // TODO: Port restricted asset DB infrastructure (pmyrestricteddb)
-        // For now this is stubbed out - will be populated once
-        // the restricted asset tracking database is fully ported.
+
+        if (!pmyrestricteddb)
+            return;
+
+        // Load tagged addresses (qualifier assignments)
+        std::vector<std::tuple<std::string, std::string, bool, uint32_t>> vecTagged;
+        pmyrestricteddb->LoadMyTaggedAddresses(vecTagged);
+        for (const auto& [address, tag, fAdd, nHeight] : vecTagged) {
+            MyRestrictedAssetRecord rec;
+            rec.type = fAdd ? MyRestrictedAssetRecord::Tagged : MyRestrictedAssetRecord::UnTagged;
+            rec.address = address;
+            rec.assetName = tag;
+            rec.time = 0; // Height-based, no timestamp available
+            rec.involvesWatchAddress = false;
+
+            QPair<QString, QString> pair(QString::fromStdString(address), QString::fromStdString(tag));
+            cacheMyAssetData[pair] = rec;
+            vectAssetData.push_back(pair);
+        }
+
+        // Load restricted addresses (freeze/unfreeze)
+        std::vector<std::tuple<std::string, std::string, bool, uint32_t>> vecRestricted;
+        pmyrestricteddb->LoadMyRestrictedAddresses(vecRestricted);
+        for (const auto& [address, asset, fAdd, nHeight] : vecRestricted) {
+            MyRestrictedAssetRecord rec;
+            rec.type = fAdd ? MyRestrictedAssetRecord::Frozen : MyRestrictedAssetRecord::UnFrozen;
+            rec.address = address;
+            rec.assetName = asset;
+            rec.time = 0;
+            rec.involvesWatchAddress = false;
+
+            QPair<QString, QString> pair(QString::fromStdString(address), QString::fromStdString(asset));
+            cacheMyAssetData[pair] = rec;
+            vectAssetData.push_back(pair);
+        }
     }
 
     void updateMyRestrictedAssets(const QString& address, const QString& asset_name, const int type, const qint64& date)
@@ -384,11 +419,13 @@ QModelIndex MyRestrictedAssetsTableModel::index(int row, int column, const QMode
 
 void MyRestrictedAssetsTableModel::subscribeToCoreSignals()
 {
-    // TODO: Connect to wallet restricted asset notification signals
-    // once the restricted asset tracking infrastructure is fully ported.
+    // Restricted asset notifications (qualifier assignment, freeze/unfreeze) are
+    // currently populated via refreshWallet() reading from pmyrestricteddb.
+    // Real-time push notifications would require hooks in ConnectBlock/DisconnectBlock
+    // that fire when qualifier/freeze transactions are processed.
 }
 
 void MyRestrictedAssetsTableModel::unsubscribeFromCoreSignals()
 {
-    // TODO: Disconnect from wallet restricted asset notification signals
+    // No real-time signals connected yet — see subscribeToCoreSignals()
 }

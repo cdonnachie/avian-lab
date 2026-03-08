@@ -66,16 +66,14 @@ void RestrictedAssetsDialog::setModel(WalletModel *_model)
         updateDisplayUnit();
 
         assetFilterProxy = new AssetFilterProxy(this);
-        // TODO: Need to add getAssetTableModel() to WalletModel
-        // assetFilterProxy->setSourceModel(_model->getAssetTableModel());
+        assetFilterProxy->setSourceModel(_model->getAssetTableModel());
         assetFilterProxy->setDynamicSortFilter(true);
         assetFilterProxy->setAssetNamePrefix("$");
         assetFilterProxy->setSortCaseSensitivity(Qt::CaseInsensitive);
         assetFilterProxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
 
         myRestrictedAssetsFilterProxy = new QSortFilterProxyModel(this);
-        // TODO: Need to add getMyRestrictedAssetsTableModel() to WalletModel
-        // myRestrictedAssetsFilterProxy->setSourceModel(_model->getMyRestrictedAssetsTableModel());
+        myRestrictedAssetsFilterProxy->setSourceModel(_model->getMyRestrictedAssetsTableModel());
         myRestrictedAssetsFilterProxy->setDynamicSortFilter(true);
         myRestrictedAssetsFilterProxy->setSortCaseSensitivity(Qt::CaseInsensitive);
         myRestrictedAssetsFilterProxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
@@ -150,9 +148,10 @@ void RestrictedAssetsDialog::freezeAddressClicked()
         return;
     }
 
-    // TODO: Port freeze address transaction through interfaces::Wallet
+    // Freeze/unfreeze requires CreateFreezeTransaction / CreateUnfreezeTransaction
+    // in wallet/asset_tx.cpp which are not yet ported
     QMessageBox msgBox;
-    msgBox.setText(tr("Freeze/unfreeze functionality is not yet available in this version. Wallet integration is in progress."));
+    msgBox.setText(tr("Freeze/unfreeze functionality requires restricted asset transaction support which is not yet ported."));
     msgBox.exec();
 }
 
@@ -164,8 +163,9 @@ void RestrictedAssetsDialog::assignQualifierClicked()
         return;
     }
 
-    // TODO: Port assign qualifier transaction through interfaces::Wallet
+    // Assign/remove qualifier requires CreateAssignQualifierTransaction
+    // in wallet/asset_tx.cpp which is not yet ported
     QMessageBox msgBox;
-    msgBox.setText(tr("Assign/remove qualifier functionality is not yet available in this version. Wallet integration is in progress."));
+    msgBox.setText(tr("Assign/remove qualifier functionality requires restricted asset transaction support which is not yet ported."));
     msgBox.exec();
 }

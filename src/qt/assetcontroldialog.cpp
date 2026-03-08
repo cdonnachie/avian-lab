@@ -16,6 +16,8 @@
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h>
 #include <wallet/spend.h>
+#include <assets/assets.h>
+#include <key_io.h>
 #include <policy/policy.h>
 #include <validation.h>
 
@@ -458,7 +460,7 @@ void AssetControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         nPayAmount += amount;
     }
 
-    std::string strAssetName = "";
+    std::string strAssetName = assetControl->strAssetSelected;
     CAmount nAssetAmount        = 0;
     CAmount nPayFee             = 0;
     CAmount nAfterFee           = 0;
@@ -467,8 +469,39 @@ void AssetControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     unsigned int nQuantity      = 0;
     bool fDust                  = false;
 
-    // TODO: Port asset coin selection through interfaces::Wallet
-    // For now, labels show zeros until wallet integration is complete
+    // Calculate from selected coins
+    if (!strAssetName.empty() && model) {
+        wallet::CWallet* pwallet = model->wallet().wallet();
+        if (pwallet) {
+            std::vector<COutPoint> vSelected = assetControl->ListSelected();
+            LOCK(pwallet->cs_wallet);
+            wallet::CoinFilterParams params;
+            params.min_amount = 0;
+            params.check_version_trucness = false;
+            wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+            auto it = available.mapAssetCoins.find(strAssetName);
+            if (it != available.mapAssetCoins.end()) {
+                for (const auto& output : it->second) {
+                    if (assetControl->IsSelected(output.outpoint)) {
+                        CAssetOutputEntry data;
+                        if (GetAssetData(output.txout.scriptPubKey, data)) {
+                            nAssetAmount += data.nAmount;
+                            nQuantity++;
+                            nBytes += 148; // Estimate per-input size
+                        }
+                    }
+                }
+            }
+        }
+
+        if (nQuantity > 0) {
+            nBytes += 34; // Output size estimate
+            nBytes += 10; // Overhead
+            nPayFee = model->wallet().getRequiredFee(nBytes);
+            nAfterFee = nAssetAmount;
+            nChange = nAssetAmount - nPayAmount;
+        }
+    }
 
     // actually update labels
     BitcoinUnits::Unit nDisplayUnit = BitcoinUnits::Unit::BTC;
@@ -538,8 +571,120 @@ void AssetControlDialog::updateView()
     ui->treeWidget->setEnabled(false);
     ui->treeWidget->setAlternatingRowColors(!treeMode);
 
-    // TODO: Port asset coin listing through interfaces::Wallet
-    // For now, the tree view will be empty until wallet integration is complete
+    std::string strSelectedAsset = assetControl->strAssetSelected;
+    if (strSelectedAsset.empty()) {
+        sortView(sortColumn, sortOrder);
+        ui->treeWidget->setEnabled(true);
+        return;
+    }
+
+    wallet::CWallet* pwallet = model->wallet().wallet();
+    if (!pwallet) {
+        sortView(sortColumn, sortOrder);
+        ui->treeWidget->setEnabled(true);
+        return;
+    }
+
+    // Get asset UTXOs for the selected asset
+    std::map<std::string, std::vector<wallet::COutput>> mapAssetCoins;
+    {
+        LOCK(pwallet->cs_wallet);
+        wallet::CoinFilterParams params;
+        params.min_amount = 0;
+        params.check_version_trucness = false;
+        wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+        mapAssetCoins = available.mapAssetCoins;
+    }
+
+    auto it = mapAssetCoins.find(strSelectedAsset);
+    if (it == mapAssetCoins.end()) {
+        sortView(sortColumn, sortOrder);
+        ui->treeWidget->setEnabled(true);
+        return;
+    }
+
+    // Group by address for tree mode
+    std::map<QString, std::vector<const wallet::COutput*>> mapAddressOutputs;
+    for (const auto& output : it->second) {
+        CTxDestination address;
+        if (ExtractDestination(output.txout.scriptPubKey, address)) {
+            QString sAddress = QString::fromStdString(EncodeDestination(address));
+            mapAddressOutputs[sAddress].push_back(&output);
+        }
+    }
+
+    for (const auto& [sAddress, outputs] : mapAddressOutputs) {
+        CAssetControlWidgetItem* itemWalletAddress = nullptr;
+        if (treeMode) {
+            itemWalletAddress = new CAssetControlWidgetItem(ui->treeWidget);
+            itemWalletAddress->setFlags(itemWalletAddress->flags() | Qt::ItemIsUserCheckable);
+            itemWalletAddress->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
+
+            // Address
+            itemWalletAddress->setText(COLUMN_ADDRESS, sAddress);
+
+            // Label
+            QString sLabel = model->getAddressTableModel()->labelForAddress(sAddress);
+            itemWalletAddress->setText(COLUMN_LABEL, sLabel);
+
+            CAmount nSum = 0;
+            int nChildren = 0;
+            for (const auto* out : outputs) {
+                CAssetOutputEntry data;
+                if (GetAssetData(out->txout.scriptPubKey, data))
+                    nSum += data.nAmount;
+                nChildren++;
+            }
+            itemWalletAddress->setText(COLUMN_AMOUNT, BitcoinUnits::format(BitcoinUnits::Unit::BTC, nSum));
+            itemWalletAddress->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)nSum));
+            itemWalletAddress->setText(COLUMN_ASSET_NAME, QString::fromStdString(strSelectedAsset));
+        }
+
+        for (const auto* out : outputs) {
+            CAssetOutputEntry assetData;
+            if (!GetAssetData(out->txout.scriptPubKey, assetData))
+                continue;
+
+            CAssetControlWidgetItem* itemOutput;
+            if (treeMode) {
+                itemOutput = new CAssetControlWidgetItem(itemWalletAddress);
+            } else {
+                itemOutput = new CAssetControlWidgetItem(ui->treeWidget);
+            }
+            itemOutput->setFlags(itemOutput->flags() | Qt::ItemIsUserCheckable);
+            itemOutput->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
+
+            // Asset name
+            itemOutput->setText(COLUMN_ASSET_NAME, QString::fromStdString(strSelectedAsset));
+
+            // Amount
+            itemOutput->setText(COLUMN_AMOUNT, BitcoinUnits::format(BitcoinUnits::Unit::BTC, assetData.nAmount));
+            itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)assetData.nAmount));
+
+            // Address
+            itemOutput->setText(COLUMN_ADDRESS, sAddress);
+
+            // Label
+            QString sLabel = model->getAddressTableModel()->labelForAddress(sAddress);
+            if (sLabel.isEmpty())
+                sLabel = tr("(no label)");
+            itemOutput->setText(COLUMN_LABEL, sLabel);
+
+            // Confirmations
+            itemOutput->setText(COLUMN_CONFIRMATIONS, QString::number(out->depth));
+            itemOutput->setData(COLUMN_CONFIRMATIONS, Qt::UserRole, QVariant((qlonglong)out->depth));
+
+            // Transaction hash
+            itemOutput->setText(COLUMN_TXHASH, QString::fromStdString(out->outpoint.hash.GetHex()));
+
+            // Vout index
+            itemOutput->setText(COLUMN_VOUT_INDEX, QString::number(out->outpoint.n));
+
+            // Set checkbox state if selected in coin control
+            if (assetControl->IsSelected(out->outpoint))
+                itemOutput->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
+        }
+    }
 
     // sort view
     sortView(sortColumn, sortOrder);

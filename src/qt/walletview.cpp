@@ -106,10 +106,11 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     connect(overviewPage, &OverviewPage::assetIssueUniqueClicked, createAssetsPage, &CreateAssetDialog::focusUniqueAsset);
     connect(overviewPage, &OverviewPage::assetReissueClicked, manageAssetsPage, &ReissueAssetDialog::focusReissueAsset);
     // Navigate to the appropriate page when context menu actions are triggered
-    connect(overviewPage, &OverviewPage::assetSendClicked, this, &WalletView::gotoAssetsPage);
-    connect(overviewPage, &OverviewPage::assetIssueSubClicked, this, &WalletView::gotoCreateAssetsPage);
-    connect(overviewPage, &OverviewPage::assetIssueUniqueClicked, this, &WalletView::gotoCreateAssetsPage);
-    connect(overviewPage, &OverviewPage::assetReissueClicked, this, &WalletView::gotoManageAssetsPage);
+    // Emit signals so BitcoinGUI can update the sidebar checked state
+    connect(overviewPage, &OverviewPage::assetSendClicked, this, [this]{ Q_EMIT assetPageRequested(); });
+    connect(overviewPage, &OverviewPage::assetIssueSubClicked, this, [this]{ Q_EMIT createAssetPageRequested(); });
+    connect(overviewPage, &OverviewPage::assetIssueUniqueClicked, this, [this]{ Q_EMIT createAssetPageRequested(); });
+    connect(overviewPage, &OverviewPage::assetReissueClicked, this, [this]{ Q_EMIT manageAssetPageRequested(); });
     /** AVN END */
 
     connect(sendCoinsPage, &SendCoinsDialog::coinsSent, this, &WalletView::coinsSent);

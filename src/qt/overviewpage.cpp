@@ -418,7 +418,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         // Set up asset list
         assetFilter.reset(new AssetFilterProxy());
         assetFilter->setSourceModel(model->getAssetTableModel());
-        assetFilter->sort(AssetTableModel::AssetNameRole, Qt::DescendingOrder);
+        assetFilter->setSortRole(AssetTableModel::AssetNameRole);
+        assetFilter->sort(AssetTableModel::Name, Qt::AscendingOrder);
         ui->listAssets->setModel(assetFilter.get());
 
         // Keep up to date with wallet
@@ -482,8 +483,7 @@ void OverviewPage::setMonospacedFont(const QFont& f)
 /** AVN START */
 void OverviewPage::showAssets()
 {
-    // TODO: Gate on AreAssetsDeployed() once consensus is wired
-    bool fShowAssets = true;
+    bool fShowAssets = AreAssetsDeployed();
     ui->assetFrame->setVisible(fShowAssets);
 }
 

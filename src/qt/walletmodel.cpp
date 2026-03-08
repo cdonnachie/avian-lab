@@ -6,6 +6,7 @@
 
 #include <qt/addresstablemodel.h>
 #include <qt/assettablemodel.h>
+#include <qt/myrestrictedassettablemodel.h>
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
@@ -46,12 +47,14 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
     m_client_model(&client_model),
     m_node(client_model.node()),
     optionsModel(client_model.getOptionsModel()),
+    platformStyle(platformStyle),
     timer(new QTimer(this))
 {
     addressTableModel = new AddressTableModel(this);
     transactionTableModel = new TransactionTableModel(platformStyle, this);
     recentRequestsTableModel = new RecentRequestsTableModel(this);
     assetTableModel = new AssetTableModel(this);
+    myRestrictedAssetsTableModel = new MyRestrictedAssetsTableModel(platformStyle, m_wallet->wallet(), this);
 
     subscribeToCoreSignals();
 }
@@ -311,6 +314,11 @@ RecentRequestsTableModel* WalletModel::getRecentRequestsTableModel() const
 AssetTableModel* WalletModel::getAssetTableModel() const
 {
     return assetTableModel;
+}
+
+MyRestrictedAssetsTableModel* WalletModel::getMyRestrictedAssetsTableModel() const
+{
+    return myRestrictedAssetsTableModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const

@@ -19,6 +19,7 @@
 
 #include <wallet/coincontrol.h>
 #include <wallet/asset_tx.h>
+#include <policy/fees.h>
 
 #include <addresstype.h>
 #include <key_io.h>
@@ -209,7 +210,8 @@ void CreateAssetDialog::setModel(WalletModel *_model)
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(coinControlUpdateLabels()));
 //        connect(ui->optInRBF, SIGNAL(stateChanged(int)), this, SLOT(updateSmartFeeLabel()));
 //        connect(ui->optInRBF, SIGNAL(stateChanged(int)), this, SLOT(coinControlUpdateLabels()));
-        ui->customFee->setSingleStep(CAmount(1000));
+        CAmount requiredFee = model->wallet().getRequiredFee(1000);
+        ui->customFee->setSingleStep(requiredFee);
         updateFeeSectionControls();
         updateMinFeeLabel();
         updateSmartFeeLabel();
@@ -787,7 +789,7 @@ void CreateAssetDialog::onCreateAssetClicked()
 
     std::string ansDecoded = "";
     if (hasANS) {
-        std::string error; // TODO: We already do type checking, should we check again here?
+        std::string error;
         std::string formattedTypeData;
         CAvianNameSystemID::Type type = static_cast<CAvianNameSystemID::Type>(ui->ansType->currentIndex());
         formattedTypeData = CAvianNameSystemID::FormatTypeData(type, ui->ansText->text().toStdString(), error);
@@ -1123,13 +1125,21 @@ void CreateAssetDialog::updateSmartFeeLabel()
         return;
     wallet::CCoinControl coin_control;
     updateCoinControlState(coin_control);
-    coin_control.m_feerate.reset();
-    // TODO: Port fee estimation through interfaces::Wallet
-    CFeeRate feeRate = CFeeRate(CAmount(1000));
+    coin_control.m_feerate.reset(); // Explicitly use only fee estimation rate for smart fee labels
+    int returned_target;
+    FeeReason reason;
+    CFeeRate feeRate = CFeeRate(model->wallet().getMinimumFee(1000, coin_control, &returned_target, &reason));
     ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK()) + "/kB");
-    ui->labelSmartFee2->hide();
-    ui->labelFeeEstimation->setText("");
-    ui->fallbackFeeWarningLabel->setVisible(false);
+
+    if (reason == FeeReason::FALLBACK) {
+        ui->labelSmartFee2->show();
+        ui->labelFeeEstimation->setText("");
+        ui->fallbackFeeWarningLabel->setVisible(true);
+    } else {
+        ui->labelSmartFee2->hide();
+        ui->labelFeeEstimation->setText(tr("Estimated to begin confirmation within %n block(s).", "", returned_target));
+        ui->fallbackFeeWarningLabel->setVisible(false);
+    }
     updateFeeMinimizedLabel();
 }
 
@@ -1326,7 +1336,7 @@ void CreateAssetDialog::on_buttonMinimizeFee_clicked()
 
 void CreateAssetDialog::setMinimumFee()
 {
-    ui->customFee->setValue(CAmount(1000)); // TODO: fee estimation stub
+    ui->customFee->setValue(model->wallet().getRequiredFee(1000));
 }
 
 void CreateAssetDialog::updateFeeSectionControls()
@@ -1358,7 +1368,7 @@ void CreateAssetDialog::updateMinFeeLabel()
 {
     if (model && model->getOptionsModel())
         ui->checkBoxMinimumFee->setText(tr("Pay only the required fee of %1").arg(
-                BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CAmount(1000)) + "/kB") // TODO: fee estimation stub
+                BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getRequiredFee(1000)) + "/kB")
         );
 }
 

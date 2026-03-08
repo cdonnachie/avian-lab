@@ -168,6 +168,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     bumpFeeAction = contextMenu->addAction(tr("Increase transaction &fee"));
     GUIUtil::ExceptionSafeConnect(bumpFeeAction, &QAction::triggered, this, &TransactionView::bumpFee);
     bumpFeeAction->setObjectName("bumpFeeAction");
+    bumpFeeAction->setVisible(false); // AVN: RBF not used in Avian
     abandonAction = contextMenu->addAction(tr("A&bandon transaction"), this, &TransactionView::abandonTx);
     contextMenu->addAction(tr("&Edit address label"), this, &TransactionView::editLabel);
 

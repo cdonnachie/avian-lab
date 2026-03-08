@@ -33,6 +33,7 @@
 
 #include <wallet/coincontrol.h>
 #include <wallet/asset_tx.h>
+#include <policy/fees.h>
 
 #include <QClipboard>
 #include <QCompleter>
@@ -216,7 +217,7 @@ void ReissueAssetDialog::setModel(WalletModel* _model)
         connect(ui->checkBoxMinimumFee, SIGNAL(stateChanged(int)), this, SLOT(coinControlUpdateLabels()));
         //        connect(ui->optInRBF, SIGNAL(stateChanged(int)), this, SLOT(updateSmartFeeLabel()));
         //        connect(ui->optInRBF, SIGNAL(stateChanged(int)), this, SLOT(coinControlUpdateLabels()));
-        ui->customFee->setSingleStep(CAmount(1000)); // TODO: fee estimation stub
+        ui->customFee->setSingleStep(model->wallet().getRequiredFee(1000));
         updateFeeSectionControls();
         updateMinFeeLabel();
         updateSmartFeeLabel();
@@ -612,7 +613,7 @@ void ReissueAssetDialog::buildUpdatedData()
         QString qstr = QString::fromStdString(asset->strANSID);
         ansID = formatBlack.arg(tr("ANS ID"), ":", qstr) + "\n";
     } else if (ui->ansBox->isChecked() && !ui->ansBox->text().isEmpty()) {
-        std::string error; // TODO: We already do type checking, should we check again here?
+        std::string error;
         std::string formattedTypeData;
         CAvianNameSystemID::Type type = static_cast<CAvianNameSystemID::Type>(ui->ansType->currentIndex());
         formattedTypeData = CAvianNameSystemID::FormatTypeData(type, ui->ansText->text().toStdString(), error);
@@ -926,7 +927,7 @@ void ReissueAssetDialog::onReissueAssetClicked()
 
     std::string ansDecoded = "";
     if (hasANS) {
-        std::string error; // TODO: We already do type checking, should we check again here?
+        std::string error;
         std::string formattedTypeData;
         CAvianNameSystemID::Type type = static_cast<CAvianNameSystemID::Type>(ui->ansType->currentIndex());
         formattedTypeData = CAvianNameSystemID::FormatTypeData(type, ui->ansText->text().toStdString(), error);
@@ -1098,19 +1099,28 @@ void ReissueAssetDialog::updateSmartFeeLabel()
     if (!model || !model->getOptionsModel())
         return;
 
-    // TODO: fee estimation stub - real fee estimation requires mempool/feeEstimator access
-    CFeeRate feeRate = CFeeRate(CAmount(1000));
+    wallet::CCoinControl coin_control;
+    updateCoinControlState(coin_control);
+    coin_control.m_feerate.reset(); // Explicitly use only fee estimation rate for smart fee labels
+    int returned_target;
+    FeeReason reason;
+    CFeeRate feeRate = CFeeRate(model->wallet().getMinimumFee(1000, coin_control, &returned_target, &reason));
 
     ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK()) + "/kB");
 
-    // Stub: always show fallback message
-    ui->labelSmartFee2->show();
-    ui->labelFeeEstimation->setText("");
-    ui->fallbackFeeWarningLabel->setVisible(true);
-    int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
-    QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
-    ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
-    ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).horizontalAdvance("x"));
+    if (reason == FeeReason::FALLBACK) {
+        ui->labelSmartFee2->show();
+        ui->labelFeeEstimation->setText("");
+        ui->fallbackFeeWarningLabel->setVisible(true);
+        int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
+        QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
+        ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
+        ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).horizontalAdvance("x"));
+    } else {
+        ui->labelSmartFee2->hide();
+        ui->labelFeeEstimation->setText(tr("Estimated to begin confirmation within %n block(s).", "", returned_target));
+        ui->fallbackFeeWarningLabel->setVisible(false);
+    }
 
     updateFeeMinimizedLabel();
 }
@@ -1298,7 +1308,7 @@ void ReissueAssetDialog::on_buttonMinimizeFee_clicked()
 
 void ReissueAssetDialog::setMinimumFee()
 {
-    ui->customFee->setValue(CAmount(1000)); // TODO: fee estimation stub
+    ui->customFee->setValue(model->wallet().getRequiredFee(1000));
 }
 
 void ReissueAssetDialog::updateFeeSectionControls()
@@ -1329,7 +1339,7 @@ void ReissueAssetDialog::updateFeeMinimizedLabel()
 void ReissueAssetDialog::updateMinFeeLabel()
 {
     if (model && model->getOptionsModel())
-        ui->checkBoxMinimumFee->setText(tr("Pay only the required fee of %1").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CAmount(1000)) + "/kB")); // TODO: fee estimation stub
+        ui->checkBoxMinimumFee->setText(tr("Pay only the required fee of %1").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getRequiredFee(1000)) + "/kB"));
 }
 
 void ReissueAssetDialog::onUnitChanged(int value)

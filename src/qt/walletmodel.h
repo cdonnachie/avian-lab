@@ -22,6 +22,7 @@ enum class OutputType;
 class AddressTableModel;
 class AssetTableModel;
 class ClientModel;
+class MyRestrictedAssetsTableModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
@@ -79,6 +80,7 @@ public:
     TransactionTableModel* getTransactionTableModel() const;
     RecentRequestsTableModel* getRecentRequestsTableModel() const;
     AssetTableModel* getAssetTableModel() const;
+    MyRestrictedAssetsTableModel* getMyRestrictedAssetsTableModel() const;
 
     EncryptionStatus getEncryptionStatus() const;
 
@@ -174,11 +176,13 @@ private:
     // Wallet has an options model for wallet-specific options
     // (transaction fee, for example)
     OptionsModel *optionsModel;
+    const PlatformStyle *platformStyle;
 
     AddressTableModel* addressTableModel{nullptr};
     TransactionTableModel* transactionTableModel{nullptr};
     RecentRequestsTableModel* recentRequestsTableModel{nullptr};
     AssetTableModel* assetTableModel{nullptr};
+    MyRestrictedAssetsTableModel* myRestrictedAssetsTableModel{nullptr};
 
     // Cache some values to be able to detect changes
     interfaces::WalletBalances m_cached_balances;

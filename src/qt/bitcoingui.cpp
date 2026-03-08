@@ -26,6 +26,7 @@
 #include <qt/walletframe.h>
 #include <qt/walletmodel.h>
 #include <qt/walletview.h>
+#include <assets/assets.h>
 #endif // ENABLE_WALLET
 
 #ifdef Q_OS_MACOS
@@ -936,6 +937,9 @@ void BitcoinGUI::addWallet(WalletModel* walletModel)
     connect(wallet_view, &WalletView::encryptionStatusChanged, this, &BitcoinGUI::updateWalletStatus);
     connect(wallet_view, &WalletView::incomingTransaction, this, &BitcoinGUI::incomingTransaction);
     connect(wallet_view, &WalletView::checkAssets, this, &BitcoinGUI::checkAssets);
+    connect(wallet_view, &WalletView::assetPageRequested, this, &BitcoinGUI::gotoAssetsPage);
+    connect(wallet_view, &WalletView::createAssetPageRequested, this, &BitcoinGUI::gotoCreateAssetsPage);
+    connect(wallet_view, &WalletView::manageAssetPageRequested, this, &BitcoinGUI::gotoManageAssetsPage);
     connect(this, &BitcoinGUI::setPrivacy, wallet_view, &WalletView::setPrivacy);
     const bool privacy = isPrivacyModeActivated();
     wallet_view->setPrivacy(privacy);
@@ -1226,12 +1230,11 @@ void BitcoinGUI::gotoPaperWallet()
 
 void BitcoinGUI::checkAssets()
 {
-    // TODO: When AreAssetsDeployed() is available, gate these on deployment status
-    // For now, always enable since they compile
-    transferAssetAction->setEnabled(true);
-    createAssetAction->setEnabled(true);
-    manageAssetAction->setEnabled(true);
-    restrictedAssetAction->setEnabled(true);
+    bool fAssetsEnabled = AreAssetsDeployed();
+    transferAssetAction->setEnabled(fAssetsEnabled);
+    createAssetAction->setEnabled(fAssetsEnabled);
+    manageAssetAction->setEnabled(fAssetsEnabled);
+    restrictedAssetAction->setEnabled(fAssetsEnabled && AreRestrictedAssetsDeployed());
 }
 /** AVN END */
 #endif // ENABLE_WALLET

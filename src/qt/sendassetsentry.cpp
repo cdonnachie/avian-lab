@@ -12,6 +12,7 @@
 #include <qt/platformstyle.h>
 #include <qt/walletmodel.h>
 #include <qt/assetcontroldialog.h>
+#include <qt/assettablemodel.h>
 #include <qt/guiconstants.h>
 
 #include <wallet/coincontrol.h>
@@ -362,9 +363,20 @@ void SendAssetsEntry::onAssetSelected(int index)
         return;
     }
 
-    // TODO: Port wallet asset balance query through interfaces::Wallet
-    // For now, show metadata but not balance
-    ui->assetAmountLabel->setText(tr("Wallet Balance") + ": <b>" + tr("(loading...)") + "</b> " + name);
+    // Look up asset balance from the cached AssetTableModel
+    QString balanceStr = tr("(unknown)");
+    if (model && model->getAssetTableModel()) {
+        AssetTableModel* assetModel = model->getAssetTableModel();
+        QString lookupName = ui->assetSelectionBox->currentText();
+        for (int i = 0; i < assetModel->rowCount(QModelIndex()); i++) {
+            QModelIndex idx = assetModel->index(i, AssetTableModel::Name, QModelIndex());
+            if (idx.data(AssetTableModel::AssetNameRole).toString() == lookupName) {
+                balanceStr = idx.data(AssetTableModel::FormattedAmountRole).toString();
+                break;
+            }
+        }
+    }
+    ui->assetAmountLabel->setText(tr("Wallet Balance") + ": <b>" + balanceStr + "</b> " + name);
 
     ui->messageLabel->hide();
     ui->messageTextLabel->hide();

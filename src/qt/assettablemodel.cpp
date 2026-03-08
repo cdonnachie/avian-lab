@@ -36,6 +36,7 @@ static bool GetAllMyAssetBalances(wallet::CWallet* pwallet,
     LOCK(pwallet->cs_wallet);
     wallet::CoinFilterParams params;
     params.min_amount = 0;
+    params.check_version_trucness = false; // No coinControl ptr — skip TRUC version checks
     wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
 
     outputs = available.mapAssetCoins;
@@ -64,25 +65,30 @@ public:
     AssetTableModel *parent;
 
     QList<AssetRecord> cachedBalances;
+    // Cache of last-seen balances for change detection
+    std::map<std::string, CAmount> cachedAmounts;
 
     // loads all current balances into cache
 #ifdef ENABLE_WALLET
     void refreshWallet() {
-        qDebug() << "AssetTablePriv::refreshWallet";
         cachedBalances.clear();
         auto currentActiveAssetCache = GetCurrentAssetCache();
         if (currentActiveAssetCache) {
+            // Phase 1: Get asset balances under cs_wallet only (no cs_main).
+            // These two locks must never be held simultaneously to avoid
+            // deadlocking with the block-processing / mempool-submission
+            // threads which acquire cs_main then cs_wallet.
+            std::map<std::string, CAmount> balances;
+            std::map<std::string, std::vector<wallet::COutput> > outputs;
+
+            wallet::CWallet* pwallet = parent->walletModel ? parent->walletModel->wallet().wallet() : nullptr;
+            if (!GetAllMyAssetBalances(pwallet, outputs, balances)) {
+                return;
+            }
+
+            // Phase 2: Look up asset metadata under cs_main only (no cs_wallet).
             {
                 LOCK(cs_main);
-                std::map<std::string, CAmount> balances;
-                std::map<std::string, std::vector<wallet::COutput> > outputs;
-
-                // Get the CWallet via the WalletModel -> interfaces::Wallet -> CWallet*
-                wallet::CWallet* pwallet = parent->walletModel ? parent->walletModel->wallet().wallet() : nullptr;
-                if (!GetAllMyAssetBalances(pwallet, outputs, balances)) {
-                    qWarning("AssetTablePriv::refreshWallet: Error retrieving asset balances");
-                    return;
-                }
                 std::set<std::string> setAssetsToSkip;
                 auto bal = balances.begin();
                 for (; bal != balances.end(); bal++) {
@@ -153,9 +159,11 @@ AssetTableModel::AssetTableModel(WalletModel *parent) :
         priv(new AssetTablePriv(this))
 {
     columns << tr("Name") << tr("Quantity");
-#ifdef ENABLE_WALLET
-    priv->refreshWallet();
-#endif
+    // Note: Do NOT call refreshWallet() here. The constructor runs on a
+    // worker thread (LoadWalletsActivity), and refreshWallet() acquires
+    // cs_wallet then cs_main via chain interface calls, which conflicts
+    // with other threads. The first checkBalanceChanged() call on the GUI
+    // thread will populate the asset table safely.
 };
 
 AssetTableModel::~AssetTableModel()
@@ -164,14 +172,24 @@ AssetTableModel::~AssetTableModel()
 };
 
 void AssetTableModel::checkBalanceChanged() {
-    qDebug() << "AssetTableModel::CheckBalanceChanged";
-    // TODO: optimize by 1) updating cache incrementally; and 2) emitting more specific dataChanged signals
-    Q_EMIT layoutAboutToBeChanged();
 #ifdef ENABLE_WALLET
+    // Quick check: get new balances and compare with cached to avoid
+    // expensive cs_main lock and Qt model reset when nothing changed
+    wallet::CWallet* pwallet = walletModel ? walletModel->wallet().wallet() : nullptr;
+    std::map<std::string, std::vector<wallet::COutput>> outputs;
+    std::map<std::string, CAmount> newAmounts;
+    if (GetAllMyAssetBalances(pwallet, outputs, newAmounts)) {
+        if (newAmounts == priv->cachedAmounts) {
+            return; // No change — skip full refresh
+        }
+        priv->cachedAmounts = newAmounts;
+    }
+
+    Q_EMIT layoutAboutToBeChanged();
     priv->refreshWallet();
-#endif
     Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(priv->size(), columns.length()-1, QModelIndex()));
     Q_EMIT layoutChanged();
+#endif
 }
 
 int AssetTableModel::rowCount(const QModelIndex &parent) const
