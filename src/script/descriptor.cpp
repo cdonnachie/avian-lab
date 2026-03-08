@@ -2577,7 +2577,7 @@ std::unique_ptr<DescriptorImpl> InferScript(const CScript& script, ParseScriptCo
             return std::make_unique<PKDescriptor>(std::move(pubkey_provider));
         }
     }
-    if (txntype == TxoutType::PUBKEYHASH && (ctx == ParseScriptContext::TOP || ctx == ParseScriptContext::P2SH || ctx == ParseScriptContext::P2WSH)) {
+    if ((txntype == TxoutType::PUBKEYHASH || txntype == TxoutType::NEW_ASSET || txntype == TxoutType::REISSUE_ASSET || txntype == TxoutType::TRANSFER_ASSET) && (ctx == ParseScriptContext::TOP || ctx == ParseScriptContext::P2SH || ctx == ParseScriptContext::P2WSH)) {
         uint160 hash(data[0]);
         CKeyID keyid(hash);
         CPubKey pubkey;

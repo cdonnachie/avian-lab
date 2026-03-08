@@ -1309,7 +1309,15 @@ std::unique_ptr<FlatSigningProvider> DescriptorScriptPubKeyMan::GetSigningProvid
     // Find the index of the script
     auto it = m_map_script_pub_keys.find(script);
     if (it == m_map_script_pub_keys.end()) {
-        return nullptr;
+        // AVN: Asset scripts embed P2PKH at bytes 0-24. The map only stores
+        // the P2PKH portion, so retry with that subscript.
+        if (script.IsAssetScript()) {
+            CScript p2pkh_script(script.begin(), script.begin() + 25);
+            it = m_map_script_pub_keys.find(p2pkh_script);
+        }
+        if (it == m_map_script_pub_keys.end()) {
+            return nullptr;
+        }
     }
     int32_t index = it->second;
 

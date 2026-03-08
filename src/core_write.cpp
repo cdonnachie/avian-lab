@@ -4,6 +4,8 @@
 
 #include <core_io.h>
 
+#include <assets/assets.h>
+#include <assets/assettypes.h>
 #include <common/system.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
@@ -196,6 +198,47 @@ void ScriptToUniv(const CScript& script, UniValue& out, bool include_hex, bool i
         out.pushKV("address", EncodeDestination(address));
     }
     out.pushKV("type", GetTxnOutputType(type));
+
+    // AVN: Include asset data (name, amount, etc.) for asset script types
+    if (type == TxoutType::NEW_ASSET || type == TxoutType::TRANSFER_ASSET || type == TxoutType::REISSUE_ASSET) {
+        UniValue assetInfo(UniValue::VOBJ);
+        CAssetOutputEntry data;
+        if (GetAssetData(script, data)) {
+            assetInfo.pushKV("name", data.assetName);
+            assetInfo.pushKV("amount", ValueFromAmount(data.nAmount));
+            if (!data.message.empty())
+                assetInfo.pushKV("message", EncodeAssetData(data.message));
+            if (data.expireTime)
+                assetInfo.pushKV("expire_time", data.expireTime);
+
+            if (type == TxoutType::NEW_ASSET) {
+                std::string _assetAddress;
+                if (!IsAssetNameAnOwner(data.assetName)) {
+                    CNewAsset asset;
+                    if (AssetFromScript(script, asset, _assetAddress)) {
+                        assetInfo.pushKV("units", asset.units);
+                        assetInfo.pushKV("reissuable", asset.nReissuable > 0);
+                        if (asset.nHasIPFS > 0) {
+                            assetInfo.pushKV("ipfs_hash", EncodeAssetData(asset.strIPFSHash));
+                        }
+                    }
+                }
+            } else if (type == TxoutType::REISSUE_ASSET) {
+                std::string _assetAddress;
+                CReissueAsset reissue;
+                if (ReissueAssetFromScript(script, reissue, _assetAddress)) {
+                    if (reissue.nUnits >= 0) {
+                        assetInfo.pushKV("units", reissue.nUnits);
+                    }
+                    assetInfo.pushKV("reissuable", reissue.nReissuable > 0);
+                    if (!reissue.strIPFSHash.empty()) {
+                        assetInfo.pushKV("ipfs_hash", EncodeAssetData(reissue.strIPFSHash));
+                    }
+                }
+            }
+        }
+        out.pushKV("asset", assetInfo);
+    }
 }
 
 void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry, bool include_hex, const CTxUndo* txundo, TxVerbosity verbosity)

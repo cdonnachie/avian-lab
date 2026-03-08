@@ -26,12 +26,14 @@
 #include <wallet/wallet.h>
 #include <wallet/spend.h>
 #include <wallet/asset_tx.h>
+#include <psbt.h>
 #include <policy/fees.h>
 #include <validation.h>
 #include <node/interface_ui.h>
 #include <qt/createassetdialog.h>
 #include <qt/reissueassetdialog.h>
 #include <qt/guiconstants.h>
+#include <util/strencodings.h>
 
 #include <QGraphicsDropShadowEffect>
 #include <QFontMetrics>
@@ -40,6 +42,8 @@
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
+
+#include <fstream>
 
 // Local conf target helpers (rule 12)
 static const int confTargets[] = {2, 4, 6, 12, 24, 48};
@@ -395,14 +399,31 @@ void AssetsDialog::on_sendButton_clicked()
     confirmationDialog.exec();
     QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
 
-    if(retval != QMessageBox::Yes)
+    if(retval != QMessageBox::Yes && retval != QMessageBox::Save)
     {
         fNewRecipientAllowed = true;
         return;
     }
 
-    // Send the transaction
-    {
+    if (retval == QMessageBox::Save) {
+        // "Create Unsigned" clicked — export as PSBT
+        CMutableTransaction mtx = CMutableTransaction{*txRef};
+        // Strip scriptSigs and scriptWitnesses — PSBT format requires unsigned tx
+        for (CTxIn& txin : mtx.vin) {
+            txin.scriptSig.clear();
+            txin.scriptWitness.SetNull();
+        }
+        PartiallySignedTransaction psbtx(mtx);
+        bool complete = false;
+        const auto err{model->wallet().fillPSBT(std::nullopt, /*sign=*/false, /*bip32derivs=*/true, /*n_signed=*/nullptr, psbtx, complete)};
+        if (err) {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to create PSBT"));
+            fNewRecipientAllowed = true;
+            return;
+        }
+        presentPSBT(psbtx);
+    } else {
+        // "Send" clicked — broadcast directly
         LOCK(pwallet->cs_wallet);
         std::string txid;
         if (!wallet::SendAssetTransaction(*pwallet, txRef, error, txid)) {
@@ -416,6 +437,35 @@ void AssetsDialog::on_sendButton_clicked()
     }
 
     fNewRecipientAllowed = true;
+}
+
+void AssetsDialog::presentPSBT(PartiallySignedTransaction& psbtx)
+{
+    // Serialize the PSBT
+    DataStream ssTx{};
+    ssTx << psbtx;
+    GUIUtil::setClipboard(EncodeBase64(ssTx.str()).c_str());
+    QMessageBox msgBox(this);
+    msgBox.setText(tr("Unsigned Transaction", "PSBT copied"));
+    msgBox.setInformativeText(tr("The PSBT has been copied to the clipboard. You can also save it."));
+    msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Discard);
+    msgBox.setDefaultButton(QMessageBox::Discard);
+    switch (msgBox.exec()) {
+    case QMessageBox::Save: {
+        QString selectedFilter;
+        QString filename = GUIUtil::getSaveFileName(this,
+            tr("Save Transaction Data"), "",
+            tr("Partially Signed Transaction (Binary)") + QLatin1String(" (*.psbt)"), &selectedFilter);
+        if (!filename.isEmpty()) {
+            std::ofstream out{filename.toLocal8Bit().data(), std::ofstream::out | std::ofstream::binary};
+            out << ssTx.str();
+            out.close();
+        }
+        break;
+    }
+    case QMessageBox::Discard:
+        break;
+    }
 }
 
 void AssetsDialog::clear()

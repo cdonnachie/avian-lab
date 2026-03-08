@@ -1399,6 +1399,16 @@ std::vector<RPCResult> ScriptPubKeyDoc() {
              {RPCResult::Type::STR_HEX, "hex", "The raw output script bytes, hex-encoded"},
              {RPCResult::Type::STR, "address", /*optional=*/true, "The Avian address (only if a well-defined address exists)"},
              {RPCResult::Type::STR, "type", "The type (one of: " + GetAllOutputTypes() + ")"},
+             {RPCResult::Type::OBJ, "asset", /*optional=*/true, "Asset information (only for asset script types)",
+             {
+                 {RPCResult::Type::STR, "name", "The asset name"},
+                 {RPCResult::Type::STR_AMOUNT, "amount", "The asset amount"},
+                 {RPCResult::Type::STR, "message", /*optional=*/true, "Attached message"},
+                 {RPCResult::Type::NUM, "expire_time", /*optional=*/true, "Message expiration time"},
+                 {RPCResult::Type::NUM, "units", /*optional=*/true, "Number of decimal places (new/reissue only)"},
+                 {RPCResult::Type::BOOL, "reissuable", /*optional=*/true, "Whether the asset can be reissued (new/reissue only)"},
+                 {RPCResult::Type::STR, "ipfs_hash", /*optional=*/true, "IPFS hash (new/reissue only)"},
+             }},
          };
 }
 

@@ -98,12 +98,16 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     case TxoutType::MULTISIG:
     case TxoutType::NULL_DATA:
     case TxoutType::NONSTANDARD:
-    case TxoutType::NEW_ASSET:
-    case TxoutType::REISSUE_ASSET:
-    case TxoutType::TRANSFER_ASSET:
     case TxoutType::RESTRICTED_ASSET_DATA:
         addressRet = CNoDestination(scriptPubKey);
         return false;
+    case TxoutType::NEW_ASSET:
+    case TxoutType::REISSUE_ASSET:
+    case TxoutType::TRANSFER_ASSET: {
+        // Asset scripts embed P2PKH at bytes 0-24; Solver() extracts the hash
+        addressRet = PKHash(uint160(vSolutions[0]));
+        return true;
+    }
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }

@@ -3437,8 +3437,25 @@ std::set<ScriptPubKeyMan*> CWallet::GetScriptPubKeyMans(const CScript& script) c
     if (it != m_cached_spks.end()) {
         spk_mans.insert(it->second.begin(), it->second.end());
     }
+
+    // AVN: Asset scripts embed P2PKH at bytes 0-24 followed by OP_AVN_ASSET <data> OP_DROP.
+    // The SPKM cache only stores the P2PKH portion, so retry with that subscript.
+    bool found_via_asset_subscript = false;
+    if (spk_mans.empty() && script.IsAssetScript()) {
+        CScript p2pkh_script(script.begin(), script.begin() + 25);
+        const auto& it2 = m_cached_spks.find(p2pkh_script);
+        if (it2 != m_cached_spks.end()) {
+            spk_mans.insert(it2->second.begin(), it2->second.end());
+            found_via_asset_subscript = true;
+        }
+    }
+
     SignatureData sigdata;
-    Assume(std::all_of(spk_mans.begin(), spk_mans.end(), [&script, &sigdata](ScriptPubKeyMan* spkm) { return spkm->CanProvide(script, sigdata); }));
+    // Skip CanProvide assertion for asset subscript lookups — the SPKM maps
+    // only know the P2PKH portion, not the full asset script.
+    if (!found_via_asset_subscript) {
+        Assume(spk_mans.empty() || std::all_of(spk_mans.begin(), spk_mans.end(), [&script, &sigdata](ScriptPubKeyMan* spkm) { return spkm->CanProvide(script, sigdata); }));
+    }
 
     return spk_mans;
 }
@@ -3465,6 +3482,16 @@ std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& scri
         // All spkms for a given script must already be able to make a SigningProvider for the script, so just return the first one.
         Assume(it->second.at(0)->CanProvide(script, sigdata));
         return it->second.at(0)->GetSolvingProvider(script);
+    }
+
+    // AVN: Asset scripts embed P2PKH at bytes 0-24. The SPKM cache and
+    // m_map_script_pub_keys only store the P2PKH portion, so retry with that.
+    if (script.IsAssetScript()) {
+        CScript p2pkh_script(script.begin(), script.begin() + 25);
+        const auto& it2 = m_cached_spks.find(p2pkh_script);
+        if (it2 != m_cached_spks.end()) {
+            return it2->second.at(0)->GetSolvingProvider(p2pkh_script);
+        }
     }
 
     return nullptr;

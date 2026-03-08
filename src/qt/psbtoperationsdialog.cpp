@@ -16,6 +16,8 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <util/fs.h>
+#include <assets/assets.h>
+#include <assets/assettypes.h>
 #include <util/strencodings.h>
 
 #include <fstream>
@@ -195,10 +197,22 @@ QString PSBTOperationsDialog::renderTransaction(const PartiallySignedTransaction
     for (const CTxOut& out : psbtx.tx->vout) {
         CTxDestination address;
         ExtractDestination(out.scriptPubKey, address);
-        totalAmount += out.nValue;
-        tx_description.append(bullet_point).append(tr("Sends %1 to %2")
-            .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::BTC, out.nValue))
-            .arg(QString::fromStdString(EncodeDestination(address))));
+
+        // Check if this is an asset output
+        CAssetOutputEntry assetData;
+        if (GetAssetData(out.scriptPubKey, assetData)) {
+            // Asset transfer/creation/reissue output
+            tx_description.append(bullet_point).append(tr("Transfers %1 %2 to %3")
+                .arg(QString::fromStdString(ValueFromAmountString(assetData.nAmount, 8)))
+                .arg(QString::fromStdString(assetData.assetName))
+                .arg(QString::fromStdString(EncodeDestination(address))));
+        } else {
+            // Regular AVN output
+            totalAmount += out.nValue;
+            tx_description.append(bullet_point).append(tr("Sends %1 to %2")
+                .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::BTC, out.nValue))
+                .arg(QString::fromStdString(EncodeDestination(address))));
+        }
         // Check if the address is one of ours
         if (m_wallet_model != nullptr && m_wallet_model->wallet().txoutIsMine(out)) tx_description.append(" (" + tr("own address") + ")");
         tx_description.append("<br>");

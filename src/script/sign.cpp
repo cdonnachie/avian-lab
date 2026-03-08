@@ -414,15 +414,18 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
     case TxoutType::NONSTANDARD:
     case TxoutType::NULL_DATA:
     case TxoutType::WITNESS_UNKNOWN:
-    case TxoutType::NEW_ASSET:
-    case TxoutType::REISSUE_ASSET:
-    case TxoutType::TRANSFER_ASSET:
     case TxoutType::RESTRICTED_ASSET_DATA:
         return false;
     case TxoutType::PUBKEY:
         if (!CreateSig(creator, sigdata, provider, sig, CPubKey(vSolutions[0]), scriptPubKey, sigversion)) return false;
         ret.push_back(std::move(sig));
         return true;
+    case TxoutType::NEW_ASSET:
+    case TxoutType::REISSUE_ASSET:
+    case TxoutType::TRANSFER_ASSET:
+        // Asset scripts embed P2PKH at bytes 0-24, followed by OP_AVN_ASSET <data> OP_DROP.
+        // Solver() already extracts the 20-byte pubkey hash into vSolutions[0].
+        // Fall through to PUBKEYHASH signing.
     case TxoutType::PUBKEYHASH: {
         CKeyID keyID = CKeyID(uint160(vSolutions[0]));
         CPubKey pubkey;
