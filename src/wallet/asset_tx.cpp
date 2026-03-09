@@ -115,7 +115,7 @@ bool CreateAssetTransaction(
         coinControl.destChange = changeDest;
     }
 
-    AssetType assetType;
+    AssetType assetType{AssetType::ROOT};
     std::string parentName;
     for (const auto& asset : assets) {
         if (!IsAssetNameValid(asset.strName, assetType)) {
