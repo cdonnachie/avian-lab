@@ -13,4 +13,4 @@ export PACKAGES="cmake ninja-build pkgconf libboost-dev libevent-dev libsqlite3-
 export RUN_UNIT_TESTS=false
 export RUN_FUNCTIONAL_TESTS=false
 export GOAL="install"
-export AVIAN_CONFIG="-DBUILD_GUI=ON -DWITH_ZMQ=ON -DWERROR=ON"
+export AVIAN_CONFIG="-DBUILD_GUI=ON -DWITH_ZMQ=ON -DENABLE_IPC=OFF -DWERROR=ON"
