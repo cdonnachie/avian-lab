@@ -217,19 +217,10 @@ if(ENABLE_WALLET)
     add_windows_application_manifest(bitcoin-wallet)
     target_link_libraries(bitcoin-wallet
       core_interface
-      bitcoin_node
       bitcoin_wallet
-      bitcoin_assets
       bitcoin_common
       bitcoin_util
-      $<TARGET_NAME_IF_EXISTS:bitcoin_zmq>
-      leveldb
-      minisketch
-      univalue
       Boost::headers
-      $<TARGET_NAME_IF_EXISTS:libevent::core>
-      $<TARGET_NAME_IF_EXISTS:libevent::extra>
-      $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     )
     install_binary_component(bitcoin-wallet HAS_MANPAGE)
   endif()
