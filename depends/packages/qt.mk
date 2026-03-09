@@ -133,6 +133,7 @@ endif
 
 $(package)_config_opts_darwin := -no-dbus
 $(package)_config_opts_darwin += -no-freetype
+$(package)_config_opts_darwin += -no-feature-cups
 $(package)_config_opts_darwin += -no-pkg-config
 
 $(package)_config_opts_linux := -dbus-runtime
@@ -199,6 +200,8 @@ $(package)_cmake_opts += -DCMAKE_DISABLE_FIND_PACKAGE_WrapZSTD=TRUE
 endif
 ifeq ($(host_os),darwin)
 $(package)_cmake_opts += -DCMAKE_INSTALL_NAME_TOOL=true
+$(package)_cmake_opts += -DCMAKE_DISABLE_FIND_PACKAGE_Cups=TRUE
+$(package)_cmake_opts += -DQT_FEATURE_cups=OFF
 $(package)_cmake_opts += -DCMAKE_FRAMEWORK_PATH=$(OSX_SDK)/System/Library/Frameworks
 $(package)_cmake_opts += -DQT_INTERNAL_APPLE_SDK_VERSION=$(OSX_SDK_VERSION)
 $(package)_cmake_opts += -DQT_INTERNAL_XCODE_VERSION=$(XCODE_VERSION)
