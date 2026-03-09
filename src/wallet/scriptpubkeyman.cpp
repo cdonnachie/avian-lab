@@ -95,6 +95,10 @@ IsMineResult LegacyWalletIsMineInnerDONOTUSE(const LegacyDataSPKM& keystore, con
     case TxoutType::WITNESS_UNKNOWN:
     case TxoutType::WITNESS_V1_TAPROOT:
     case TxoutType::ANCHOR:
+    case TxoutType::NEW_ASSET:
+    case TxoutType::REISSUE_ASSET:
+    case TxoutType::TRANSFER_ASSET:
+    case TxoutType::RESTRICTED_ASSET_DATA:
         break;
     case TxoutType::PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();

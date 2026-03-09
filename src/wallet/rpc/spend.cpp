@@ -37,7 +37,7 @@ std::vector<CRecipient> CreateRecipients(const std::vector<std::pair<CTxDestinat
     std::vector<CRecipient> recipients;
     for (size_t i = 0; i < outputs.size(); ++i) {
         const auto& [destination, amount] = outputs.at(i);
-        CRecipient recipient{destination, amount, subtract_fee_outputs.contains(i)};
+        CRecipient recipient{destination, amount, subtract_fee_outputs.contains(i), /*scriptOverride=*/{}};
         recipients.push_back(recipient);
     }
     return recipients;

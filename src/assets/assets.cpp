@@ -3826,7 +3826,7 @@ std::string DecodeAssetData(std::string encoded)
     // IPFS
     else if (encoded.size() == 46) {
         std::vector<unsigned char> b;
-        DecodeBase58(encoded, b, 64);
+        (void)DecodeBase58(encoded, b, 64);
         return std::string(b.begin(), b.end());
     }
 
@@ -3864,7 +3864,7 @@ std::string EncodeAssetData(std::string decoded)
 std::string DecodeIPFS(std::string encoded)
 {
     std::vector<unsigned char> b;
-    DecodeBase58(encoded, b, 64);
+    (void)DecodeBase58(encoded, b, 64);
     return std::string(b.begin(), b.end());
 };
 

@@ -738,18 +738,18 @@ bool HasTestOption(const ArgsManager& args, const std::string& test_option)
 fs::path GetDefaultDataDir()
 {
     // Windows:
-    //   old: C:\Users\Username\AppData\Roaming\Avian
-    //   new: C:\Users\Username\AppData\Local\Avian
-    // macOS: ~/Library/Application Support/Avian
-    // Unix-like: ~/.avian
+    //   old: C:\Users\Username\AppData\Roaming\AvianV5
+    //   new: C:\Users\Username\AppData\Local\AvianV5
+    // macOS: ~/Library/Application Support/AvianV5
+    // Unix-like: ~/.avianv5
 #ifdef WIN32
     // Windows
     // Check for existence of datadir in old location and keep it there
-    fs::path legacy_path = GetSpecialFolderPath(CSIDL_APPDATA) / "Avian";
+    fs::path legacy_path = GetSpecialFolderPath(CSIDL_APPDATA) / "AvianV5";
     if (fs::exists(legacy_path)) return legacy_path;
 
     // Otherwise, fresh installs can start in the new, "proper" location
-    return GetSpecialFolderPath(CSIDL_LOCAL_APPDATA) / "Avian";
+    return GetSpecialFolderPath(CSIDL_LOCAL_APPDATA) / "AvianV5";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -759,10 +759,10 @@ fs::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef __APPLE__
     // macOS
-    return pathRet / "Library/Application Support/Avian";
+    return pathRet / "Library/Application Support/AvianV5";
 #else
     // Unix-like
-    return pathRet / ".avian";
+    return pathRet / ".avianv5";
 #endif
 #endif
 }

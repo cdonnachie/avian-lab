@@ -2,8 +2,8 @@
 
 # backward compatibility for existing gentoo layout
 #
-if [ -d "/var/lib/avian/.avian" ]; then
-	AVIAND_DEFAULT_DATADIR="/var/lib/avian/.avian"
+if [ -d "/var/lib/avian/.avianv5" ]; then
+	AVIAND_DEFAULT_DATADIR="/var/lib/avian/.avianv5"
 else
 	AVIAND_DEFAULT_DATADIR="/var/lib/aviand"
 fi
