@@ -5,6 +5,44 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.
  **********************************************************************/
 
+/* Menus */
+
+QMenuBar {
+  background-color: #2e2e2e;
+  color: #ccc;
+  border-bottom: 1px solid #555;
+}
+
+QMenuBar::item {
+  background-color: transparent;
+  padding: 4px 8px;
+}
+
+QMenuBar::item:selected {
+  background-color: #3d3939;
+}
+
+QMenu {
+  background-color: #363636;
+  color: #f4f4f4;
+  border: 1px solid #555;
+  padding: 4px 0px;
+}
+
+QMenu::item {
+  padding: 6px 24px;
+}
+
+QMenu::item:selected {
+  background-color: #3d3939;
+}
+
+QMenu::separator {
+  height: 1px;
+  background-color: #555;
+  margin: 4px 8px;
+}
+
 /* Basic */
 
 WalletFrame,
