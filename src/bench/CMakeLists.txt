@@ -67,6 +67,7 @@ target_link_libraries(bench_bitcoin
   bitcoin_node
   Boost::headers
 )
+set_target_properties(bench_bitcoin PROPERTIES OUTPUT_NAME "bench_avian")
 
 if(ENABLE_WALLET)
   target_sources(bench_bitcoin

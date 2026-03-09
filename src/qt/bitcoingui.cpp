@@ -733,7 +733,7 @@ void BitcoinGUI::createToolBars()
         // Avian logo at top of sidebar
         QLabel* label = new QLabel();
         QImage avian(":/icons/avianlogo");
-        QImage avianScaled = avian.scaled(80, 80, Qt::KeepAspectRatio);
+        QImage avianScaled = avian.scaled(90, 90, Qt::KeepAspectRatio);
         label->setPixmap(QPixmap::fromImage(avianScaled));
         label->setContentsMargins(0, 0, 0, 0);
         label->setStyleSheet(".QLabel{background-color: transparent;}");

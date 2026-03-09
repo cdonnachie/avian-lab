@@ -24,6 +24,7 @@ target_link_libraries(test_bitcoin-qt
 )
 
 import_plugins(test_bitcoin-qt)
+set_target_properties(test_bitcoin-qt PROPERTIES OUTPUT_NAME "test_avian-qt")
 
 if(ENABLE_WALLET)
   target_sources(test_bitcoin-qt
