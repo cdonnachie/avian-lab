@@ -767,7 +767,7 @@ void BitcoinGUI::createToolBars()
             platformStyle->DarkOrangeColor().name()));
 
         toolbar->setOrientation(Qt::Vertical);
-        toolbar->setIconSize(QSize(65, 65));
+        toolbar->setIconSize(QSize(85, 85));
 
         // Align toolbar items left
         QLayout* lay = toolbar->layout();

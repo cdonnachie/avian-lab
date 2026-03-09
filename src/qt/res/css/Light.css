@@ -183,7 +183,7 @@ QCalendarWidget {
 
 QCalendarWidget QToolButton {
   color: #110202;
-  width: 90px;
+  width: 80px;
 }
 
 #qt_calendar_calendarview {
@@ -1000,8 +1000,8 @@ QToolBar {
 
 QToolBar > QToolButton {
   border: none;
-  min-height: 50px;
-  min-width: 50px;
+  min-height: 85px;
+  min-width: 85px;
   padding: 6px;
   text-align: center;
 }
