@@ -197,7 +197,7 @@ class P2PConnection(asyncio.Protocol):
             self.v2_state = EncryptedP2PState(initiating=True, net=net)
 
         loop = NetworkThread.network_event_loop
-        logger.debug('Connecting to Bitcoin Node: %s:%d' % (self.dstaddr, self.dstport))
+        logger.debug('Connecting to Avian Node: %s:%d' % (self.dstaddr, self.dstport))
         coroutine = loop.create_connection(lambda: self, host=self.dstaddr, port=self.dstport)
         return lambda: loop.call_soon_threadsafe(loop.create_task, coroutine)
 
@@ -446,7 +446,7 @@ class P2PConnection(asyncio.Protocol):
 
 
 class P2PInterface(P2PConnection):
-    """A high-level P2P interface class for communicating with a Bitcoin node.
+    """A high-level P2P interface class for communicating with an Avian node.
 
     This class provides high-level callbacks for processing P2P message
     payloads, as well as convenience methods for interacting with the
