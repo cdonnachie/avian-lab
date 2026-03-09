@@ -11,9 +11,7 @@
 #include <uint256.h>
 #include <primitives/transaction.h>
 #include <tinyformat.h>
-
-// Forward declaration (also declared in assets.h)
-std::string EncodeAssetData(std::string decoded);
+#include <assets/assets.h>
 
 class CMessage;
 

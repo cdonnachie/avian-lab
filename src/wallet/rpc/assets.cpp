@@ -1949,7 +1949,7 @@ RPCHelpMan consolidateutxos()
 
                 // Create the consolidation transaction
                 std::vector<CRecipient> vecSend;
-                vecSend.push_back({dest, selectionSum, /*fSubtractFeeFromAmount=*/true});
+                vecSend.push_back({dest, selectionSum, /*fSubtractFeeFromAmount=*/true, /*scriptOverride=*/{}});
 
                 auto res = CreateTransaction(*pwallet, vecSend, /*change_pos=*/std::nullopt, coinControl, /*sign=*/true);
                 if (!res)
