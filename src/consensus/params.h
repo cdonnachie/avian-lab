@@ -195,6 +195,8 @@ struct Params {
 
     /** Max reorg protection */
     int nMaxReorganizationDepth{60};
+    int nMinReorganizationPeers{4};
+    int nMinReorganizationAge{60 * 60 * 12}; // 12 hours
 
     int DeploymentHeight(BuriedDeployment dep) const
     {

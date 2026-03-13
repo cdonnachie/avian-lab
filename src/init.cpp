@@ -1373,6 +1373,13 @@ static ChainstateLoadResult InitAndLoadChainstate(
             }
         }
     };
+    // Bridge the validation/networking layer boundary for reorg depth protection.
+    chainman.get_peer_count = [&node]() -> int {
+        if (node.connman) {
+            return static_cast<int>(node.connman->GetNodeCount(ConnectionDirection::Both));
+        }
+        return 0;
+    };
     node::ChainstateLoadOptions options;
     options.mempool = Assert(node.mempool.get());
     options.wipe_chainstate_db = do_reindex || do_reindex_chainstate;

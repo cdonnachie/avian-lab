@@ -26,7 +26,7 @@ get_directory_property(precious_variables CACHE_VARIABLES)
 #=============================
 # Project / Package metadata
 #=============================
-set(CLIENT_NAME "Avian Core")
+set(CLIENT_NAME "Avian Core V5")
 set(CLIENT_VERSION_MAJOR 5)
 set(CLIENT_VERSION_MINOR 0)
 set(CLIENT_VERSION_BUILD 0)
@@ -99,7 +99,7 @@ option(BUILD_DAEMON "Build aviand executable." ON)
 option(BUILD_GUI "Build avian-qt executable." OFF)
 option(BUILD_CLI "Build avian-cli executable." ON)
 
-option(BUILD_TESTS "Build test_avian and other unit test executables." ON)
+option(BUILD_TESTS "Build test_avian and other unit test executables." OFF)
 option(BUILD_TX "Build avian-tx executable." OFF)
 option(BUILD_UTIL "Build avian-util executable." OFF)
 
@@ -174,7 +174,7 @@ if(BUILD_GUI)
   unset(qt_components)
 endif()
 
-option(BUILD_BENCH "Build bench_bitcoin executable." OFF)
+option(BUILD_BENCH "Build bench_avian executable." OFF)
 option(BUILD_FUZZ_BINARY "Build fuzz binary." OFF)
 option(BUILD_FOR_FUZZING "Build for fuzzing. Enabling this will disable all other targets and override BUILD_FUZZ_BINARY." OFF)
 
