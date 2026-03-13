@@ -1,0 +1,20 @@
+--- a/qtbase/src/printsupport/CMakeLists.txt
++++ b/qtbase/src/printsupport/CMakeLists.txt
+@@ -46,13 +46,17 @@
+         platform/macos/qprintengine_mac.mm platform/macos/qprintengine_mac_p.h
+     PUBLIC_LIBRARIES
+         ${FWApplicationServices}
+-        Cups::Cups
+     NO_PCH_SOURCES
+         platform/macos/qcocoaprintersupport.mm
+ )
+
+-qt_internal_extend_target(PrintSupport CONDITION WIN32
++qt_internal_extend_target(PrintSupport CONDITION MACOS AND QT_FEATURE_cups
++    PUBLIC_LIBRARIES
++        Cups::Cups
++)
++
++qt_internal_extend_target(PrintSupport CONDITION WIN32
+     SOURCES
+         platform/windows/qprintengine_win.cpp platform/windows/qprintengine_win_p.h

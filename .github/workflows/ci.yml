@@ -58,6 +58,23 @@ jobs:
       - name: CI script
         run: ./ci/test_run_all.sh
 
+      - name: Collect Linux artifacts
+        if: always()
+        run: |
+          mkdir -p ${{ runner.temp }}/artifacts
+          for bin in aviand avian-cli avian-tx avian-util avian-wallet; do
+            [ -f "${{ runner.temp }}/build/src/${bin}" ] && cp "${{ runner.temp }}/build/src/${bin}" "${{ runner.temp }}/artifacts/" || true
+          done
+          [ -f "${{ runner.temp }}/build/src/qt/avian-qt" ] && cp "${{ runner.temp }}/build/src/qt/avian-qt" "${{ runner.temp }}/artifacts/" || true
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: avian-linux-x86_64
+          path: ${{ runner.temp }}/artifacts/
+          if-no-files-found: warn
+
       - name: Save caches
         uses: ./.github/actions/save-caches
 
@@ -92,6 +109,14 @@ jobs:
       - name: CI script
         run: ./ci/test_run_all.sh
 
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: avian-macos-x86_64
+          path: ${{ runner.temp }}/build/dist/
+          if-no-files-found: warn
+
       - name: Save caches
         uses: ./.github/actions/save-caches
 
@@ -125,6 +150,23 @@ jobs:
 
       - name: CI script
         run: ./ci/test_run_all.sh
+
+      - name: Collect Windows artifacts
+        if: always()
+        run: |
+          mkdir -p ${{ runner.temp }}/win-artifacts
+          [ -f "${{ runner.temp }}/build/avian-win64-setup.exe" ] && cp "${{ runner.temp }}/build/avian-win64-setup.exe" "${{ runner.temp }}/win-artifacts/" || true
+          if [ -d "${{ runner.temp }}/build/release" ]; then
+            cp "${{ runner.temp }}/build/release/"*.exe "${{ runner.temp }}/win-artifacts/" 2>/dev/null || true
+          fi
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: avian-win64
+          path: ${{ runner.temp }}/win-artifacts/
+          if-no-files-found: warn
 
       - name: Save caches
         uses: ./.github/actions/save-caches
