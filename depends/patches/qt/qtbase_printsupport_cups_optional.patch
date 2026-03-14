@@ -1,27 +1,21 @@
 --- a/qtbase/src/printsupport/CMakeLists.txt
 +++ b/qtbase/src/printsupport/CMakeLists.txt
-@@ -53,14 +53,19 @@
- qt_internal_extend_target(PrintSupport CONDITION MACOS
+@@ -50,15 +50,15 @@
+ ## Scopes:
+ #####################################################################
+
+-qt_internal_extend_target(PrintSupport CONDITION MACOS
++qt_internal_extend_target(PrintSupport CONDITION MACOS AND QT_FEATURE_cups
      SOURCES
--        platform/macos/qcocoaprintdevice.mm platform/macos/qcocoaprintdevice_p.h
--        platform/macos/qcocoaprintersupport.mm platform/macos/qcocoaprintersupport_p.h
+         platform/macos/qcocoaprintdevice.mm platform/macos/qcocoaprintdevice_p.h
+         platform/macos/qcocoaprintersupport.mm platform/macos/qcocoaprintersupport_p.h
          platform/macos/qpaintengine_mac.mm platform/macos/qpaintengine_mac_p.h
          platform/macos/qprintengine_mac.mm platform/macos/qprintengine_mac_p.h
      PUBLIC_LIBRARIES
          ${FWApplicationServices}
--        Cups::Cups
--    NO_PCH_SOURCES
--        platform/macos/qcocoaprintersupport.mm
-+)
-+
-+qt_internal_extend_target(PrintSupport CONDITION MACOS AND QT_FEATURE_cups
-+    SOURCES
-+        platform/macos/qcocoaprintdevice.mm platform/macos/qcocoaprintdevice_p.h
-+        platform/macos/qcocoaprintersupport.mm platform/macos/qcocoaprintersupport_p.h
-+    PUBLIC_LIBRARIES
-+        Cups::Cups
-+    NO_PCH_SOURCES
-+        platform/macos/qcocoaprintersupport.mm
+         Cups::Cups
+     NO_PCH_SOURCES
+         platform/macos/qcocoaprintersupport.mm
  )
 
  qt_internal_extend_target(PrintSupport CONDITION WIN32
