@@ -11,7 +11,6 @@
         <file alias="br">locale/avian_br.qm</file>
         <file alias="bs">locale/avian_bs.qm</file>
         <file alias="ca">locale/avian_ca.qm</file>
-        <file alias="cmn">locale/avian_cmn.qm</file>
         <file alias="cs">locale/avian_cs.qm</file>
         <file alias="cy">locale/avian_cy.qm</file>
         <file alias="da">locale/avian_da.qm</file>

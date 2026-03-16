@@ -10,7 +10,6 @@
   avian_br.ts
   avian_bs.ts
   avian_ca.ts
-  avian_cmn.ts
   avian_cs.ts
   avian_cy.ts
   avian_da.ts
