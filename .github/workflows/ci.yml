@@ -62,10 +62,9 @@ jobs:
         if: always()
         run: |
           mkdir -p ${{ runner.temp }}/artifacts
-          for bin in aviand avian-cli avian-tx avian-util avian-wallet; do
-            [ -f "${{ runner.temp }}/build/src/${bin}" ] && cp "${{ runner.temp }}/build/src/${bin}" "${{ runner.temp }}/artifacts/" || true
+          for bin in avian aviand avian-cli avian-tx avian-util avian-wallet avian-qt; do
+            [ -f "${{ runner.temp }}/build/bin/${bin}" ] && cp "${{ runner.temp }}/build/bin/${bin}" "${{ runner.temp }}/artifacts/" || true
           done
-          [ -f "${{ runner.temp }}/build/src/qt/avian-qt" ] && cp "${{ runner.temp }}/build/src/qt/avian-qt" "${{ runner.temp }}/artifacts/" || true
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
