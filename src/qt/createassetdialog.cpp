@@ -67,6 +67,13 @@ CreateAssetDialog::CreateAssetDialog(const PlatformStyle *_platformStyle, QWidge
 {
     ui->setupUi(this);
     setWindowTitle("Create Assets");
+
+    if (!IsAvianNameSystemDeployed()) {
+        ui->ansBox->hide();
+        ui->ansType->hide();
+        ui->ansText->hide();
+    }
+
     connect(ui->ipfsBox, SIGNAL(clicked()), this, SLOT(ipfsStateChanged()));
     connect(ui->openIpfsButton, SIGNAL(clicked()), this, SLOT(openIpfsBrowser()));
     connect(ui->ansBox, SIGNAL(clicked()), this, SLOT(ansStateChanged()));
@@ -283,6 +290,9 @@ void CreateAssetDialog::setUpValues()
     ui->ipfsText->hide();
     ui->ansText->hide();
     ui->ansType->hide();
+    if (!IsAvianNameSystemDeployed()) {
+        ui->ansBox->hide();
+    }
     ui->openIpfsButton->hide();
     ui->openIpfsButton->setDisabled(true);
     hideMessage();

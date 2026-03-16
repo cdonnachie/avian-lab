@@ -10,7 +10,11 @@ Unicode true
 #SetDatablockOptimize off
 
 # General Symbol Definitions
-!define REGKEY "SOFTWARE\$(^Name)"
+; Use a stable, versioned key that doesn't depend on display name.
+; This allows major versions (e.g. 4.x and 5.x) to be installed side-by-side.
+!define PRODUCT_KEY "@CLIENT_TARNAME@-@CLIENT_VERSION_MAJOR@"
+!define REGKEY "SOFTWARE\${PRODUCT_KEY}"
+!define UNINSTALL_REGKEY "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_KEY}"
 !define COMPANY "@CLIENT_NAME@ project"
 !define URL @CLIENT_URL@
 
@@ -52,7 +56,8 @@ Var StartMenuGroup
 !insertmacro MUI_LANGUAGE English
 
 # Installer attributes
-InstallDir $PROGRAMFILES64\Avian
+; Major-versioned install root to avoid collisions between major versions.
+InstallDir $PROGRAMFILES64\Avian\@CLIENT_VERSION_MAJOR@
 CRCCheck force
 XPStyle on
 BrandingText " "
@@ -98,14 +103,14 @@ Section -post SEC0001
     CreateShortcut "$SMPROGRAMS\$StartMenuGroup\@CLIENT_NAME@ (testnet4).lnk" "$INSTDIR\@BITCOIN_GUI_NAME@@EXEEXT@" "-testnet4" "$INSTDIR\@BITCOIN_GUI_NAME@@EXEEXT@" 3
     CreateShortcut "$SMPROGRAMS\$StartMenuGroup\Uninstall $(^Name).lnk" $INSTDIR\uninstall.exe
     !insertmacro MUI_STARTMENU_WRITE_END
-    WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayName "$(^Name)"
-    WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayVersion "@CLIENT_VERSION_STRING@"
-    WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" Publisher "${COMPANY}"
-    WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" URLInfoAbout "${URL}"
-    WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayIcon $INSTDIR\avian-qt.exe
-    WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" UninstallString $INSTDIR\uninstall.exe
-    WriteRegDWORD HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" NoModify 1
-    WriteRegDWORD HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" NoRepair 1
+    WriteRegStr HKCU "${UNINSTALL_REGKEY}" DisplayName "$(^Name)"
+    WriteRegStr HKCU "${UNINSTALL_REGKEY}" DisplayVersion "@CLIENT_VERSION_STRING@"
+    WriteRegStr HKCU "${UNINSTALL_REGKEY}" Publisher "${COMPANY}"
+    WriteRegStr HKCU "${UNINSTALL_REGKEY}" URLInfoAbout "${URL}"
+    WriteRegStr HKCU "${UNINSTALL_REGKEY}" DisplayIcon $INSTDIR\avian-qt.exe
+    WriteRegStr HKCU "${UNINSTALL_REGKEY}" UninstallString $INSTDIR\uninstall.exe
+    WriteRegDWORD HKCU "${UNINSTALL_REGKEY}" NoModify 1
+    WriteRegDWORD HKCU "${UNINSTALL_REGKEY}" NoRepair 1
     WriteRegStr HKCR "@CLIENT_TARNAME@" "URL Protocol" ""
     WriteRegStr HKCR "@CLIENT_TARNAME@" "" "URL:Avian"
     WriteRegStr HKCR "@CLIENT_TARNAME@\DefaultIcon" "" $INSTDIR\@BITCOIN_GUI_NAME@@EXEEXT@
@@ -151,7 +156,7 @@ Section /o -un.Main UNSEC0000
 SectionEnd
 
 Section -un.post UNSEC0001
-    DeleteRegKey HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)"
+    DeleteRegKey HKCU "${UNINSTALL_REGKEY}"
     Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\Uninstall $(^Name).lnk"
     Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\$(^Name).lnk"
     Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\@CLIENT_NAME@ (testnet).lnk"

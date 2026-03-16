@@ -70,6 +70,13 @@ ReissueAssetDialog::ReissueAssetDialog(const PlatformStyle* _platformStyle, QWid
 {
     ui->setupUi(this);
     setWindowTitle("Reissue Assets");
+
+    if (!IsAvianNameSystemDeployed()) {
+        ui->ansBox->hide();
+        ui->ansType->hide();
+        ui->ansText->hide();
+    }
+
     connect(ui->comboBox, SIGNAL(activated(int)), this, SLOT(onAssetSelected(int)));
     connect(ui->quantitySpinBox, SIGNAL(valueChanged(double)), this, SLOT(onQuantityChanged(double)));
     connect(ui->ipfsBox, SIGNAL(clicked()), this, SLOT(onIPFSStateChanged()));
@@ -286,6 +293,11 @@ void ReissueAssetDialog::setUpValues()
     ui->ipfsText->setDisabled(true);
     ui->ansText->setDisabled(true);
     ui->ansType->setDisabled(true);
+    if (!IsAvianNameSystemDeployed()) {
+        ui->ansBox->hide();
+        ui->ansText->hide();
+        ui->ansType->hide();
+    }
     ui->openIpfsButton->setDisabled(true);
     hideMessage();
 

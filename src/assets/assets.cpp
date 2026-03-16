@@ -23,6 +23,7 @@
 #include <span.h>
 #include <util/strencodings.h>
 #include <util/moneystr.h>
+#include <util/time.h>
 #include <util/translation.h>
 #include <assets/assets.h>
 #include <assets/assetdb.h>
@@ -72,27 +73,31 @@ CLRUCache<std::string, int8_t>* passetsGlobalRestrictionCache = nullptr;
 bool fAssetIndex = false;
 bool g_asset_reindex = false;
 
-// Deployment check stubs
-// TODO: These should check consensus activation timestamps from Params().GetConsensus()
-// For now, return true for features that are active on mainnet, false for unreleased features.
+static bool IsUpgradeActive(Consensus::UpgradeIndex idx)
+{
+    const auto& upgrade = Params().GetConsensus().vUpgrades[idx];
+    return upgrade.nTimestamp != std::numeric_limits<uint32_t>::max() &&
+           GetTime() >= static_cast<int64_t>(upgrade.nTimestamp);
+}
+
 bool AreAssetsDeployed()
 {
-    return true;
+    return IsUpgradeActive(Consensus::UPGRADE_AVIAN_ASSETS);
 }
 
 bool AreMessagesDeployed()
 {
-    return true;
+    return IsUpgradeActive(Consensus::UPGRADE_AVIAN_ASSETS);
 }
 
 bool AreRestrictedAssetsDeployed()
 {
-    return true;
+    return IsUpgradeActive(Consensus::UPGRADE_AVIAN_ASSETS);
 }
 
 bool IsAvianNameSystemDeployed()
 {
-    return false;
+    return IsUpgradeActive(Consensus::UPGRADE_AVIAN_NAME_SYSTEM);
 }
 
 // excluding owner tag ('!')

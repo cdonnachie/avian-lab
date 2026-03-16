@@ -8,6 +8,8 @@
 #include <chrono>
 #include <cstdint>
 
+#include <clientversion.h>
+
 #include <QColor>
 
 using namespace std::chrono_literals;
@@ -90,11 +92,13 @@ static const int TOOLTIP_WRAP_THRESHOLD = 80;
 
 #define QAPP_ORG_NAME "Avian"
 #define QAPP_ORG_DOMAIN "avn.network"
-#define QAPP_APP_NAME_DEFAULT "Avian-Qt"
-#define QAPP_APP_NAME_TESTNET "Avian-Qt-testnet"
-#define QAPP_APP_NAME_TESTNET4 "Avian-Qt-testnet4"
-#define QAPP_APP_NAME_SIGNET "Avian-Qt-signet"
-#define QAPP_APP_NAME_REGTEST "Avian-Qt-regtest"
+// Include the major version in the QSettings application name so different
+// major versions can run side-by-side without sharing GUI settings.
+#define QAPP_APP_NAME_DEFAULT "Avian-Qt-v" STRINGIZE(CLIENT_VERSION_MAJOR)
+#define QAPP_APP_NAME_TESTNET "Avian-Qt-testnet-v" STRINGIZE(CLIENT_VERSION_MAJOR)
+#define QAPP_APP_NAME_TESTNET4 "Avian-Qt-testnet4-v" STRINGIZE(CLIENT_VERSION_MAJOR)
+#define QAPP_APP_NAME_SIGNET "Avian-Qt-signet-v" STRINGIZE(CLIENT_VERSION_MAJOR)
+#define QAPP_APP_NAME_REGTEST "Avian-Qt-regtest-v" STRINGIZE(CLIENT_VERSION_MAJOR)
 
 /* One gigabyte (GB) in bytes */
 static constexpr uint64_t GB_BYTES{1000000000};
