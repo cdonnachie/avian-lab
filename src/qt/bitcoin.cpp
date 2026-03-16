@@ -497,7 +497,7 @@ int GuiMain(int argc, char* argv[])
 
     /// 1. Basic Qt initialization (not dependent on parameters or configuration)
     Q_INIT_RESOURCE(bitcoin);
-    Q_INIT_RESOURCE(bitcoin_locale);
+    Q_INIT_RESOURCE(avian_locale);
 
 #if defined(QT_QPA_PLATFORM_ANDROID)
     QApplication::setAttribute(Qt::AA_DontUseNativeMenuBar);
