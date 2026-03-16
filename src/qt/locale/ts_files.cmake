@@ -87,8 +87,6 @@
   avian_ve.ts
   avian_yi.ts
   avian_yue.ts
-  avian_zh-Hans.ts
-  avian_zh-Hant.ts
   avian_zh_CN.ts
   avian_zh_HK.ts
   avian_zh_TW.ts

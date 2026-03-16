@@ -88,8 +88,6 @@
         <file alias="ve">locale/avian_ve.qm</file>
         <file alias="yi">locale/avian_yi.qm</file>
         <file alias="yue">locale/avian_yue.qm</file>
-        <file alias="zh-Hans">locale/avian_zh-Hans.qm</file>
-        <file alias="zh-Hant">locale/avian_zh-Hant.qm</file>
         <file alias="zh_CN">locale/avian_zh_CN.qm</file>
         <file alias="zh_HK">locale/avian_zh_HK.qm</file>
         <file alias="zh_TW">locale/avian_zh_TW.qm</file>
