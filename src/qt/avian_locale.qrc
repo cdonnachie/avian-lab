@@ -27,9 +27,7 @@
         <file alias="fil">locale/avian_fil.qm</file>
         <file alias="fo">locale/avian_fo.qm</file>
         <file alias="fr">locale/avian_fr.qm</file>
-        <file alias="ga">locale/avian_ga.qm</file>
         <file alias="ga_IE">locale/avian_ga_IE.qm</file>
-        <file alias="gl">locale/avian_gl.qm</file>
         <file alias="gl_ES">locale/avian_gl_ES.qm</file>
         <file alias="gu">locale/avian_gu.qm</file>
         <file alias="hak">locale/avian_hak.qm</file>
@@ -47,7 +45,6 @@
         <file alias="km">locale/avian_km.qm</file>
         <file alias="kn">locale/avian_kn.qm</file>
         <file alias="ko">locale/avian_ko.qm</file>
-        <file alias="ku">locale/avian_ku.qm</file>
         <file alias="ku_IQ">locale/avian_ku_IQ.qm</file>
         <file alias="lt">locale/avian_lt.qm</file>
         <file alias="lv">locale/avian_lv.qm</file>
@@ -64,7 +61,6 @@
         <file alias="pam">locale/avian_pam.qm</file>
         <file alias="pl">locale/avian_pl.qm</file>
         <file alias="ps">locale/avian_ps.qm</file>
-        <file alias="pt">locale/avian_pt.qm</file>
         <file alias="pt_BR">locale/avian_pt_BR.qm</file>
         <file alias="ro">locale/avian_ro.qm</file>
         <file alias="ru">locale/avian_ru.qm</file>

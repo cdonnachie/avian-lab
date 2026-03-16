@@ -26,9 +26,7 @@
   avian_fil.ts
   avian_fo.ts
   avian_fr.ts
-  avian_ga.ts
   avian_ga_IE.ts
-  avian_gl.ts
   avian_gl_ES.ts
   avian_gu.ts
   avian_hak.ts
@@ -46,7 +44,6 @@
   avian_km.ts
   avian_kn.ts
   avian_ko.ts
-  avian_ku.ts
   avian_ku_IQ.ts
   avian_lt.ts
   avian_lv.ts
@@ -63,7 +60,6 @@
   avian_pam.ts
   avian_pl.ts
   avian_ps.ts
-  avian_pt.ts
   avian_pt_BR.ts
   avian_ro.ts
   avian_ru.ts
