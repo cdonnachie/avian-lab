@@ -57,7 +57,6 @@
         <file alias="nb">locale/avian_nb.qm</file>
         <file alias="ne">locale/avian_ne.qm</file>
         <file alias="nl">locale/avian_nl.qm</file>
-        <file alias="no">locale/avian_no.qm</file>
         <file alias="pam">locale/avian_pam.qm</file>
         <file alias="pl">locale/avian_pl.qm</file>
         <file alias="ps">locale/avian_ps.qm</file>

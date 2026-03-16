@@ -56,7 +56,6 @@
   avian_nb.ts
   avian_ne.ts
   avian_nl.ts
-  avian_no.ts
   avian_pam.ts
   avian_pl.ts
   avian_ps.ts
