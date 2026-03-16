@@ -75,13 +75,14 @@ function(add_windows_deploy_target)
     if(TARGET test_bitcoin)
       list(APPEND deploy_strip_commands COMMAND ${CMAKE_STRIP} $<TARGET_FILE:test_bitcoin> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:test_bitcoin>)
     endif()
+    set(SETUP_EXE "avian-${CLIENT_VERSION_STRING}-win64-setup.exe")
     add_custom_command(
-      OUTPUT ${PROJECT_BINARY_DIR}/avian-win64-setup.exe
+      OUTPUT ${PROJECT_BINARY_DIR}/${SETUP_EXE}
       ${deploy_strip_commands}
       COMMAND ${MAKENSIS_EXECUTABLE} -V2 ${PROJECT_BINARY_DIR}/avian-win64-setup.nsi
       VERBATIM
     )
-    add_custom_target(deploy DEPENDS ${PROJECT_BINARY_DIR}/avian-win64-setup.exe)
+    add_custom_target(deploy DEPENDS ${PROJECT_BINARY_DIR}/${SETUP_EXE})
   endif()
 endfunction()
 

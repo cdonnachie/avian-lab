@@ -155,7 +155,7 @@ jobs:
         if: always()
         run: |
           mkdir -p ${{ runner.temp }}/win-artifacts
-          [ -f "${{ runner.temp }}/build/avian-win64-setup.exe" ] && cp "${{ runner.temp }}/build/avian-win64-setup.exe" "${{ runner.temp }}/win-artifacts/" || true
+          cp "${{ runner.temp }}"/build/avian-*-win64-setup.exe "${{ runner.temp }}/win-artifacts/" 2>/dev/null || true
           if [ -d "${{ runner.temp }}/build/release" ]; then
             cp "${{ runner.temp }}/build/release/"*.exe "${{ runner.temp }}/win-artifacts/" 2>/dev/null || true
           fi

@@ -57,6 +57,7 @@ Var StartMenuGroup
 
 # Installer attributes
 ; Major-versioned install root to avoid collisions between major versions.
+OutFile "avian-@CLIENT_VERSION_STRING@-win64-setup.exe"
 InstallDir $PROGRAMFILES64\Avian\@CLIENT_VERSION_MAJOR@
 CRCCheck force
 XPStyle on
