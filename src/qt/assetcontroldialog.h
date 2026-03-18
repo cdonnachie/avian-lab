@@ -63,6 +63,7 @@ public:
 
     static QList<CAmount> payAmounts;
     static wallet::CCoinControl *assetControl;
+    static wallet::CCoinControl &coinControl();
     static bool fSubtractFeeFromAmount;
     bool fOnStartUp;
 

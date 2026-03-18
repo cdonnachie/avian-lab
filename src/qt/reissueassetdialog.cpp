@@ -61,7 +61,11 @@ static int getIndexForConfTarget(int target) {
     return sizeof(confTargets)/sizeof(confTargets[0]) - 1;
 }
 
-static wallet::CCoinControl s_coinControl;
+static wallet::CCoinControl& s_coinControl()
+{
+    static wallet::CCoinControl instance;
+    return instance;
+}
 
 
 ReissueAssetDialog::ReissueAssetDialog(const PlatformStyle* _platformStyle, QWidget* parent) : QDialog(parent),
@@ -928,7 +932,7 @@ void ReissueAssetDialog::onReissueAssetClicked()
     // Always use a CCoinControl instance, use the CoinControlDialog instance if CoinControl has been enabled
     wallet::CCoinControl ctrl;
     if (model->getOptionsModel()->getCoinControlFeatures())
-        ctrl = s_coinControl;
+        ctrl = s_coinControl();
 
     updateCoinControlState(ctrl);
 
@@ -1071,7 +1075,7 @@ void ReissueAssetDialog::onReissueAssetClicked()
             if (msgBox.clickedButton() == okayButton) {
                 clear();
 
-                s_coinControl.UnSelectAll();
+                s_coinControl().UnSelectAll();
                 coinControlUpdateLabels();
             }
         }
@@ -1187,7 +1191,7 @@ void ReissueAssetDialog::coinControlFeatureChanged(bool checked)
     ui->addressLabel->setVisible(checked);
 
     if (!checked && model) // coin control features disabled
-        s_coinControl = wallet::CCoinControl(); // reset coin control
+        s_coinControl() = wallet::CCoinControl(); // reset coin control
 
     coinControlUpdateLabels();
 }
@@ -1201,7 +1205,7 @@ void ReissueAssetDialog::feeControlFeatureChanged(bool checked)
 // Coin Control: button inputs -> show actual coin control dialog
 void ReissueAssetDialog::coinControlButtonClicked()
 {
-    CoinControlDialog dlg(s_coinControl, model, platformStyle);
+    CoinControlDialog dlg(s_coinControl(), model, platformStyle);
     dlg.exec();
     coinControlUpdateLabels();
 }
@@ -1210,7 +1214,7 @@ void ReissueAssetDialog::coinControlButtonClicked()
 void ReissueAssetDialog::coinControlChangeChecked(int state)
 {
     if (state == Qt::Unchecked) {
-        s_coinControl.destChange = CNoDestination();
+        s_coinControl().destChange = CNoDestination();
         ui->labelCoinControlChangeLabel->clear();
     } else
         // use this to re-validate an already entered address
@@ -1224,7 +1228,7 @@ void ReissueAssetDialog::coinControlChangeEdited(const QString& text)
 {
     if (model && model->getAddressTableModel()) {
         // Default to no change address until verified
-        s_coinControl.destChange = CNoDestination();
+        s_coinControl().destChange = CNoDestination();
         ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
 
         const CTxDestination dest = DecodeDestination(text.toStdString());
@@ -1245,7 +1249,7 @@ void ReissueAssetDialog::coinControlChangeEdited(const QString& text)
                     QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
 
                 if (btnRetVal == QMessageBox::Yes)
-                    s_coinControl.destChange = dest;
+                    s_coinControl().destChange = dest;
                 else {
                     ui->lineEditCoinControlChange->setText("");
                     ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
@@ -1262,7 +1266,7 @@ void ReissueAssetDialog::coinControlChangeEdited(const QString& text)
                 else
                     ui->labelCoinControlChangeLabel->setText(tr("(no label)"));
 
-                s_coinControl.destChange = dest;
+                s_coinControl().destChange = dest;
             }
         }
     }
@@ -1274,7 +1278,7 @@ void ReissueAssetDialog::coinControlUpdateLabels()
     if (!model || !model->getOptionsModel())
         return;
 
-    updateCoinControlState(s_coinControl);
+    updateCoinControlState(s_coinControl());
 
     // set pay amounts
     CoinControlDialog::payAmounts.clear();
@@ -1282,9 +1286,9 @@ void ReissueAssetDialog::coinControlUpdateLabels()
 
     CoinControlDialog::payAmounts.append(GetBurnAmount(AssetType::REISSUE));
 
-    if (s_coinControl.HasSelected()) {
+    if (s_coinControl().HasSelected()) {
         // actual coin control calculation
-        CoinControlDialog::updateLabels(s_coinControl, model, this);
+        CoinControlDialog::updateLabels(s_coinControl(), model, this);
 
         // show coin control stats
         ui->labelCoinControlAutomaticallySelected->hide();

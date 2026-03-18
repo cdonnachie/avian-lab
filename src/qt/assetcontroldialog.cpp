@@ -53,7 +53,12 @@ static QString formatWithCustomName(const QString& name, CAmount amount)
 }
 
 QList<CAmount> AssetControlDialog::payAmounts;
-wallet::CCoinControl* AssetControlDialog::assetControl = new wallet::CCoinControl();
+wallet::CCoinControl& AssetControlDialog::coinControl()
+{
+    static wallet::CCoinControl instance;
+    return instance;
+}
+wallet::CCoinControl* AssetControlDialog::assetControl = &AssetControlDialog::coinControl();
 bool AssetControlDialog::fSubtractFeeFromAmount = false;
 
 bool CAssetControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
