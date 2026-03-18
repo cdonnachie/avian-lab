@@ -1926,7 +1926,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         // Check asset DB consistency with chain tip
         {
             uint256 assetBestBlock;
-            uint256 coinsBestBlock = chainman.ActiveChainstate().CoinsTip().GetBestBlock();
+            uint256 coinsBestBlock;
+            {
+                LOCK(cs_main);
+                coinsBestBlock = chainman.ActiveChainstate().CoinsTip().GetBestBlock();
+            }
             bool hasAssetBestBlock = passetsdb->ReadBestBlock(assetBestBlock);
 
             if (!coinsBestBlock.IsNull() && hasAssetBestBlock && assetBestBlock != coinsBestBlock) {

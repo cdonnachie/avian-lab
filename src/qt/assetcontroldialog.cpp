@@ -632,12 +632,10 @@ void AssetControlDialog::updateView()
             itemWalletAddress->setText(COLUMN_LABEL, sLabel);
 
             CAmount nSum = 0;
-            int nChildren = 0;
             for (const auto* out : outputs) {
                 CAssetOutputEntry data;
                 if (GetAssetData(out->txout.scriptPubKey, data))
                     nSum += data.nAmount;
-                nChildren++;
             }
             itemWalletAddress->setText(COLUMN_AMOUNT, BitcoinUnits::format(BitcoinUnits::Unit::BTC, nSum));
             itemWalletAddress->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)nSum));

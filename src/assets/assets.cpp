@@ -125,7 +125,7 @@ static const std::string SUB_NAME_DELIMITER = "/";
 static const std::string UNIQUE_TAG_DELIMITER = "#";
 static const std::string MSG_CHANNEL_TAG_DELIMITER = "~";
 static const std::string VOTE_TAG_DELIMITER = "^";
-static const std::string RESTRICTED_TAG_DELIMITER = "$";
+// static const std::string RESTRICTED_TAG_DELIMITER = "$"; // TODO: re-enable when restricted assets use this
 
 static const std::regex UNIQUE_INDICATOR(R"(^[^^~#!]+#[^~#!\/]+$)");
 static const std::regex MSG_CHANNEL_INDICATOR(R"(^[^^~#!]+~[^~#!\/]+$)");
@@ -602,7 +602,6 @@ CDatabasedAssetData::CDatabasedAssetData()
 
 /**
  * Constructs a CScript that carries the asset name and quantity and adds to to the end of the given script
- * @param dest - The destination that the asset will belong to
  * @param script - This script needs to be a pay to address script
  */
 void CNewAsset::ConstructTransaction(CScript& script) const

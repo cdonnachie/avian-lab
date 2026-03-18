@@ -70,7 +70,11 @@ static RPCHelpMan requestsnapshot()
 
             NodeContext& node = EnsureAnyNodeContext(request.context);
             ChainstateManager& chainman = EnsureChainman(node);
-            int nHeight = chainman.ActiveChain().Height();
+            int nHeight;
+            {
+                LOCK(cs_main);
+                nHeight = chainman.ActiveChain().Height();
+            }
 
             if (block_height <= nHeight)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid block_height: block height should be greater than current active chain height"));
@@ -279,7 +283,11 @@ static RPCHelpMan distributereward()
 
             NodeContext& node = EnsureAnyNodeContext(request.context);
             ChainstateManager& chainman = EnsureChainman(node);
-            int nHeight = chainman.ActiveChain().Height();
+            int nHeight;
+            {
+                LOCK(cs_main);
+                nHeight = chainman.ActiveChain().Height();
+            }
 
             if (snapshot_height > nHeight)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid snapshot_height: block height should be less than or equal to the current active chain height"));
