@@ -310,11 +310,9 @@ void AssetsDialog::on_sendButton_clicked()
 
     updateAssetControlState(ctrl);
 
-    // Rule 17: IsInitialBlockDownload() -> false stub
-    if (false) {
+    if (clientModel && clientModel->node().isInitialBlockDownload()) {
         GUIUtil::SyncWarningMessage syncWarning(this);
-        bool sendTransaction = syncWarning.showTransactionSyncWarningMessage();
-        if (!sendTransaction)
+        if (!syncWarning.showTransactionSyncWarningMessage())
             return;
     }
 
