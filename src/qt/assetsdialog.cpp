@@ -10,6 +10,7 @@
 #include <qt/addresstablemodel.h>
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
+#include <interfaces/node.h>
 #include <qt/assetcontroldialog.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>

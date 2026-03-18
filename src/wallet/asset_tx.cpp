@@ -33,6 +33,7 @@ static CScript GetScriptForNullAssetDataDestination(const CTxDestination& dest)
 }
 
 bool VerifyWalletHasAsset(const CWallet& wallet, const std::string& asset_name, std::pair<int, std::string>& error)
+    EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
 {
     AssertLockHeld(wallet.cs_wallet);
 
