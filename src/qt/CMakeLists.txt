@@ -318,6 +318,9 @@ if(ENABLE_IPC)
     bitcoin_node
     bitcoin_ipc
   )
+  if(APPLE)
+    target_link_libraries(bitcoin-gui iconv resolv)
+  endif()
   import_plugins(bitcoin-gui)
   install_binary_component(bitcoin-gui INTERNAL)
   if(WIN32)
