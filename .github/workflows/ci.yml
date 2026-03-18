@@ -35,6 +35,7 @@ jobs:
 
     env:
       DANGER_CI_ON_HOST_FOLDERS: 1
+      BITCOIN_GENBUILD_NO_GIT: 1
       FILE_ENV: './ci/test/00_setup_env_native_build_only.sh'
 
     steps:
@@ -85,6 +86,7 @@ jobs:
 
     env:
       DANGER_CI_ON_HOST_FOLDERS: 1
+      BITCOIN_GENBUILD_NO_GIT: 1
       FILE_ENV: './ci/test/00_setup_env_mac_cross.sh'
 
     steps:
@@ -127,6 +129,7 @@ jobs:
 
     env:
       DANGER_CI_ON_HOST_FOLDERS: 1
+      BITCOIN_GENBUILD_NO_GIT: 1
       FILE_ENV: './ci/test/00_setup_env_win64.sh'
 
     steps:

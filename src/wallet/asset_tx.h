@@ -23,7 +23,7 @@ class CWallet;
 class CCoinControl;
 
 //! Check if the wallet owns a given asset (has available UTXOs for it)
-bool VerifyWalletHasAsset(const CWallet& wallet, const std::string& asset_name, std::pair<int, std::string>& error);
+bool VerifyWalletHasAsset(const CWallet& wallet, const std::string& asset_name, std::pair<int, std::string>& error) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
 
 //! Create a new asset issuance transaction
 bool CreateAssetTransaction(
