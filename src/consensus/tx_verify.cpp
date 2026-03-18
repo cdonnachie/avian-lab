@@ -267,9 +267,7 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, TxValidationState& state, 
     int index = 0;
     int64_t currentTime = TicksSinceEpoch<std::chrono::seconds>(NodeClock::now());
     std::string strError = "";
-    int i = 0;
     for (const auto& txout : tx.vout) {
-        i++;
         bool fIsAsset = false;
         int nType = 0;
         bool fIsOwner = false;
