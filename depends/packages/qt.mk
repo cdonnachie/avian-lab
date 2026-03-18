@@ -20,7 +20,10 @@ $(package)_patches += qtbase_plugins_windows11style.patch
 $(package)_patches += qtbase_skip_tools.patch
 $(package)_patches += rcc_hardcode_timestamp.patch
 $(package)_patches += qttools_skip_dependencies.patch
-$(package)_patches += qtbase_printsupport_cups_optional.patch
+
+ifeq ($(host_os),darwin)
+$(package)_dependencies += cups
+endif
 
 $(package)_qttranslations_file_name=$(qt_details_qttranslations_file_name)
 $(package)_qttranslations_sha256_hash=$(qt_details_qttranslations_sha256_hash)
@@ -204,12 +207,6 @@ $(package)_cmake_opts += -DCMAKE_FRAMEWORK_PATH=$(OSX_SDK)/System/Library/Framew
 $(package)_cmake_opts += -DQT_INTERNAL_APPLE_SDK_VERSION=$(OSX_SDK_VERSION)
 $(package)_cmake_opts += -DQT_INTERNAL_XCODE_VERSION=$(XCODE_VERSION)
 $(package)_cmake_opts += -DQT_NO_APPLE_SDK_MAX_VERSION_CHECK=ON
-ifneq ($(host),$(build))
-# Cross-compiling for macOS: disable CUPS (not available in cross-compile SDK)
-$(package)_config_opts += -no-feature-cups
-$(package)_cmake_opts += -DCMAKE_DISABLE_FIND_PACKAGE_Cups=TRUE
-$(package)_cmake_opts += -DQT_FEATURE_cups=OFF
-endif
 endif
 endef
 
@@ -269,8 +266,7 @@ define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/qtbase_plugins_cocoa.patch && \
   patch -p1 -i $($(package)_patch_dir)/qtbase_plugins_windows11style.patch && \
   patch -p1 -i $($(package)_patch_dir)/qtbase_skip_tools.patch && \
-  patch -p1 -i $($(package)_patch_dir)/rcc_hardcode_timestamp.patch && \
-  patch -p1 -i $($(package)_patch_dir)/qtbase_printsupport_cups_optional.patch
+  patch -p1 -i $($(package)_patch_dir)/rcc_hardcode_timestamp.patch
 endef
 ifeq ($(host),$(build))
   $(package)_preprocess_cmds += && patch -p1 -i $($(package)_patch_dir)/qttools_skip_dependencies.patch

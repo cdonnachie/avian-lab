@@ -296,6 +296,10 @@ target_link_libraries(bitcoin-qt
   bitcoin_node
 )
 
+if(APPLE)
+  target_link_libraries(bitcoin-qt iconv resolv)
+endif()
+
 import_plugins(bitcoin-qt)
 install_binary_component(bitcoin-qt HAS_MANPAGE)
 if(WIN32)

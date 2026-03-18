@@ -306,7 +306,7 @@ void AssetsDialog::on_sendButton_clicked()
     // Rule 2: wallet::CCoinControl
     wallet::CCoinControl ctrl;
     if (model->getOptionsModel()->getCoinControlFeatures())
-        ctrl = *AssetControlDialog::assetControl;
+        ctrl = *AssetControlDialog::assetControl();
 
     updateAssetControlState(ctrl);
 
@@ -495,9 +495,9 @@ SendAssetsEntry *AssetsDialog::addEntry()
     QStringList list;
     bool fIsOwner = false;
     bool fIsAssetControl = false;
-    if (AssetControlDialog::assetControl->HasAssetSelected()) {
-        list << QString::fromStdString(AssetControlDialog::assetControl->strAssetSelected);
-        fIsOwner = IsAssetNameAnOwner(AssetControlDialog::assetControl->strAssetSelected);
+    if (AssetControlDialog::assetControl()->HasAssetSelected()) {
+        list << QString::fromStdString(AssetControlDialog::assetControl()->strAssetSelected);
+        fIsOwner = IsAssetNameAnOwner(AssetControlDialog::assetControl()->strAssetSelected);
         fIsAssetControl = true;
     } else if (model) {
         wallet::CWallet* pwallet = model->wallet().wallet();
@@ -837,7 +837,7 @@ void AssetsDialog::assetControlFeatureChanged(bool checked)
     ui->frameAssetControl->setVisible(checked);
 
     if (!checked && model) // coin control features disabled
-        *AssetControlDialog::assetControl = wallet::CCoinControl();
+        *AssetControlDialog::assetControl() = wallet::CCoinControl();
 
     assetControlUpdateLabels();
 }
@@ -862,7 +862,7 @@ void AssetsDialog::assetControlChangeChecked(int state)
 {
     if (state == Qt::Unchecked)
     {
-        AssetControlDialog::assetControl->destChange = CNoDestination();
+        AssetControlDialog::assetControl()->destChange = CNoDestination();
         ui->labelAssetControlChangeLabel->clear();
     }
     else
@@ -878,7 +878,7 @@ void AssetsDialog::assetControlChangeEdited(const QString& text)
     if (model && model->getAddressTableModel())
     {
         // Default to no change address until verified
-        AssetControlDialog::assetControl->destChange = CNoDestination();
+        AssetControlDialog::assetControl()->destChange = CNoDestination();
         ui->labelAssetControlChangeLabel->setStyleSheet("QLabel{color:red;}");
 
         const CTxDestination dest = DecodeDestination(text.toStdString());
@@ -902,7 +902,7 @@ void AssetsDialog::assetControlChangeEdited(const QString& text)
                                                                               QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
 
                 if(btnRetVal == QMessageBox::Yes)
-                    AssetControlDialog::assetControl->destChange = dest;
+                    AssetControlDialog::assetControl()->destChange = dest;
                 else
                 {
                     ui->lineEditAssetControlChange->setText("");
@@ -921,7 +921,7 @@ void AssetsDialog::assetControlChangeEdited(const QString& text)
                 else
                     ui->labelAssetControlChangeLabel->setText(tr("(no label)"));
 
-                AssetControlDialog::assetControl->destChange = dest;
+                AssetControlDialog::assetControl()->destChange = dest;
             }
         }
     }
@@ -933,7 +933,7 @@ void AssetsDialog::assetControlUpdateLabels()
     if (!model || !model->getOptionsModel())
         return;
 
-    updateAssetControlState(*AssetControlDialog::assetControl);
+    updateAssetControlState(*AssetControlDialog::assetControl());
 
     // set pay amounts
     AssetControlDialog::payAmounts.clear();
@@ -949,7 +949,7 @@ void AssetsDialog::assetControlUpdateLabels()
         }
     }
 
-    if (AssetControlDialog::assetControl->HasAssetSelected())
+    if (AssetControlDialog::assetControl()->HasAssetSelected())
     {
         // actual coin control calculation
         AssetControlDialog::updateLabels(model, this);

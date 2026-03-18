@@ -440,7 +440,7 @@ void SendAssetsEntry::switchAdministratorList(bool fSwitchStatus)
 
     if (fShowAdministratorList) {
         ui->administratorCheckbox->setChecked(true);
-        if (!AssetControlDialog::assetControl || !AssetControlDialog::assetControl->HasAssetSelected()) {
+        if (!AssetControlDialog::assetControl()->HasAssetSelected()) {
             QStringList list;
             list << "";
             if (model) {
@@ -474,7 +474,7 @@ void SendAssetsEntry::switchAdministratorList(bool fSwitchStatus)
         ui->ownershipWarningMessage->show();
     } else {
         ui->administratorCheckbox->setChecked(false);
-        if (!AssetControlDialog::assetControl || !AssetControlDialog::assetControl->HasAssetSelected()) {
+        if (!AssetControlDialog::assetControl()->HasAssetSelected()) {
             QStringList list;
             list << "";
             if (model) {

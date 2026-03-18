@@ -62,8 +62,7 @@ public:
     void updateAssetList(bool fSetOnStart = false);
 
     static QList<CAmount> payAmounts;
-    static wallet::CCoinControl *assetControl;
-    static wallet::CCoinControl &coinControl();
+    static wallet::CCoinControl *assetControl();
     static bool fSubtractFeeFromAmount;
     bool fOnStartUp;
 

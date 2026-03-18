@@ -53,12 +53,11 @@ static QString formatWithCustomName(const QString& name, CAmount amount)
 }
 
 QList<CAmount> AssetControlDialog::payAmounts;
-wallet::CCoinControl& AssetControlDialog::coinControl()
+wallet::CCoinControl* AssetControlDialog::assetControl()
 {
     static wallet::CCoinControl instance;
-    return instance;
+    return &instance;
 }
-wallet::CCoinControl* AssetControlDialog::assetControl = &AssetControlDialog::coinControl();
 bool AssetControlDialog::fSubtractFeeFromAmount = false;
 
 bool CAssetControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
@@ -216,8 +215,8 @@ void AssetControlDialog::setModel(WalletModel *_model)
 void AssetControlDialog::buttonBoxClicked(QAbstractButton* button)
 {
     if (ui->buttonBox->buttonRole(button) == QDialogButtonBox::AcceptRole) {
-        if (AssetControlDialog::assetControl->HasAssetSelected())
-            AssetControlDialog::assetControl->strAssetSelected = ui->assetList->currentText().toStdString();
+        if (AssetControlDialog::assetControl()->HasAssetSelected())
+            AssetControlDialog::assetControl()->strAssetSelected = ui->assetList->currentText().toStdString();
         done(QDialog::Accepted);
     }
 }
@@ -240,7 +239,7 @@ void AssetControlDialog::buttonSelectAllClicked()
                 ui->treeWidget->topLevelItem(i)->setCheckState(COLUMN_CHECKBOX, state);
     ui->treeWidget->setEnabled(true);
     if (state == Qt::Unchecked)
-        assetControl->UnSelectAll();
+        assetControl()->UnSelectAll();
     AssetControlDialog::updateLabels(model, this);
 }
 
@@ -424,11 +423,11 @@ void AssetControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
         COutPoint outpt(Txid::FromUint256(uint256::FromHex(item->text(COLUMN_TXHASH).toStdString()).value()), item->text(COLUMN_VOUT_INDEX).toUInt());
 
         if (item->checkState(COLUMN_CHECKBOX) == Qt::Unchecked)
-            assetControl->UnSelectAsset(outpt);
+            assetControl()->UnSelectAsset(outpt);
         else if (item->isDisabled())
             item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
         else
-            assetControl->SelectAsset(outpt);
+            assetControl()->SelectAsset(outpt);
 
         if (ui->treeWidget->isEnabled())
             AssetControlDialog::updateLabels(model, this);
@@ -465,7 +464,7 @@ void AssetControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         nPayAmount += amount;
     }
 
-    std::string strAssetName = assetControl->strAssetSelected;
+    std::string strAssetName = assetControl()->strAssetSelected;
     CAmount nAssetAmount        = 0;
     CAmount nPayFee             = 0;
     CAmount nAfterFee           = 0;
@@ -478,7 +477,7 @@ void AssetControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     if (!strAssetName.empty() && model) {
         wallet::CWallet* pwallet = model->wallet().wallet();
         if (pwallet) {
-            std::vector<COutPoint> vSelected = assetControl->ListSelected();
+            std::vector<COutPoint> vSelected = assetControl()->ListSelected();
             LOCK(pwallet->cs_wallet);
             wallet::CoinFilterParams params;
             params.min_amount = 0;
@@ -487,7 +486,7 @@ void AssetControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
             auto it = available.mapAssetCoins.find(strAssetName);
             if (it != available.mapAssetCoins.end()) {
                 for (const auto& output : it->second) {
-                    if (assetControl->IsSelected(output.outpoint)) {
+                    if (assetControl()->IsSelected(output.outpoint)) {
                         CAssetOutputEntry data;
                         if (GetAssetData(output.txout.scriptPubKey, data)) {
                             nAssetAmount += data.nAmount;
@@ -576,7 +575,7 @@ void AssetControlDialog::updateView()
     ui->treeWidget->setEnabled(false);
     ui->treeWidget->setAlternatingRowColors(!treeMode);
 
-    std::string strSelectedAsset = assetControl->strAssetSelected;
+    std::string strSelectedAsset = assetControl()->strAssetSelected;
     if (strSelectedAsset.empty()) {
         sortView(sortColumn, sortOrder);
         ui->treeWidget->setEnabled(true);
@@ -686,7 +685,7 @@ void AssetControlDialog::updateView()
             itemOutput->setText(COLUMN_VOUT_INDEX, QString::number(out->outpoint.n));
 
             // Set checkbox state if selected in coin control
-            if (assetControl->IsSelected(out->outpoint))
+            if (assetControl()->IsSelected(out->outpoint))
                 itemOutput->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
         }
     }
@@ -698,7 +697,7 @@ void AssetControlDialog::updateView()
 
 void AssetControlDialog::viewAdministratorClicked()
 {
-    assetControl->UnSelectAll();
+    assetControl()->UnSelectAll();
     AssetControlDialog::updateLabels(model, this);
     updateAssetList();
 }
@@ -722,7 +721,7 @@ void AssetControlDialog::updateAssetList(bool fSetOnStart)
     }
     stringModel->setStringList(list);
 
-    int index = ui->assetList->findText(QString::fromStdString(assetControl->strAssetSelected));
+    int index = ui->assetList->findText(QString::fromStdString(assetControl()->strAssetSelected));
     if (index != -1 ) {
         fOnStartUp = fSetOnStart;
         ui->assetList->setCurrentIndex(index);
@@ -736,7 +735,7 @@ void AssetControlDialog::onAssetSelected(QString name)
     if (fOnStartUp) {
         fOnStartUp = false;
     } else {
-        assetControl->UnSelectAll();
+        assetControl()->UnSelectAll();
     }
 
     AssetControlDialog::updateLabels(model, this);
