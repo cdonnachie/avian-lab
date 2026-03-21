@@ -183,6 +183,7 @@ PE_ALLOWED_LIBRARIES = {
 'WTSAPI32.dll', # Remote Desktop
 'SETUPAPI.dll', # Windows Setup API
 'SHCORE.dll', # Stream Handler Core
+'WINSPOOL.DRV', # Windows Print Spooler (Qt printing support)
 }
 
 def check_version(max_versions, version, arch) -> bool:
