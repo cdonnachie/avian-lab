@@ -24,10 +24,10 @@ define $(package)_config_cmds
 endef
 
 define $(package)_build_cmds
-  $(MAKE)
+  $(MAKE) -C cups libs
 endef
 
 define $(package)_stage_cmds
-  $(MAKE) DESTDIR=$($(package)_staging_dir) install && \
+  $(MAKE) -C cups DESTDIR=$($(package)_staging_dir) install-headers install-libs && \
   $($(package)_ranlib) $($(package)_staging_dir)$(host_prefix)/lib/libcups.a
 endef
