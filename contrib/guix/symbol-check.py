@@ -146,7 +146,11 @@ MACHO_ALLOWED_LIBRARIES = {
 'Metal', # 3D graphics
 'QuartzCore', # animation
 'Security', # access control and authentication
+'SystemConfiguration', # network configuration (used by CUPS/Qt)
 'UniformTypeIdentifiers', # collection of types that map to MIME and file types
+'libiconv.2.dylib', # character set conversion (used by CUPS)
+'libresolv.9.dylib', # DNS resolver (used by CUPS)
+'libz.1.dylib', # zlib compression (used by CUPS)
 }
 
 PE_ALLOWED_LIBRARIES = {
