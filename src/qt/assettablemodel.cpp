@@ -11,10 +11,6 @@
 #include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 #include <wallet/wallet.h>
-#include <wallet/spend.h>
-#include <wallet/coinselection.h>
-
-#include <core_io.h>
 
 #include <consensus/amount.h>
 #include <assets/assets.h>
@@ -25,30 +21,39 @@
 #include <QStringList>
 
 /** AVN: Get all asset balances for a wallet.
- * This is a local helper adapted from old Avian's GetAllMyAssetBalances.
+ *
+ * Light-weight scan that only iterates asset UTXOs (via GetTXOs()),
+ * skipping the expensive AvailableCoins() regular-coin scan and the
+ * per-output signing-provider / input-size calculations that are only
+ * needed for coin selection. Uses TRY_LOCK so the GUI thread is never
+ * blocked waiting for cs_wallet.
  */
 static bool GetAllMyAssetBalances(wallet::CWallet* pwallet,
-    std::map<std::string, std::vector<wallet::COutput>>& outputs,
     std::map<std::string, CAmount>& amounts)
 {
     if (!pwallet) return false;
 
-    LOCK(pwallet->cs_wallet);
-    wallet::CoinFilterParams params;
-    params.min_amount = 0;
-    params.check_version_trucness = false; // No coinControl ptr — skip TRUC version checks
-    wallet::CoinsResult available = wallet::AvailableCoinsWithAssets(*pwallet, nullptr, std::nullopt, params);
+    TRY_LOCK(pwallet->cs_wallet, locked_wallet);
+    if (!locked_wallet) return false;
 
-    outputs = available.mapAssetCoins;
+    for (const auto& [outpoint, txo] : pwallet->GetTXOs()) {
+        const CTxOut& output = txo.GetTxOut();
 
-    for (const auto& [assetName, assetOutputs] : outputs) {
-        CAmount balance = 0;
-        for (const auto& output : assetOutputs) {
-            CAssetOutputEntry data;
-            if (GetAssetData(output.txout.scriptPubKey, data))
-                balance += data.nAmount;
-        }
-        amounts[assetName] = balance;
+        if (!output.scriptPubKey.IsAssetScript())
+            continue;
+        if (pwallet->IsSpent(outpoint))
+            continue;
+
+        const wallet::CWalletTx& wtx = txo.GetWalletTx();
+        int nDepth = pwallet->GetTxDepthInMainChain(wtx);
+        if (nDepth < 0)
+            continue;
+        if (nDepth == 0 && !wtx.InMempool())
+            continue;
+
+        CAssetOutputEntry data;
+        if (GetAssetData(output.scriptPubKey, data))
+            amounts[data.assetName] += data.nAmount;
     }
 
     return true;
@@ -70,7 +75,9 @@ public:
 
     // loads all current balances into cache
 #ifdef ENABLE_WALLET
-    void refreshWallet() {
+    /** Rebuild the display cache from pre-computed balances.
+     *  If no balances are provided, fetch them now. */
+    void refreshWallet(const std::map<std::string, CAmount>* precomputedBalances = nullptr) {
         cachedBalances.clear();
         auto currentActiveAssetCache = GetCurrentAssetCache();
         if (currentActiveAssetCache) {
@@ -78,12 +85,15 @@ public:
             // These two locks must never be held simultaneously to avoid
             // deadlocking with the block-processing / mempool-submission
             // threads which acquire cs_main then cs_wallet.
-            std::map<std::string, CAmount> balances;
-            std::map<std::string, std::vector<wallet::COutput> > outputs;
+            std::map<std::string, CAmount> fetchedBalances;
+            const std::map<std::string, CAmount>& balances =
+                precomputedBalances ? *precomputedBalances : fetchedBalances;
 
-            wallet::CWallet* pwallet = parent->walletModel ? parent->walletModel->wallet().wallet() : nullptr;
-            if (!GetAllMyAssetBalances(pwallet, outputs, balances)) {
-                return;
+            if (!precomputedBalances) {
+                wallet::CWallet* pwallet = parent->walletModel ? parent->walletModel->wallet().wallet() : nullptr;
+                if (!GetAllMyAssetBalances(pwallet, fetchedBalances)) {
+                    return;
+                }
             }
 
             // Phase 2: Look up asset metadata under cs_main only (no cs_wallet).
@@ -174,19 +184,21 @@ AssetTableModel::~AssetTableModel()
 void AssetTableModel::checkBalanceChanged() {
 #ifdef ENABLE_WALLET
     // Quick check: get new balances and compare with cached to avoid
-    // expensive cs_main lock and Qt model reset when nothing changed
+    // expensive cs_main lock and Qt model reset when nothing changed.
+    // Uses TRY_LOCK internally — returns false if the wallet lock is
+    // busy, so we never block the GUI thread; the next 250ms poll retries.
     wallet::CWallet* pwallet = walletModel ? walletModel->wallet().wallet() : nullptr;
-    std::map<std::string, std::vector<wallet::COutput>> outputs;
     std::map<std::string, CAmount> newAmounts;
-    if (GetAllMyAssetBalances(pwallet, outputs, newAmounts)) {
-        if (newAmounts == priv->cachedAmounts) {
-            return; // No change — skip full refresh
-        }
-        priv->cachedAmounts = newAmounts;
+    if (!GetAllMyAssetBalances(pwallet, newAmounts)) {
+        return; // Wallet locked or no wallet — skip, try next poll
     }
+    if (newAmounts == priv->cachedAmounts) {
+        return; // No change — skip full refresh
+    }
+    priv->cachedAmounts = newAmounts;
 
     Q_EMIT layoutAboutToBeChanged();
-    priv->refreshWallet();
+    priv->refreshWallet(&newAmounts);
     Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(priv->size(), columns.length()-1, QModelIndex()));
     Q_EMIT layoutChanged();
 #endif
