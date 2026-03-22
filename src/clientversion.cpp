@@ -87,7 +87,7 @@ std::string CopyrightHolders(const std::string& strPrefix)
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/AltcoinBaggins/avian>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/AvianNetwork/avian>";
 
     return CopyrightHolders("Copyright (C) ") + "\n" +
            "\n" +

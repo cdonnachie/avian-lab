@@ -64,7 +64,7 @@ endif()
 
 set(COPYRIGHT_HOLDERS "The %s developers")
 set(COPYRIGHT_HOLDERS_FINAL "The ${CLIENT_NAME} developers")
-set(CLIENT_BUGREPORT "https://github.com/AltcoinBaggins/avian/issues")
+set(CLIENT_BUGREPORT "https://github.com/AvianNetwork/avian/issues")
 
 #=============================
 # Language setup
