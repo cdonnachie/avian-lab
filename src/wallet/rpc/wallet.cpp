@@ -927,6 +927,9 @@ RPCHelpMan unfreezerestrictedasset();
 RPCHelpMan sendmessage();
 RPCHelpMan consolidateutxos();
 
+// rewards (wallet/rpc/rewards.cpp)
+RPCHelpMan distributereward();
+
 std::span<const CRPCCommand> GetWalletRPCCommands()
 {
     static const CRPCCommand commands[]{
@@ -1009,6 +1012,8 @@ std::span<const CRPCCommand> GetWalletRPCCommands()
         {"restricted assets", &unfreezerestrictedasset},
         {"messages", &sendmessage},
         {"wallet", &consolidateutxos},
+        /** AVN: Reward distribution RPCs */
+        {"rewards", &distributereward},
     };
     return commands;
 }
