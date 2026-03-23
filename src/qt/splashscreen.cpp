@@ -86,11 +86,21 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
 
     pixPaint.setFont(QFont(font, 15*fontFactor));
 
-    // if the version string is too long, reduce size
+    // if the version string is too long, reduce font size until it fits
+    int availableWidth = titleTextWidth+paddingRight-10;
     fm = pixPaint.fontMetrics();
     int versionTextWidth  = GUIUtil::TextWidth(fm, versionText);
-    if(versionTextWidth > titleTextWidth+paddingRight-10) {
-        pixPaint.setFont(QFont(font, 10*fontFactor));
+    if(versionTextWidth > availableWidth) {
+        int versionFontSize = 10;
+        pixPaint.setFont(QFont(font, versionFontSize*fontFactor));
+        fm = pixPaint.fontMetrics();
+        versionTextWidth = GUIUtil::TextWidth(fm, versionText);
+        while(versionTextWidth > availableWidth && versionFontSize > 4) {
+            --versionFontSize;
+            pixPaint.setFont(QFont(font, versionFontSize*fontFactor));
+            fm = pixPaint.fontMetrics();
+            versionTextWidth = GUIUtil::TextWidth(fm, versionText);
+        }
         titleVersionVSpace -= 5;
     }
     pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight+2,paddingTop+titleVersionVSpace,versionText);
