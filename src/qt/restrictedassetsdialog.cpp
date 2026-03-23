@@ -15,6 +15,8 @@
 #include <qt/assettablemodel.h>
 #include <qt/assetfilterproxy.h>
 
+#include <assets/assets.h>
+#include <assets/assettypes.h>
 #include <key_io.h>
 #include <validation.h>
 #include <qt/guiconstants.h>
@@ -24,6 +26,8 @@
 #include "ui_restrictedfreezeaddress.h"
 #include <qt/sendcoinsdialog.h>
 #include <qt/myrestrictedassettablemodel.h>
+#include <wallet/asset_tx.h>
+#include <wallet/wallet.h>
 
 #include <QGraphicsDropShadowEffect>
 #include <QFontMetrics>
@@ -148,11 +152,117 @@ void RestrictedAssetsDialog::freezeAddressClicked()
         return;
     }
 
-    // Freeze/unfreeze requires CreateFreezeTransaction / CreateUnfreezeTransaction
-    // in wallet/asset_tx.cpp which are not yet ported
-    QMessageBox msgBox;
-    msgBox.setText(tr("Freeze/unfreeze functionality requires restricted asset transaction support which is not yet ported."));
-    msgBox.exec();
+    wallet::CWallet* pwallet = model->wallet().wallet();
+    if (!pwallet) {
+        QMessageBox::critical(this, tr("Error"), tr("Wallet not available."));
+        return;
+    }
+
+    // Get the freeze tab widget
+    FreezeAddress *freezeTab = findChild<FreezeAddress*>("tab_freeze_address");
+    if (!freezeTab) return;
+    Ui::FreezeAddress *fui = freezeTab->getUI();
+
+    // Get the restricted asset name from combo box
+    QString assetName = fui->assetComboBox->currentText();
+    if (assetName.isEmpty()) {
+        QMessageBox::warning(this, tr("Error"), tr("Please select a restricted asset."));
+        return;
+    }
+    std::string asset_name = assetName.toStdString();
+    if (asset_name[0] != RESTRICTED_CHAR)
+        asset_name = std::string(1, RESTRICTED_CHAR) + asset_name;
+
+    // Determine the operation from radio buttons
+    bool isGlobal = fui->radioButtonGlobalFreeze->isChecked() || fui->radioButtonGlobalUnfreeze->isChecked();
+    bool isFreeze = fui->radioButtonFreezeAddress->isChecked() || fui->radioButtonGlobalFreeze->isChecked();
+    int8_t flag = isFreeze ? 1 : 0;
+
+    if (!fui->radioButtonFreezeAddress->isChecked() && !fui->radioButtonUnfreezeAddress->isChecked() &&
+        !fui->radioButtonGlobalFreeze->isChecked() && !fui->radioButtonGlobalUnfreeze->isChecked()) {
+        QMessageBox::warning(this, tr("Error"), tr("Please select a freeze/unfreeze option."));
+        return;
+    }
+
+    // Get optional asset data
+    std::string asset_data = fui->lineEditAssetData->text().trimmed().toStdString();
+
+    // Get change address
+    std::string change_address;
+    if (fui->checkBoxChangeAddress->isChecked() && !fui->lineEditChangeAddress->text().isEmpty()) {
+        change_address = fui->lineEditChangeAddress->text().trimmed().toStdString();
+        CTxDestination dest = DecodeDestination(change_address);
+        if (!IsValidDestination(dest)) {
+            QMessageBox::warning(this, tr("Error"), tr("Invalid change address."));
+            return;
+        }
+    }
+
+    // Build the transaction
+    LOCK(pwallet->cs_wallet);
+
+    if (change_address.empty()) {
+        auto op_dest = pwallet->GetNewDestination(OutputType::LEGACY, "");
+        if (!op_dest) {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to generate change address."));
+            return;
+        }
+        change_address = EncodeDestination(*op_dest);
+    }
+
+    std::string ownerName = RestrictedNameToOwnerName(asset_name);
+    std::vector<std::pair<CAssetTransfer, std::string>> vTransfers;
+    CAssetTransfer assetTransfer(ownerName, OWNER_ASSET_AMOUNT, DecodeAssetData(asset_data), 0);
+    vTransfers.emplace_back(std::make_pair(assetTransfer, change_address));
+
+    wallet::CCoinControl ctrl;
+    ctrl.destChange = DecodeDestination(change_address);
+
+    CTransactionRef tx;
+    CAmount nFeeRequired;
+    std::pair<int, std::string> error;
+
+    if (isGlobal) {
+        // Global freeze/unfreeze
+        std::vector<CNullAssetTxData> nullGlobalRestrictionData;
+        CNullAssetTxData nullData(asset_name, flag);
+        nullGlobalRestrictionData.push_back(nullData);
+
+        if (!wallet::CreateTransferAssetTransaction(*pwallet, ctrl, vTransfers, "", error, tx, nFeeRequired, nullptr, &nullGlobalRestrictionData)) {
+            QMessageBox::critical(this, tr("Error"), QString::fromStdString(error.second));
+            return;
+        }
+    } else {
+        // Per-address freeze/unfreeze
+        std::string address = fui->lineEditAddress->text().trimmed().toStdString();
+        if (address.empty()) {
+            QMessageBox::warning(this, tr("Error"), tr("Please enter an address to freeze/unfreeze."));
+            return;
+        }
+        CTxDestination addr_dest = DecodeDestination(address);
+        if (!IsValidDestination(addr_dest)) {
+            QMessageBox::warning(this, tr("Error"), tr("Invalid address."));
+            return;
+        }
+
+        std::vector<std::pair<CNullAssetTxData, std::string>> nullAssetTxData;
+        CNullAssetTxData nullData(asset_name, flag);
+        nullAssetTxData.emplace_back(std::make_pair(nullData, address));
+
+        if (!wallet::CreateTransferAssetTransaction(*pwallet, ctrl, vTransfers, "", error, tx, nFeeRequired, &nullAssetTxData)) {
+            QMessageBox::critical(this, tr("Error"), QString::fromStdString(error.second));
+            return;
+        }
+    }
+
+    std::string txid;
+    if (!wallet::SendAssetTransaction(*pwallet, tx, error, txid)) {
+        QMessageBox::critical(this, tr("Error"), QString::fromStdString(error.second));
+        return;
+    }
+
+    QMessageBox::information(this, tr("Success"),
+        tr("Transaction sent successfully.\nTxID: %1").arg(QString::fromStdString(txid)));
 }
 
 void RestrictedAssetsDialog::assignQualifierClicked()
@@ -163,9 +273,97 @@ void RestrictedAssetsDialog::assignQualifierClicked()
         return;
     }
 
-    // Assign/remove qualifier requires CreateAssignQualifierTransaction
-    // in wallet/asset_tx.cpp which is not yet ported
-    QMessageBox msgBox;
-    msgBox.setText(tr("Assign/remove qualifier functionality requires restricted asset transaction support which is not yet ported."));
-    msgBox.exec();
+    wallet::CWallet* pwallet = model->wallet().wallet();
+    if (!pwallet) {
+        QMessageBox::critical(this, tr("Error"), tr("Wallet not available."));
+        return;
+    }
+
+    // Get the qualifier tab widget
+    AssignQualifier *qualifierTab = findChild<AssignQualifier*>("tab_assign_qualifier");
+    if (!qualifierTab) return;
+    Ui::AssignQualifier *qui = qualifierTab->getUI();
+
+    // Get qualifier name from combo box
+    QString qualifierName = qui->assetComboBox->currentText();
+    if (qualifierName.isEmpty()) {
+        QMessageBox::warning(this, tr("Error"), tr("Please select a qualifier asset."));
+        return;
+    }
+    std::string tag_name = qualifierName.toStdString();
+    if (tag_name[0] != QUALIFIER_CHAR)
+        tag_name = std::string(1, QUALIFIER_CHAR) + tag_name;
+
+    // Determine assign (1) or remove (0) from the type combo box
+    int assignTypeIndex = qui->assignTypeComboBox->currentIndex();
+    int8_t flag = (assignTypeIndex == 0) ? 1 : 0;
+
+    // Get the target address
+    std::string to_address = qui->lineEditAddress->text().trimmed().toStdString();
+    if (to_address.empty()) {
+        QMessageBox::warning(this, tr("Error"), tr("Please enter an address."));
+        return;
+    }
+    CTxDestination to_dest = DecodeDestination(to_address);
+    if (!IsValidDestination(to_dest)) {
+        QMessageBox::warning(this, tr("Error"), tr("Invalid address."));
+        return;
+    }
+
+    // Get optional asset data
+    std::string asset_data = qui->lineEditAssetData->text().trimmed().toStdString();
+
+    // Get change address
+    std::string change_address;
+    if (qui->checkBoxChangeAddress->isChecked() && !qui->lineEditChangeAddress->text().isEmpty()) {
+        change_address = qui->lineEditChangeAddress->text().trimmed().toStdString();
+        CTxDestination dest = DecodeDestination(change_address);
+        if (!IsValidDestination(dest)) {
+            QMessageBox::warning(this, tr("Error"), tr("Invalid change address."));
+            return;
+        }
+    }
+
+    // Build the transaction
+    LOCK(pwallet->cs_wallet);
+
+    if (change_address.empty()) {
+        auto op_dest = pwallet->GetNewDestination(OutputType::LEGACY, "");
+        if (!op_dest) {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to generate change address."));
+            return;
+        }
+        change_address = EncodeDestination(*op_dest);
+    }
+
+    // Transfer qualifier token to self (change address) to prove ownership
+    std::vector<std::pair<CAssetTransfer, std::string>> vTransfers;
+    CAssetTransfer assetTransfer(tag_name, QUALIFIER_ASSET_MIN_AMOUNT, DecodeAssetData(asset_data), 0);
+    vTransfers.emplace_back(std::make_pair(assetTransfer, change_address));
+
+    // Attach null asset tx data to tag/untag the address
+    std::vector<std::pair<CNullAssetTxData, std::string>> nullAssetTxData;
+    CNullAssetTxData nullData(tag_name, flag);
+    nullAssetTxData.emplace_back(std::make_pair(nullData, to_address));
+
+    wallet::CCoinControl ctrl;
+    ctrl.destChange = DecodeDestination(change_address);
+
+    CTransactionRef tx;
+    CAmount nFeeRequired;
+    std::pair<int, std::string> error;
+
+    if (!wallet::CreateTransferAssetTransaction(*pwallet, ctrl, vTransfers, "", error, tx, nFeeRequired, &nullAssetTxData)) {
+        QMessageBox::critical(this, tr("Error"), QString::fromStdString(error.second));
+        return;
+    }
+
+    std::string txid;
+    if (!wallet::SendAssetTransaction(*pwallet, tx, error, txid)) {
+        QMessageBox::critical(this, tr("Error"), QString::fromStdString(error.second));
+        return;
+    }
+
+    QMessageBox::information(this, tr("Success"),
+        tr("Transaction sent successfully.\nTxID: %1").arg(QString::fromStdString(txid)));
 }
