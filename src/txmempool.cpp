@@ -513,6 +513,21 @@ void CTxMemPool::addNewTransaction(CTxMemPool::txiter newit, CTxMemPool::setEntr
     txns_randomized.emplace_back(tx.GetWitnessHash(), newit);
     newit->idx_randomized = txns_randomized.size() - 1;
 
+    // AVN: Track new asset creation txs for mempool duplicate detection
+    if (IsNewAsset(tx) || IsNewUniqueAsset(tx) || IsNewMsgChannelAsset(tx) ||
+        IsNewQualifierAsset(tx) || IsNewRestrictedAsset(tx)) {
+        CNewAsset asset;
+        std::string address;
+        if (AssetFromTransaction(tx, asset, address) ||
+            MsgChannelAssetFromTransaction(tx, asset, address) ||
+            QualifierAssetFromTransaction(tx, asset, address) ||
+            RestrictedAssetFromTransaction(tx, asset, address)) {
+            uint256 txHash = tx.GetHash().ToUint256();
+            mapAssetToHash[asset.strName] = txHash;
+            mapHashToAsset[txHash] = asset.strName;
+        }
+    }
+
     TRACEPOINT(mempool, added,
         entry.GetTx().GetHash().data(),
         entry.GetTxSize(),

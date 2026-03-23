@@ -17,6 +17,7 @@ class CCoinsViewCache;
 class CTransaction;
 class TxValidationState;
 class CAssetsCache;
+class CTxMemPool;
 class CMessage;
 class CNullAssetTxData;
 class uint256;
@@ -34,7 +35,7 @@ namespace Consensus {
 
 /** AVN: Check asset inputs/outputs balance and validate asset operations */
 bool CheckTxAssets(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs,
-                   CAssetsCache* assetCache, bool fCheckMempool,
+                   CAssetsCache* assetCache, const CTxMemPool* mempool,
                    std::vector<std::pair<std::string, uint256>>& vPairReissueAssets,
                    const bool fRunningUnitTests = false,
                    std::set<CMessage>* setMessages = nullptr,

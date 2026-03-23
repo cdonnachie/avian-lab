@@ -218,7 +218,7 @@ extern bool fMessaging;
 
 //! Check that asset inputs and outputs balance, and validate asset operations.
 bool Consensus::CheckTxAssets(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs,
-                              CAssetsCache* assetCache, bool fCheckMempool,
+                              CAssetsCache* assetCache, const CTxMemPool* mempool,
                               std::vector<std::pair<std::string, uint256>>& vPairReissueAssets,
                               const bool fRunningUnitTests, std::set<CMessage>* setMessages,
                               int64_t nBlocktime,
@@ -376,7 +376,7 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, TxValidationState& state, 
             AssetType assetType;
             IsAssetNameValid(asset.strName, assetType);
 
-            if (!ContextualCheckNewAsset(assetCache, asset, strError, fCheckMempool))
+            if (!ContextualCheckNewAsset(assetCache, asset, strError, mempool))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, strError);
 
         } else if (IsReissueAsset(tx)) {
@@ -400,7 +400,7 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, TxValidationState& state, 
             if (!MsgChannelAssetFromTransaction(tx, asset, strAddress))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issue-msgchannel-serialzation-failed");
 
-            if (!ContextualCheckNewAsset(assetCache, asset, strError, fCheckMempool))
+            if (!ContextualCheckNewAsset(assetCache, asset, strError, mempool))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issue-msgchannel-contextual-" + strError);
         } else if (IsNewQualifierAsset(tx)) {
             if (!AreRestrictedAssetsDeployed())
@@ -411,7 +411,7 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, TxValidationState& state, 
             if (!QualifierAssetFromTransaction(tx, asset, strAddress))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issue-qualifier-serialzation-failed");
 
-            if (!ContextualCheckNewAsset(assetCache, asset, strError, fCheckMempool))
+            if (!ContextualCheckNewAsset(assetCache, asset, strError, mempool))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issue-qualfier-contextual" + strError);
 
         } else if (IsNewRestrictedAsset(tx)) {
@@ -423,7 +423,7 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, TxValidationState& state, 
             if (!RestrictedAssetFromTransaction(tx, asset, strAddress))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issue-restricted-serialzation-failed");
 
-            if (!ContextualCheckNewAsset(assetCache, asset, strError, fCheckMempool))
+            if (!ContextualCheckNewAsset(assetCache, asset, strError, mempool))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issue-restricted-contextual" + strError);
 
             // Get verifier string

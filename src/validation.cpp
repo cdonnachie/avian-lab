@@ -945,6 +945,26 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_CONFLICT, "txn-same-nonwitness-data-in-mempool");
     }
 
+    // AVN: Check for duplicate asset creation in the mempool
+    if (AreAssetsDeployed() && !tx.IsCoinBase()) {
+        CAssetsCache* currentAssetCache = GetCurrentAssetCache();
+        if (currentAssetCache) {
+            if (IsNewAsset(tx) || IsNewMsgChannelAsset(tx) ||
+                IsNewQualifierAsset(tx) || IsNewRestrictedAsset(tx)) {
+                CNewAsset asset;
+                std::string address;
+                std::string strError;
+                if ((AssetFromTransaction(tx, asset, address) ||
+                     MsgChannelAssetFromTransaction(tx, asset, address) ||
+                     QualifierAssetFromTransaction(tx, asset, address) ||
+                     RestrictedAssetFromTransaction(tx, asset, address)) &&
+                    !ContextualCheckNewAsset(currentAssetCache, asset, strError, &m_pool)) {
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strError);
+                }
+            }
+        }
+    }
+
     // Check for conflicts with in-memory transactions
     for (const CTxIn &txin : tx.vin)
     {
@@ -3077,7 +3097,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         if (AreAssetsDeployed() && assetsCache && !tx.IsCoinBase()) {
             std::vector<std::pair<std::string, uint256>> vReissueAssets;
             TxValidationState asset_state;
-            if (!Consensus::CheckTxAssets(tx, asset_state, view, assetsCache, false, vReissueAssets, false, &setMessages, block.nTime, &myNullAssetData)) {
+            if (!Consensus::CheckTxAssets(tx, asset_state, view, assetsCache, nullptr, vReissueAssets, false, &setMessages, block.nTime, &myNullAssetData)) {
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                               asset_state.GetRejectReason(),
                               asset_state.GetDebugMessage() + " in transaction " + tx.GetHash().ToString());

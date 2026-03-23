@@ -28,6 +28,7 @@
 #include <assets/assets.h>
 #include <assets/assetdb.h>
 #include <assets/assettypes.h>
+#include <txmempool.h>
 #include <assets/ans.h>
 #include <assets/LibBoolEE.h>
 #include <assets/restricteddb.h>
@@ -4860,7 +4861,7 @@ bool CheckNewAsset(const CNewAsset& asset, std::string& strError)
     return true;
 }
 
-bool ContextualCheckNewAsset(CAssetsCache* assetCache, const CNewAsset& asset, std::string& strError, bool fCheckMempool)
+bool ContextualCheckNewAsset(CAssetsCache* assetCache, const CNewAsset& asset, std::string& strError, const CTxMemPool* mempool)
 {
     if (!AreAssetsDeployed()) {
         strError = "bad-txns-new-asset-when-assets-is-not-active";
@@ -4876,11 +4877,13 @@ bool ContextualCheckNewAsset(CAssetsCache* assetCache, const CNewAsset& asset, s
         return false;
     }
 
-    // Check the mempool
-    // TODO: mempool is no longer a global in BTC 30.2. Need to pass CTxMemPool reference.
-    // The mapAssetToHash tracking needs to be integrated with the new mempool architecture.
-    if (fCheckMempool) {
-        // Mempool asset duplicate check disabled until CTxMemPool integration is complete
+    // Check the mempool for a pending transaction that already creates this asset
+    if (mempool) {
+        AssertLockHeld(mempool->cs);
+        if (mempool->mapAssetToHash.count(asset.strName)) {
+            strError = std::string(_("Invalid parameter: asset_name '")) + asset.strName + std::string(_("' is already being created in the mempool"));
+            return false;
+        }
     }
 
     // Check the ipfs hash as it changes when messaging goes active
