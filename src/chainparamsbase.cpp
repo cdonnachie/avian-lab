@@ -34,16 +34,16 @@ const CBaseChainParams& BaseParams()
 }
 
 /**
- * Port numbers for incoming Tor connections (8334, 18334, 38334, 48334, 18445) have
- * been chosen arbitrarily to keep ranges of used ports tight.
+ * RPC port numbers: mainnet 7896 (P2P 7895+1), testnet 18771 (P2P 18770+1).
+ * Testnet4, signet, regtest are stub networks and use Bitcoin Core defaults.
  */
 std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const ChainType chain)
 {
     switch (chain) {
     case ChainType::MAIN:
-        return std::make_unique<CBaseChainParams>("", 8332);
+        return std::make_unique<CBaseChainParams>("", 7896);
     case ChainType::TESTNET:
-        return std::make_unique<CBaseChainParams>("testnet3", 18332);
+        return std::make_unique<CBaseChainParams>("testnet3", 18771);
     case ChainType::TESTNET4:
         return std::make_unique<CBaseChainParams>("testnet4", 48332);
     case ChainType::SIGNET:
