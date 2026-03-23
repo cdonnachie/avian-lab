@@ -83,7 +83,6 @@ extern CLRUCache<std::string, int8_t>* passetsQualifierCache;
 extern CLRUCache<std::string, int8_t>* passetsRestrictionCache;
 extern CLRUCache<std::string, int8_t>* passetsGlobalRestrictionCache;
 extern bool fAssetIndex;
-extern bool g_asset_reindex;
 
 class CAssets {
 public:
@@ -406,6 +405,9 @@ CAmount GetBurnAmount(const int nType);
 //! Functions to be used to get access to the burn address for a given asset type issuance
 std::string GetBurnAddress(const AssetType type);
 std::string GetBurnAddress(const int nType);
+
+//! Check if an address is any of the known asset burn addresses
+bool IsBurnAddress(const std::string& address);
 
 void GetTxOutAssetTypes(const std::vector<CTxOut>& vout, int& issues, int& reissues, int& transfers, int& owners);
 

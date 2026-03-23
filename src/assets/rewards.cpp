@@ -130,7 +130,7 @@ bool GenerateDistributionList(const CRewardSnapshot& p_rewardSnapshot, std::vect
         //  Ignore exception and burn addresses
         if (
                 exceptionAddressSet.find(currPair.first) == exceptionAddressSet.end()
-                && !false /* TODO: IsBurnAddress not yet in CChainParams */
+                && !IsBurnAddress(currPair.first)
                 ) {
             //  Address is valid so add it to the payment list
             nonExceptionOwnerships.insert(OwnerAndAmount(currPair.first, currPair.second));

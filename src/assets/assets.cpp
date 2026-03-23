@@ -72,7 +72,6 @@ CLRUCache<std::string, int8_t>* passetsQualifierCache = nullptr;
 CLRUCache<std::string, int8_t>* passetsRestrictionCache = nullptr;
 CLRUCache<std::string, int8_t>* passetsGlobalRestrictionCache = nullptr;
 bool fAssetIndex = false;
-bool g_asset_reindex = false;
 
 static bool IsUpgradeActive(Consensus::UpgradeIndex idx)
 {
@@ -3431,13 +3430,6 @@ bool IsScriptNewRestrictedAsset(const CScript &scriptPubKey, int &nStartingIndex
 //! Returns a boolean on if the asset exists
 bool CAssetsCache::CheckIfAssetExists(const std::string& name, bool fForceDuplicateCheck)
 {
-    // If we are reindexing, we don't know if an asset exists when accepting blocks
-    // TODO: fReindex is no longer a global in BTC 30.2. Need to pass reindex state from node context.
-    // For now, this flag will be set by init code during reindexing.
-    if (g_asset_reindex) {
-        return true;
-    }
-
     // Create objects that will be used to check the dirty cache
     CNewAsset asset;
     asset.strName = name;
@@ -3790,6 +3782,22 @@ std::string GetBurnAddress(const AssetType type)
         default:
             return "";
     }
+}
+
+bool IsBurnAddress(const std::string& address)
+{
+    if (address.empty()) return false;
+
+    // Global burn address (not tied to any specific AssetType)
+    if (address == "RXBurnXXXXXXXXXXXXXXXXXXXXXXWUo9FV")
+        return true;
+
+    for (int i = 0; i <= static_cast<int>(AssetType::NULL_ADD_QUALIFIER); i++) {
+        std::string burnAddr = GetBurnAddress(static_cast<AssetType>(i));
+        if (!burnAddr.empty() && address == burnAddr)
+            return true;
+    }
+    return false;
 }
 
 //! This will get the amount that an address for a certain asset contains from the database if they cache doesn't already have it
